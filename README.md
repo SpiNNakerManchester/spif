@@ -3,11 +3,17 @@ SpiNNaker high-speed serial interface
 
 This repository contains an FPGA design to interface event-based peripherals, such as event cameras or DVS, to a SpiNNaker system through a High-Speed Serial Link (HSSL).
 
-The repository contains two designs that target different FPGA platforms: the Xilinx ZCU102 development board (ZYNQ Ultrascale+) and the Trenz Electronic TE0715-04-15 board (ZYNQ 7000).
+The repository contains two designs that target different FPGA platforms:
 
-Both platforms connect to the SpiNNaker system using a SATA cable. The design implements the spiNNlink protocol used in SpiNNaker systems for board-to-board interconnect.
+- `spif_on_zu9eg` -- Xilinx ZCU102 development board (ZYNQ Ultrascale+)
+- `spif_on_7z015` -- Trenz Electronic TE0715-04-15 board (ZYNQ 7000).
+- `spif_common`   -- contains the modules that are used in both designs.
 
-The design is built on top of [spI/O](https://github.com/SpiNNakerManchester/spio), the library of FPGA designs and reusable modules for I/O and internal connectivity in SpiNNaker systems.
+The designs are built on top of [spI/O](https://github.com/SpiNNakerManchester/spio), the library of FPGA designs and reusable modules for I/O and internal connectivity in SpiNNaker systems.
+
+The designs were implemented and verified using `Xilinx Vivado version 2019.2`.
+
+Both platforms connect to the SpiNNaker system using a SATA cable and the spiNNlink protocol used in SpiNNaker systems for board-to-board interconnect.
 
 spiNNlink
 ---------
@@ -30,6 +36,8 @@ The design in this repository is largely the work of:
 Acknowledgments
 ---------------
 
-Ongoing development of the SpiNNaker Project is supported by the EU ICT Flagship Human Brain Project under Grant H2020-945539. LA Plana is supported by the RAIN Hub, which is funded by the Industrial Strategy Challenge Fund, part of the government’s modern Industrial Strategy. The fund is delivered by UK Research and Innovation and managed by EPSRC under grant EP/R026084/1.
+This design is being developed as part of a collaboration between the SpiNNaker Group at The University of Manchester and the Neurocomputing Systems Lab at KTH Royal Institute of Technology, Stockholm.
+
+Ongoing development of the SpiNNaker Project is supported by the EU ICT Flagship Human Brain Project under Grant H2020-945539. LA Plana was supported by the RAIN Hub, which is funded by the Industrial Strategy Challenge Fund, part of the government’s modern Industrial Strategy. The fund is delivered by UK Research and Innovation and managed by EPSRC under grant EP/R026084/1.
 
 We gratefully acknowledge these institutions for their support.
