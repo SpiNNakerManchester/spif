@@ -27,10 +27,10 @@
 // supported FPGAs
 //---------------------------------------------------------------
 // Zynq7 on TE0715 board
-`define FPGA_XC7Z015  0
+`define FPGA_XC7Z015  1'b0
 
 // Zynq Ultrascale+ on zcu102 board
-`define FPGA_XCZU9EG  1
+`define FPGA_XCZU9EG  1'b1
 //---------------------------------------------------------------
 
 `endif
