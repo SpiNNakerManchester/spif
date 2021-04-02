@@ -22,7 +22,7 @@ spiNNlink is the high-speed, serial (hss) board-to-board SpiNNaker interconnect.
 
 Verilog code for the spiNNlink modules is located in [spio/modules/hss_multiplexer](https://github.com/SpiNNakerManchester/spio/tree/master/modules/hss_multiplexer). See [spio/designs/spinnaker_fpgas](https://github.com/SpiNNakerManchester/spio/tree/master/designs/spinnaker_fpgas) for an example of how to use spiNNlink.
 
-The following publication describes the SpiNNlink specification and implementation:
+The following open-access publication describes the SpiNNlink specification and implementation:
 
 LA Plana, J Garside, J Heathcote, J Pepper, S Temple, S Davidson, M Luján and S Furber, *spiNNlink: FPGA-Based Interconnect for the Million-Core SpiNNaker System*, in IEEE Access, vol. 8, pp. 84918-84928, 2020, doi: [10.1109/ACCESS.2020.2991038](https://doi.org/10.1109/ACCESS.2020.2991038).
 
@@ -36,7 +36,7 @@ The designs in this repository are largely the work of:
 Acknowledgments
 ---------------
 
-This design is being developed as part of a collaboration between the SpiNNaker Group at The University of Manchester and the Neurocomputing Systems Lab at KTH Royal Institute of Technology, Stockholm.
+The designs in this reposiory are being developed as part of a collaboration between the SpiNNaker Group at The University of Manchester and the Neurocomputing Systems Lab at KTH Royal Institute of Technology, Stockholm.
 
 Ongoing development of the SpiNNaker Project is supported by the EU ICT Flagship Human Brain Project under Grant H2020-945539. LA Plana has been supported, in part, by the RAIN Hub, which is funded by the Industrial Strategy Challenge Fund, part of the government’s modern Industrial Strategy. The fund is delivered by UK Research and Innovation and managed by EPSRC under grant EP/R026084/1.
 
