@@ -29,7 +29,7 @@ LA Plana, J Garside, J Heathcote, J Pepper, S Temple, S Davidson, M Luján and S
 Authors
 -------
 
-The design in this repository is largely the work of:
+The designs in this repository are largely the work of:
 
 * Luis A. Plana (The University of Manchester)
 
