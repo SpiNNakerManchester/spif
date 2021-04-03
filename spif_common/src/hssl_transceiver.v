@@ -96,19 +96,9 @@ module hssl_transceiver
       `FPGA_XC7Z015:
         begin
           //---------------------------------------------------------------
-          // transceiver configuration
-          //---------------------------------------------------------------
-          //---------------------------------------------------------------
-
-
-          //---------------------------------------------------------------
           // GTP transceiver + support modules
           //---------------------------------------------------------------
-          gtp_x0y0_3Gbs_support # (
-              .EXAMPLE_SIM_GTRESET_SPEEDUP    ("TRUE")
-            , .STABLE_CLOCK_PERIOD            (16)
-            )
-          gtp_x0y0_3Gbs_support_inst (
+          gtp_x0y0_3Gbs gtp_x0y0_3Gbs_inst (
               .sysclk_in                      (freerun_clk_in)
             , .soft_reset_tx_in               (1'b0)
             , .soft_reset_rx_in               (1'b0)
@@ -121,75 +111,70 @@ module hssl_transceiver
             , .gt0_tx_fsm_reset_done_out      ()
             , .gt0_rx_fsm_reset_done_out      ()
             , .gt0_data_valid_in              (1'b1)
-
+ 
             , .gt0_txusrclk_out               (tx_usrclk_out)
             , .gt0_txusrclk2_out              (tx_usrclk2_out)
             , .gt0_rxusrclk_out               ()
             , .gt0_rxusrclk2_out              ()
 
-              //----------------------------- Loopback Ports -----------------------------
             , .gt0_loopback_in                (loopback_in)
-              //----------------- Receive Ports - Clock Correction Ports -----------------
+
             , .gt0_rxclkcorcnt_out            ()
-              //---------------- Receive Ports - FPGA RX Interface Ports -----------------
+
             , .gt0_rxdata_out                 (rx_data_out)
-              //---------------- Receive Ports - RX 8B/10B Decoder Ports -----------------
+
             , .gt0_rxchariscomma_out          (rx_chariscomma_out)
             , .gt0_rxcharisk_out              (rx_charisk_out)
             , .gt0_rxdisperr_out              (rx_disperr_out)
             , .gt0_rxnotintable_out           (rx_encerr_out)
-              //---------------------- Receive Ports - RX AFE Ports ----------------------
+
             , .gt0_gtprxn_in                  (rxn_in)
             , .gt0_gtprxp_in                  (rxp_in)
-              //------------ Receive Ports - RX Byte and Word Alignment Ports ------------
+
             , .gt0_rxbyteisaligned_out        ()
             , .gt0_rxcommadet_out             (rx_commadet_out)
             , .gt0_rxmcommaalignen_in         (1'b1)
             , .gt0_rxpcommaalignen_in         (1'b1)
-              //---------- Receive Ports - RX Decision Feedback Equalizer(DFE) -----------
+
             , .gt0_dmonitorout_out            ()
-              //------------------ Receive Ports - RX Equailizer Ports -------------------
+
             , .gt0_rxlpmhfhold_in             (1'b0)
             , .gt0_rxlpmlfhold_in             (1'b0)
-              //------------- Receive Ports - RX Fabric Output Control Ports -------------
+
             , .gt0_rxoutclkfabric_out         ()
-              //----------- Receive Ports - RX Initialization and Reset Ports ------------
-            , .gt0_gtrxreset_in               (1'b0)
+
+            , .gt0_gtrxreset_in               (reset_all_in)
             , .gt0_rxlpmreset_in              (1'b0)
-              //------------ Receive Ports -RX Initialization and Reset Ports ------------
+
             , .gt0_rxresetdone_out            (rx_reset_done_out)
-              //--------------- Receive Ports - RX Polarity Control Ports ----------------
+
             , .gt0_rxpolarity_in              (1'b0)
 
-              //------------------- TX Initialization and Reset Ports --------------------
-            , .gt0_gttxreset_in               (1'b0)
+            , .gt0_gttxreset_in               (reset_all_in)
             , .gt0_txuserrdy_in               (1'b1)
-              //---------------- Transmit Ports - FPGA TX Interface Ports ----------------
+
             , .gt0_txdata_in                  (tx_data_in)
-              //------------------- Transmit Ports - PCI Express Ports -------------------
+
             , .gt0_txelecidle_in              (tx_elecidle_in)
-              //---------------- Transmit Ports - TX 8B/10B Encoder Ports ----------------
+
             , .gt0_txcharisk_in               (tx_charisk_in)
-              //------------- Transmit Ports - TX Configurable Driver Ports --------------
+
             , .gt0_gtptxn_out                 (txn_out)
             , .gt0_gtptxp_out                 (txp_out)
-              //--------- Transmit Ports - TX Fabric Clock Output Control Ports ----------
+
             , .gt0_txoutclkfabric_out         ()
             , .gt0_txoutclkpcs_out            ()
-              //----------- Transmit Ports - TX Initialization and Reset Ports -----------
+
             , .gt0_txresetdone_out            (tx_reset_done_out)
-              //--------------- Transmit Ports - TX Polarity Control Ports ---------------
+
             , .gt0_txpolarity_in              (tx_polarity_in)
 
-              //------------------- RX Initialization and Reset Ports --------------------
             , .gt0_eyescanreset_in            (1'b0)
             , .gt0_rxuserrdy_in               (1'b1)
 
-              //------------------------ RX Margin Analysis Ports ------------------------
             , .gt0_eyescandataerror_out       ()
             , .gt0_eyescantrigger_in          (1'b0)
 
-              //-------------------------- Channel - DRP Ports  --------------------------
             , .gt0_drpaddr_in                 (9'd0)
             , .gt0_drpdi_in                   (16'd0)
             , .gt0_drpdo_out                  ()
@@ -197,7 +182,6 @@ module hssl_transceiver
             , .gt0_drprdy_out                 ()
             , .gt0_drpwe_in                   (1'b0)
 
-              //____________________________COMMON PORTS________________________________
             , .gt0_pll0reset_out              ()
             , .gt0_pll0outclk_out             ()
             , .gt0_pll0outrefclk_out          ()
