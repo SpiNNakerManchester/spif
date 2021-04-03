@@ -100,8 +100,8 @@ module hssl_transceiver
           //---------------------------------------------------------------
           gtp_x0y0_3Gbs gtp_x0y0_3Gbs_inst (
               .sysclk_in                      (freerun_clk_in)
-            , .soft_reset_tx_in               (1'b0)
-            , .soft_reset_rx_in               (1'b0)
+            , .soft_reset_tx_in               (1'b1)
+            , .soft_reset_rx_in               (1'b1)
             , .dont_reset_on_data_error_in    (1'b0)
 
             , .q0_clk1_gtrefclk_pad_n_in      (refclk_pad_n_in)

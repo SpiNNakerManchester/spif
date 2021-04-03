@@ -346,7 +346,7 @@ module dvs_on_hssl_top
     , .tx_elecidle_out                (gt_tx_elecidle_int)
 
       // Gigabit receiver
-    , .rx_reset_datapath              (hi_reset_rx_datapath_int)
+    , .rx_reset_datapath_out          (hi_reset_rx_datapath_int)
     , .rx_data_in                     (gt_rx_data_int)
     , .rx_commadet_in                 (gt_rx_commadet_int)
     , .rx_charisk_in                  (gt_rx_charisk_int)

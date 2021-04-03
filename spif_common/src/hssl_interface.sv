@@ -57,7 +57,7 @@ module hssl_interface
   output wire               [7:0] tx_charisk_out,
   output wire                     tx_elecidle_out,
 
-  output reg                      rx_reset_datapath,
+  output reg                      rx_reset_datapath_out,
   input  wire              [31:0] rx_data_in,
   input  wire                     rx_commadet_in,
   input  wire               [3:0] rx_chariscomma_in,
@@ -269,23 +269,23 @@ module hssl_interface
   // may need to RESET the RX datapath if the SATA cable reconnected
   always @ (posedge clk, posedge reset)
     if (reset)
-      rx_reset_datapath = 1'b0;
+      rx_reset_datapath_out = 1'b0;
     else
       case (loss_of_sync_state_out)
         LOSS_OF_SYNC_ST:
           if (reset_rx_cnt_int >= NUM_CLKC_FOR_RX_RESET)
-            rx_reset_datapath = 1'b0;
+            rx_reset_datapath_out = 1'b0;
 
         RESYNC_ST:
-          if (invalid_data) 
-            rx_reset_datapath = 1'b1;
+          if (invalid_data)
+            rx_reset_datapath_out = 1'b1;
 
         SYNC_ACQUIRED_ST:
           if (invalid_data) 
-            rx_reset_datapath = 1'b1;
+            rx_reset_datapath_out = 1'b1;
 
         default:  // should not happen
-          rx_reset_datapath = 1'b1;
+          rx_reset_datapath_out = 1'b1;
       endcase
   //---------------------------------------------------------------
 
