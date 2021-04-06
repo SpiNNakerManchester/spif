@@ -94,7 +94,7 @@ module dvs_on_hssl_top
   wire        hi_handshake_complete_int;
   wire        hi_version_mismatch_int;
   wire [15:0] hi_idsi_int;
-  wire        hi_reset_rx_datapath_int;
+  wire        hi_rx_reset_datapath_int;
 
   // Gigabit transceiver signals
   wire        gt_freerun_clk_int;
@@ -127,8 +127,8 @@ module dvs_on_hssl_top
   // Virtual I/O signals
   wire        vio_freerun_clk_int;
   wire        vio_reset_all_int;
-  wire        vio_reset_tx_datapath_int;
-  wire        vio_reset_rx_datapath_int;
+  wire        vio_tx_reset_datapath_int;
+  wire        vio_rx_reset_datapath_int;
   wire        vio_tx_polarity_int;
   wire  [2:0] vio_loopback_int;
   //---------------------------------------------------------------
@@ -187,10 +187,10 @@ module dvs_on_hssl_top
 
   assign gt_reset_all_int = tl_reset_all_int;
 
-  assign gt_tx_reset_datapath_int = vio_reset_tx_datapath_int;
+  assign gt_tx_reset_datapath_int = vio_tx_reset_datapath_int;
 
-  assign gt_rx_reset_datapath_int = hi_reset_rx_datapath_int ||
-    vio_reset_rx_datapath_int;
+  assign gt_rx_reset_datapath_int = hi_rx_reset_datapath_int ||
+    vio_rx_reset_datapath_int;
 
   assign hi_reset_int = !gt_tx_reset_done_int || !gt_tx_usrclk_active_int;
 
@@ -207,11 +207,11 @@ module dvs_on_hssl_top
       .peripheral_reset_0       (ps_peripheral_reset_0_int)
     , .pl_clk0_0                (ps_pl_clk0_int)
 
-    // AXI interface clock and reset generated from transceiver block
+      // AXI interface clock and reset generated from transceiver block
     , .s_axi_aresetn_0          (axi_resetn_int)
     , .s_axi_aclk_0             (axi_clk_int)
 
-    // APB interface to register bank
+      // APB interface to register bank
     , .APB_M_0_paddr            (apb_paddr_int)
     , .APB_M_0_penable          (apb_penable_int)
     , .APB_M_0_prdata           (apb_prdata_int)
@@ -221,7 +221,7 @@ module dvs_on_hssl_top
     , .APB_M_0_pwdata           (apb_pwdata_int)
     , .APB_M_0_pwrite           (apb_pwrite_int)
 
-    // AXI stream interface to HSSL multiplexer
+      // AXI stream interface to HSSL multiplexer
     , .AXI_STR_TXD_0_tdata      (evt_data_int)
     , .AXI_STR_TXD_0_tlast      ()
     , .AXI_STR_TXD_0_tvalid     (evt_vld_int)
@@ -346,7 +346,7 @@ module dvs_on_hssl_top
     , .tx_elecidle_out                (gt_tx_elecidle_int)
 
       // Gigabit receiver
-    , .rx_reset_datapath_out          (hi_reset_rx_datapath_int)
+    , .rx_reset_datapath_out          (hi_rx_reset_datapath_int)
     , .rx_data_in                     (gt_rx_data_int)
     , .rx_commadet_in                 (gt_rx_commadet_int)
     , .rx_charisk_in                  (gt_rx_charisk_int)
@@ -436,9 +436,9 @@ module dvs_on_hssl_top
       // virtual control signals
     , .probe_out0       (vio_reset_all_int)
     , .probe_out1       ()
-    , .probe_out2       (vio_reset_tx_datapath_int)
+    , .probe_out2       (vio_tx_reset_datapath_int)
     , .probe_out3       ()
-    , .probe_out4       (vio_reset_rx_datapath_int)
+    , .probe_out4       (vio_rx_reset_datapath_int)
     , .probe_out5       (vio_tx_polarity_int)
     , .probe_out6       (vio_loopback_int)
     );
