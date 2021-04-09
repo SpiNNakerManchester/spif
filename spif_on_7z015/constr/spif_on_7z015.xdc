@@ -3,8 +3,18 @@
 # -- based on UltraScale FPGAs Transceivers Wizard IP example design-level XDC file
 # ----------------------------------------------------------------------------------------------------------------------
 
+# Channel primitive location constraint
+# ----------------------------------------------------------------------------------------------------------------------
+#set_property LOC GTPE2_CHANNEL_X0Y0 [get_cells -hierarchical -filter {NAME =~ *gen_channel_container[26].*gen_gthe4_channel_inst[0].GTHE4_CHANNEL_PRIM_INST}]
+
+# Location constraints for the transceiver differential TX and RX links
+# ----------------------------------------------------------------------------------------------------------------------
+set_property PACKAGE_PIN AB7 [get_ports gt_rxn_in]
+set_property PACKAGE_PIN AA7 [get_ports gt_rxp_in]
+set_property PACKAGE_PIN AB3 [get_ports gt_txn_out]
+set_property PACKAGE_PIN AA3 [get_ports gt_txp_out]
+
 # Location constraints for differential reference clock buffers
-#NOTE: the IP core-level XDC constrains the transceiver channel data pin locations
 # ----------------------------------------------------------------------------------------------------------------------
 set_property PACKAGE_PIN V5 [get_ports gt_refclk_n]
 set_property PACKAGE_PIN U5 [get_ports gt_refclk_p]
@@ -23,6 +33,9 @@ set_property CLOCK_DELAY_GROUP hb_clocks [get_nets pl_clk0_buf_int]
 set_property CLOCK_DELAY_GROUP hb_clocks [get_nets tl_freerun_clk_int]
 
 # False path constraints
+set_false_path -from [get_clocks tl_freerun_clk_int] -to [get_clocks clkout0]
+set_false_path -from [get_clocks clkout0] -to [get_clocks tl_freerun_clk_int]
+
 #NOTE: synchronisation flip-flops
 # ----------------------------------------------------------------------------------------------------------------------
 set_false_path -to [get_cells -hierarchical -filter {NAME =~ *bit_synchronizer*inst/i_in_meta_reg}] -quiet
