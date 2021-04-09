@@ -100,8 +100,8 @@ module hssl_transceiver
           //---------------------------------------------------------------
           gtp_x0y0_3Gbs gtp_x0y0_3Gbs_inst (
               .sysclk_in                      (freerun_clk_in)
-            , .soft_reset_tx_in               (1'b1)
-            , .soft_reset_rx_in               (1'b1)
+            , .soft_reset_tx_in               (reset_all_in)
+            , .soft_reset_rx_in               (reset_all_in)
             , .dont_reset_on_data_error_in    (1'b0)
 
             , .q0_clk1_gtrefclk_pad_n_in      (refclk_pad_n_in)
@@ -143,14 +143,14 @@ module hssl_transceiver
 
             , .gt0_rxoutclkfabric_out         ()
 
-            , .gt0_gtrxreset_in               (reset_all_in)
+            , .gt0_gtrxreset_in               (rx_reset_datapath_in)
             , .gt0_rxlpmreset_in              (1'b0)
 
             , .gt0_rxresetdone_out            (rx_reset_done_out)
 
             , .gt0_rxpolarity_in              (1'b0)
 
-            , .gt0_gttxreset_in               (reset_all_in)
+            , .gt0_gttxreset_in               (tx_reset_datapath_in)
             , .gt0_txuserrdy_in               (1'b1)
 
             , .gt0_txdata_in                  (tx_data_in)
