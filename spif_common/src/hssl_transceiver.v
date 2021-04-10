@@ -96,12 +96,27 @@ module hssl_transceiver
       `FPGA_XC7Z015:
         begin
           //---------------------------------------------------------------
+          // reset signals
+          //---------------------------------------------------------------
+          wire gtp_tx_soft_reset_int;
+          wire gtp_rx_soft_reset_int;
+          wire gtp_tx_reset_int;
+          wire gtp_rx_reset_int;
+
+          assign gtp_tx_soft_reset_int = reset_all_in || rx_reset_datapath_in;
+          assign gtp_rx_soft_reset_int = reset_all_in || rx_reset_datapath_in;
+          assign gtp_tx_reset_int      = 1'b0;
+          assign gtp_rx_reset_int      = 1'b0;
+          //---------------------------------------------------------------
+
+
+          //---------------------------------------------------------------
           // GTP transceiver + support modules
           //---------------------------------------------------------------
           gtp_x0y0_3Gbs gtp_x0y0_3Gbs_inst (
               .sysclk_in                      (freerun_clk_in)
-            , .soft_reset_tx_in               (reset_all_in)
-            , .soft_reset_rx_in               (reset_all_in)
+            , .soft_reset_tx_in               (gtp_tx_soft_reset_int)
+            , .soft_reset_rx_in               (gtp_rx_soft_reset_int)
             , .dont_reset_on_data_error_in    (1'b0)
 
             , .q0_clk1_gtrefclk_pad_n_in      (refclk_pad_n_in)
@@ -143,14 +158,14 @@ module hssl_transceiver
 
             , .gt0_rxoutclkfabric_out         ()
 
-            , .gt0_gtrxreset_in               (rx_reset_datapath_in)
+            , .gt0_gtrxreset_in               (gtp_rx_reset_int)
             , .gt0_rxlpmreset_in              (1'b0)
 
             , .gt0_rxresetdone_out            (rx_reset_done_out)
 
             , .gt0_rxpolarity_in              (1'b0)
 
-            , .gt0_gttxreset_in               (tx_reset_datapath_in)
+            , .gt0_gttxreset_in               (gtp_tx_reset_int)
             , .gt0_txuserrdy_in               (1'b1)
 
             , .gt0_txdata_in                  (tx_data_in)
@@ -220,6 +235,8 @@ module hssl_transceiver
           //---------------------------------------------------------------
           wire [0:0] gth_txpmaresetdone_int;
           wire [0:0] gth_rxpmaresetdone_int;
+          wire       gth_userclk_tx_reset_int;
+          wire       gth_userclk_rx_reset_int;
 
           assign gth_userclk_tx_reset_int = ~(&gth_txpmaresetdone_int);
           assign gth_userclk_rx_reset_int = ~(&gth_rxpmaresetdone_int);
