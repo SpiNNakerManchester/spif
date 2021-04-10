@@ -23,6 +23,9 @@
 //  * everything
 // -------------------------------------------------------------------------
 
+`include "dvs_on_hssl_top.h"
+
+
 `timescale 1ps/1ps
 module dvs_on_hssl_top_tb ();
 
@@ -30,7 +33,7 @@ module dvs_on_hssl_top_tb ();
   // testbench constants
   //---------------------------------------------------------------
   // Gigabit transceiver reference clock period
-  localparam GT_CLK_PERIOD = 6734;  // picoseconds
+  localparam GT_CLK_PERIOD = `MGTCLK_PERIOD;  // picoseconds
   //---------------------------------------------------------------
 
 

@@ -20,17 +20,41 @@
 // -------------------------------------------------------------------------
 
 
-`ifndef SPINNAKER_FPGAS_TOP_H
-`define SPINNAKER_FPGAS_TOP_H
+`ifndef DVS_ON_HSSL_TOP_H
+`define DVS_ON_HSSL_TOP_H
+
+//---------------------------------------------------------------
+// FPGA selection
+//NOTE: un-comment the required FPGA `define
+//---------------------------------------------------------------
+//`define TARGET_XC7Z015   // Zynq7 on TE0715 board
+//`define TARGET_XCZU9EG   // Zynq Ultrascale+ on zcu102 board
+//---------------------------------------------------------------
 
 //---------------------------------------------------------------
 // supported FPGAs
 //---------------------------------------------------------------
-// Zynq7 on TE0715 board
-`define FPGA_XC7Z015  1'b0
+`define FPGA_XC7Z015  1    // Zynq7 on TE0715 board
+`define FPGA_XCZU9EG  2    // Zynq Ultrascale+ on zcu102 board
 
-// Zynq Ultrascale+ on zcu102 board
-`define FPGA_XCZU9EG  1'b1
+`define FPGA_UNKNOWN  0    // unsupported FPGA
+//---------------------------------------------------------------
+
+//---------------------------------------------------------------
+// FPGA-dependent parameters
+//---------------------------------------------------------------
+`ifdef TARGET_XC7Z015
+  // Zynq7 on TE0715 board
+  `define FPGA_MODEL    `FPGA_XC7Z015
+  `define MGTCLK_PERIOD 6667
+`elsif TARGET_XCZU9EG
+  // Zynq Ultrascale+ on zcu102 board
+  `define FPGA_MODEL    `FPGA_XCZU9EG
+  `define MGTCLK_PERIOD 6734
+`else
+  // unsupported FPGA
+  `define FPGA_MODEL    `FPGA_UNKNOWN
+`endif
 //---------------------------------------------------------------
 
 `endif

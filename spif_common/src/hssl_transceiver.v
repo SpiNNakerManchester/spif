@@ -313,6 +313,11 @@ module hssl_transceiver
             );
           //---------------------------------------------------------------
         end
+
+      default:
+        begin
+          $fatal(1, "unsupported FPGA - aborting");
+        end
     endcase
   endgenerate
 
