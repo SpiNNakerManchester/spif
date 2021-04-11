@@ -36,7 +36,7 @@ The designs in this repository are largely the work of:
 Acknowledgments
 ---------------
 
-The designs in this reposiory are being developed as part of a collaboration between the SpiNNaker Group at The University of Manchester and the Neurocomputing Systems Lab at KTH Royal Institute of Technology, Stockholm.
+The designs in this reposiory are being developed as part of a collaboration between the Advanced Processor Technologies group at The University of Manchester and the Neurocomputing Systems Lab at KTH Royal Institute of Technology, Stockholm.
 
 Ongoing development of the SpiNNaker Project is supported by the EU ICT Flagship Human Brain Project under Grant H2020-945539. LA Plana has been supported, in part, by the RAIN Hub, which is funded by the Industrial Strategy Challenge Fund, part of the government’s modern Industrial Strategy. The fund is delivered by UK Research and Innovation and managed by EPSRC under grant EP/R026084/1.
 
