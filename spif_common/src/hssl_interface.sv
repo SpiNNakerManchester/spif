@@ -47,7 +47,6 @@ module hssl_interface
   input  wire                     rxpkt_rdy_in   [NUM_CHANNELS - 1:0],
 
   output reg                [1:0] loss_of_sync_state_out,
-  output wire                     loss_reset_out,
   output wire                     handshake_complete_out,
   output wire                     version_mismatch_out,
 
@@ -269,9 +268,6 @@ module hssl_interface
         default:  // should never happen
           loss_of_sync_state_out <= LOSS_OF_SYNC_ST;
       endcase
-
-  // may need to reset RX if handshake not completed in time
-  assign hi_loss_reset_int = 1'b0;
   //---------------------------------------------------------------
 
 

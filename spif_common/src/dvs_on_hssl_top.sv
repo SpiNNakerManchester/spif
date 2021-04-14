@@ -118,7 +118,6 @@ module dvs_on_hssl_top
   wire  [1:0] hi_loss_of_sync_int;
   wire        hi_handshake_complete_int;
   wire        hi_version_mismatch_int;
-  wire        hi_loss_reset_int;
   wire [15:0] hi_idsi_int;
 
   // Gigabit transceiver signals
@@ -211,8 +210,7 @@ module dvs_on_hssl_top
 
   assign gt_tx_reset_datapath_int = vio_tx_reset_datapath_int;
 
-  assign gt_rx_reset_datapath_int = hi_loss_reset_int ||
-    vio_rx_reset_datapath_int;
+  assign gt_rx_reset_datapath_int = vio_rx_reset_datapath_int;
 
   assign hi_reset_int = !gt_tx_reset_done_int || !gt_tx_usrclk_active_int;
 
@@ -381,7 +379,6 @@ module dvs_on_hssl_top
 
       // interface status and control
     , .loss_of_sync_state_out         (hi_loss_of_sync_int)
-    , .loss_reset_out                 (hi_loss_reset_int)
     , .handshake_complete_out         (hi_handshake_complete_int)
     , .version_mismatch_out           (hi_version_mismatch_int)
 
@@ -449,6 +446,7 @@ module dvs_on_hssl_top
 
       // GT control and status ports
     , .loopback_in                  (vio_loopback_int)
+    , .handshake_complete_in        (hi_handshake_complete_int)
     );
   //---------------------------------------------------------------
 
@@ -466,7 +464,7 @@ module dvs_on_hssl_top
     , .probe_in3        ()
 
       // transceiver probes
-    , .probe_in4        (hi_loss_reset_int)
+    , .probe_in4        ()
     , .probe_in5        ()
     , .probe_in6        ()
     , .probe_in7        (gt_tx_reset_done_int)

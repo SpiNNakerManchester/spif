@@ -75,13 +75,51 @@ module hssl_transceiver
   output wire         rx_bufstatus_out,
 
   // GT control and status
-  input  wire   [2:0] loopback_in
+  input  wire   [2:0] loopback_in,
+  input  wire         handshake_complete_in
 );
 
   //---------------------------------------------------------------
   // internal signals
   //---------------------------------------------------------------
   genvar i;
+  //---------------------------------------------------------------
+
+
+  //---------------------------------------------------------------
+  // may need to reset transceiver if the handshake is not completed
+  // can happen if the interface or SpiNNaker are power-cycled
+  //---------------------------------------------------------------
+  localparam LEN_HSR          = 16;
+  localparam LRB              = $clog2(LEN_HSR + 1);
+
+  localparam NUM_CLKC_FOR_HSR = 75000000;
+  localparam HSB              = $clog2(NUM_CLKC_FOR_HSR + 1);
+
+  // keep track of the number of clock cycles without handshake
+  reg [HSB : 0] hsr_cnt_int;
+  always @ (posedge freerun_clk_in, posedge reset_all_in)
+    if (reset_all_in)
+      hsr_cnt_int <= 0;
+    else
+      if (handshake_complete_in || hsr_reset_int)
+        hsr_cnt_int <= 0;
+      else
+        hsr_cnt_int <= hsr_cnt_int + 1;
+
+  // trigger a reset pulse if waited for too long
+  reg [LRB : 0] hsr_pulse_int;
+  always @ (posedge freerun_clk_in, posedge reset_all_in)
+    if (reset_all_in)
+      hsr_pulse_int <= 0;
+    else
+      if (hsr_pulse_int != 0)
+        hsr_pulse_int <= hsr_pulse_int - 1;
+      else if (hsr_cnt_int == NUM_CLKC_FOR_HSR)
+        hsr_pulse_int <= LEN_HSR;
+
+  wire hsr_reset_int;
+  assign hsr_reset_int = (hsr_pulse_int != 0);
   //---------------------------------------------------------------
 
 
@@ -101,8 +139,8 @@ module hssl_transceiver
           wire gtp_tx_reset_int;
           wire gtp_rx_reset_int;
 
-          assign gtp_tx_soft_reset_int = tx_reset_datapath_in;
-          assign gtp_rx_soft_reset_int = rx_reset_datapath_in;
+          assign gtp_tx_soft_reset_int = tx_reset_datapath_in || hsr_reset_int;
+          assign gtp_rx_soft_reset_int = rx_reset_datapath_in || hsr_reset_int;
           assign gtp_tx_reset_int      = reset_all_in;
           assign gtp_rx_reset_int      = reset_all_in;
           //---------------------------------------------------------------
@@ -235,10 +273,14 @@ module hssl_transceiver
           wire [0:0] gth_rxpmaresetdone_int;
           wire       gth_userclk_tx_reset_int;
           wire       gth_userclk_rx_reset_int;
+          wire       gth_rx_reset_datapath_int;
 
           // reset clock modules until clock source is stable
-          assign gth_userclk_tx_reset_int = ~(&gth_txpmaresetdone_int);
-          assign gth_userclk_rx_reset_int = ~(&gth_rxpmaresetdone_int);
+          assign gth_userclk_tx_reset_int  = ~(&gth_txpmaresetdone_int);
+          assign gth_userclk_rx_reset_int  = ~(&gth_rxpmaresetdone_int);
+
+          assign gth_rx_reset_datapath_int =
+            rx_reset_datapath_in || hsr_reset_int;
           //---------------------------------------------------------------
 
 
@@ -297,7 +339,7 @@ module hssl_transceiver
               , .txpmaresetdone_out                      (gth_txpmaresetdone_int)
 
               , .gtwiz_reset_rx_pll_and_datapath_in      (1'b0)
-              , .gtwiz_reset_rx_datapath_in              (rx_reset_datapath_in)
+              , .gtwiz_reset_rx_datapath_in              (gth_rx_reset_datapath_int)
               , .gtwiz_reset_rx_done_out                 (rx_reset_done_out)
               , .gtwiz_reset_rx_cdr_stable_out           ()
               , .rxpmaresetdone_out                      (gth_rxpmaresetdone_int)
