@@ -29,10 +29,10 @@ module hssl_interface
 #(
   parameter PACKET_BITS           = 72,
   parameter NUM_CHANNELS          = 8,
-  parameter NUM_CLKC_FOR_LOSS     = 128,
+
   parameter NUM_CLKC_FOR_SYNC     = 4,
-  parameter NUM_CLKC_FOR_RX_RESET = 4,
-  parameter NUM_CLKC_FOR_IDLE     = 1000
+  parameter NUM_VLD_PER_INV       = 4,
+  parameter NUM_INV_FOR_LOSS      = 8
 )
 (
   input  wire                     clk,
@@ -47,6 +47,7 @@ module hssl_interface
   input  wire                     rxpkt_rdy_in   [NUM_CHANNELS - 1:0],
 
   output reg                [1:0] loss_of_sync_state_out,
+  output wire                     loss_reset_out,
   output wire                     handshake_complete_out,
   output wire                     version_mismatch_out,
 
@@ -55,9 +56,7 @@ module hssl_interface
 
   output wire              [31:0] tx_data_out,
   output wire               [7:0] tx_charisk_out,
-  output wire                     tx_elecidle_out,
 
-  output reg                      rx_reset_datapath_out,
   input  wire              [31:0] rx_data_in,
   input  wire                     rx_commadet_in,
   input  wire               [3:0] rx_chariscomma_in,
@@ -211,27 +210,43 @@ module hssl_interface
   wire invalid_data = (|rx_disperr_in) || (|rx_encerr_in);
 
   // keep track of clock cycles spent in RESYNC
-  reg [7:0] loss_of_sync_cnt_int;
+  localparam RB = $clog2(NUM_CLKC_FOR_SYNC + 1);
+  reg [RB : 0] resync_cnt_int;
   always @ (posedge clk, posedge reset)
     if (reset)
-      loss_of_sync_cnt_int <= 0;
+      resync_cnt_int <= 0;
     else
       case (loss_of_sync_state_out)
         RESYNC_ST:
-          loss_of_sync_cnt_int <= loss_of_sync_cnt_int + 1;
-
-        SYNC_ACQUIRED_ST:
-          if (!handshake_complete_out)
-            loss_of_sync_cnt_int <= loss_of_sync_cnt_int + 1;
-          else
-            loss_of_sync_cnt_int <= 0;
+          resync_cnt_int <= resync_cnt_int + 1;
 
         default:
-          loss_of_sync_cnt_int <= 0;
+          resync_cnt_int <= 0;
       endcase
 
-  // sync acquired after NUM_CLKC_FOR_SYNC clock cycles in RESYNC
-  //NOTE: check conditions for loss of sync!
+  // keep track of "uncancelled" invalid data flits
+  // received in SYNC_AQUIRED. NUM_VLD_PER_INV valid
+  // data flits cancel an invalid data one.
+  localparam IB = $clog2(NUM_INV_FOR_LOSS + 1);
+  reg [IB : 0] inv_cnt_int;
+  always @ (posedge clk, posedge reset)
+    if (reset)
+      inv_cnt_int <= 0;
+    else
+      case (loss_of_sync_state_out)
+        SYNC_ACQUIRED_ST:
+          if (invalid_data)
+            inv_cnt_int <= inv_cnt_int + NUM_VLD_PER_INV;
+          else if (rcvd_vld_int && (inv_cnt_int != 0))
+            inv_cnt_int <= inv_cnt_int - 1;
+
+        default:
+          inv_cnt_int <= 0;
+      endcase
+
+  // sync acquired after NUM_CLKC_FOR_SYNC clock cycles
+  // in RESYNC after valid data arrived
+  //TODO: check for comma realignment in SYNC_AQUIRED
   always @ (posedge clk, posedge reset)
     if (reset)
       loss_of_sync_state_out <= LOSS_OF_SYNC_ST;
@@ -244,50 +259,19 @@ module hssl_interface
         RESYNC_ST:
           if (invalid_data)
             loss_of_sync_state_out <= LOSS_OF_SYNC_ST;
-          else if (loss_of_sync_cnt_int >= NUM_CLKC_FOR_SYNC)
+          else if (resync_cnt_int >= NUM_CLKC_FOR_SYNC)
             loss_of_sync_state_out <= SYNC_ACQUIRED_ST;
 
         SYNC_ACQUIRED_ST:
-          if (invalid_data || (loss_of_sync_cnt_int >= NUM_CLKC_FOR_LOSS))
+          if (inv_cnt_int >= NUM_INV_FOR_LOSS)
             loss_of_sync_state_out <= LOSS_OF_SYNC_ST;
 
         default:  // should never happen
           loss_of_sync_state_out <= LOSS_OF_SYNC_ST;
       endcase
 
-  // keep track of clock cycles spent in RX RESET
-  reg [2:0] reset_rx_cnt_int;
-  always @ (posedge clk, posedge reset)
-    if (reset)
-      reset_rx_cnt_int <= 0;
-    else
-      case (loss_of_sync_state_out)
-        LOSS_OF_SYNC_ST: reset_rx_cnt_int <= reset_rx_cnt_int + 1;
-
-        default:         reset_rx_cnt_int <= 0;
-      endcase
-
-  // may need to RESET the RX datapath if the SATA cable reconnected
-  always @ (posedge clk, posedge reset)
-    if (reset)
-      rx_reset_datapath_out <= 1'b0;
-    else
-      case (loss_of_sync_state_out)
-        LOSS_OF_SYNC_ST:
-          if (reset_rx_cnt_int >= NUM_CLKC_FOR_RX_RESET)
-            rx_reset_datapath_out <= 1'b0;
-
-        RESYNC_ST:
-          if (invalid_data)
-            rx_reset_datapath_out <= 1'b1;
-
-        SYNC_ACQUIRED_ST:
-          if (invalid_data) 
-            rx_reset_datapath_out <= 1'b1;
-
-        default:  // should not happen
-          rx_reset_datapath_out <= 1'b1;
-      endcase
+  // may need to reset RX if handshake not completed in time
+  assign hi_loss_reset_int = 1'b0;
   //---------------------------------------------------------------
 
 
@@ -314,18 +298,6 @@ module hssl_interface
     , .TXVLD_IN               (trmt_vld_int)
     , .TXRDY_OUT              (trmt_rdy_int)
     );
-
-  // make transmitter electrically idle after
-  // reset to indicate reset to far receiver
-  reg [9:0] idle_cnt_int;
-  always @ (posedge clk, posedge reset)
-    if (reset)
-      idle_cnt_int <= NUM_CLKC_FOR_IDLE;
-    else
-      if (idle_cnt_int != 0)
-        idle_cnt_int <= idle_cnt_int - 1;
-
-  assign tx_elecidle_out = (idle_cnt_int != 0);
   //---------------------------------------------------------------
 
 

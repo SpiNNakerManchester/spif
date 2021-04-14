@@ -75,8 +75,6 @@ module hssl_transceiver
   output wire         rx_bufstatus_out,
 
   // GT control and status
-  input  wire         tx_elecidle_in,
-  input  wire         tx_polarity_in,
   input  wire   [2:0] loopback_in
 );
 
@@ -103,10 +101,10 @@ module hssl_transceiver
           wire gtp_tx_reset_int;
           wire gtp_rx_reset_int;
 
-          assign gtp_tx_soft_reset_int = reset_all_in || rx_reset_datapath_in;
-          assign gtp_rx_soft_reset_int = reset_all_in || rx_reset_datapath_in;
-          assign gtp_tx_reset_int      = 1'b0;
-          assign gtp_rx_reset_int      = 1'b0;
+          assign gtp_tx_soft_reset_int = tx_reset_datapath_in;
+          assign gtp_rx_soft_reset_int = rx_reset_datapath_in;
+          assign gtp_tx_reset_int      = reset_all_in;
+          assign gtp_rx_reset_int      = reset_all_in;
           //---------------------------------------------------------------
 
 
@@ -170,7 +168,7 @@ module hssl_transceiver
 
             , .gt0_txdata_in                  (tx_data_in)
 
-            , .gt0_txelecidle_in              (tx_elecidle_in)
+            , .gt0_txelecidle_in              (1'b0)
 
             , .gt0_txcharisk_in               (tx_charisk_in)
 
@@ -182,7 +180,7 @@ module hssl_transceiver
 
             , .gt0_txresetdone_out            (tx_reset_done_out)
 
-            , .gt0_txpolarity_in              (tx_polarity_in)
+            , .gt0_txpolarity_in              (1'b0)
 
             , .gt0_eyescanreset_in            (1'b0)
             , .gt0_rxuserrdy_in               (1'b1)
@@ -238,6 +236,7 @@ module hssl_transceiver
           wire       gth_userclk_tx_reset_int;
           wire       gth_userclk_rx_reset_int;
 
+          // reset clock modules until clock source is stable
           assign gth_userclk_tx_reset_int = ~(&gth_txpmaresetdone_int);
           assign gth_userclk_rx_reset_int = ~(&gth_rxpmaresetdone_int);
           //---------------------------------------------------------------
@@ -311,7 +310,7 @@ module hssl_transceiver
               , .txctrl1_in                              (16'h0000)
               , .txctrl2_in                              (gth_txctrl2_int)
 
-              , .txelecidle_in                           (tx_elecidle_in)
+              , .txelecidle_in                           (1'b0)
 
               , .rx8b10ben_in                            (1'b1)
               , .rxbufreset_in                           (1'b0)

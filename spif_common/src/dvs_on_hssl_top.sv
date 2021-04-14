@@ -118,8 +118,8 @@ module dvs_on_hssl_top
   wire  [1:0] hi_loss_of_sync_int;
   wire        hi_handshake_complete_int;
   wire        hi_version_mismatch_int;
+  wire        hi_loss_reset_int;
   wire [15:0] hi_idsi_int;
-  wire        hi_rx_reset_datapath_int;
 
   // Gigabit transceiver signals
   wire        gt_freerun_clk_int;
@@ -137,8 +137,6 @@ module dvs_on_hssl_top
   wire [31:0] gt_tx_data_int;
   wire  [3:0] gt_tx_charisk_int;
 
-  wire        gt_tx_elecidle_int;
-
   wire        gt_rx_usrclk_int;
   wire        gt_rx_usrclk2_int;
   wire [31:0] gt_rx_data_int;
@@ -154,7 +152,6 @@ module dvs_on_hssl_top
   wire        vio_reset_all_int;
   wire        vio_tx_reset_datapath_int;
   wire        vio_rx_reset_datapath_int;
-  wire        vio_tx_polarity_int;
   wire  [2:0] vio_loopback_int;
   //---------------------------------------------------------------
 
@@ -214,7 +211,7 @@ module dvs_on_hssl_top
 
   assign gt_tx_reset_datapath_int = vio_tx_reset_datapath_int;
 
-  assign gt_rx_reset_datapath_int = hi_rx_reset_datapath_int ||
+  assign gt_rx_reset_datapath_int = hi_loss_reset_int ||
     vio_rx_reset_datapath_int;
 
   assign hi_reset_int = !gt_tx_reset_done_int || !gt_tx_usrclk_active_int;
@@ -384,6 +381,7 @@ module dvs_on_hssl_top
 
       // interface status and control
     , .loss_of_sync_state_out         (hi_loss_of_sync_int)
+    , .loss_reset_out                 (hi_loss_reset_int)
     , .handshake_complete_out         (hi_handshake_complete_int)
     , .version_mismatch_out           (hi_version_mismatch_int)
 
@@ -393,10 +391,8 @@ module dvs_on_hssl_top
       // Gigabit transmitter
     , .tx_data_out                    (gt_tx_data_int)
     , .tx_charisk_out                 (gt_tx_charisk_int)
-    , .tx_elecidle_out                (gt_tx_elecidle_int)
 
       // Gigabit receiver
-    , .rx_reset_datapath_out          (hi_rx_reset_datapath_int)
     , .rx_data_in                     (gt_rx_data_int)
     , .rx_commadet_in                 (gt_rx_commadet_int)
     , .rx_charisk_in                  (gt_rx_charisk_int)
@@ -452,8 +448,6 @@ module dvs_on_hssl_top
     , .rx_bufstatus_out             (gt_rx_bufstatus_int)
 
       // GT control and status ports
-    , .tx_elecidle_in               (gt_tx_elecidle_int)
-    , .tx_polarity_in               (vio_tx_polarity_int)
     , .loopback_in                  (vio_loopback_int)
     );
   //---------------------------------------------------------------
@@ -469,10 +463,10 @@ module dvs_on_hssl_top
     , .probe_in0        (hi_loss_of_sync_int)
     , .probe_in1        (hi_handshake_complete_int)
     , .probe_in2        (hi_version_mismatch_int)
-    , .probe_in3        ({3'b000, gt_tx_elecidle_int})
+    , .probe_in3        ()
 
       // transceiver probes
-    , .probe_in4        ()
+    , .probe_in4        (hi_loss_reset_int)
     , .probe_in5        ()
     , .probe_in6        ()
     , .probe_in7        (gt_tx_reset_done_int)
@@ -489,7 +483,7 @@ module dvs_on_hssl_top
     , .probe_out2       (vio_tx_reset_datapath_int)
     , .probe_out3       ()
     , .probe_out4       (vio_rx_reset_datapath_int)
-    , .probe_out5       (vio_tx_polarity_int)
+    , .probe_out5       ()
     , .probe_out6       (vio_loopback_int)
     );
   //---------------------------------------------------------------
