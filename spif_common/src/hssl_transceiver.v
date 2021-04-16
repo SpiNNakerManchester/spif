@@ -90,7 +90,7 @@ module hssl_transceiver
   // may need to reset transceiver if the handshake is not completed
   // can happen if the interface or SpiNNaker are power-cycled
   //---------------------------------------------------------------
-  localparam LEN_HSR          = 16;
+  localparam LEN_HSR          = 128;
   localparam LRB              = $clog2(LEN_HSR + 1);
 
   localparam NUM_CLKC_FOR_HSR = 75000000;
@@ -273,14 +273,24 @@ module hssl_transceiver
           wire [0:0] gth_rxpmaresetdone_int;
           wire       gth_userclk_tx_reset_int;
           wire       gth_userclk_rx_reset_int;
-          wire       gth_rx_reset_datapath_int;
 
           // reset clock modules until clock source is stable
           assign gth_userclk_tx_reset_int  = ~(&gth_txpmaresetdone_int);
           assign gth_userclk_rx_reset_int  = ~(&gth_rxpmaresetdone_int);
 
+          // may need to reset transceiver if handshake not completed
+          wire       gth_tx_reset_datapath_int;
+          wire       gth_rx_reset_datapath_int;
+
+          assign gth_tx_reset_datapath_int =
+            tx_reset_datapath_in || hsr_reset_int;
+
           assign gth_rx_reset_datapath_int =
             rx_reset_datapath_in || hsr_reset_int;
+
+          //NOTE: let the other side know that we're resetting
+          wire gth_tx_elec_idle_int;
+          assign gth_tx_elec_idle_int = hsr_reset_int;
           //---------------------------------------------------------------
 
 
@@ -334,7 +344,7 @@ module hssl_transceiver
               , .gtwiz_userclk_rx_active_out             ()
 
               , .gtwiz_reset_tx_pll_and_datapath_in      (1'b0)
-              , .gtwiz_reset_tx_datapath_in              (tx_reset_datapath_in)
+              , .gtwiz_reset_tx_datapath_in              (gth_tx_reset_datapath_int)
               , .gtwiz_reset_tx_done_out                 (tx_reset_done_out)
               , .txpmaresetdone_out                      (gth_txpmaresetdone_int)
 
@@ -352,7 +362,7 @@ module hssl_transceiver
               , .txctrl1_in                              (16'h0000)
               , .txctrl2_in                              (gth_txctrl2_int)
 
-              , .txelecidle_in                           (1'b0)
+              , .txelecidle_in                           (gth_tx_elec_idle_int)
 
               , .rx8b10ben_in                            (1'b1)
               , .rxbufreset_in                           (1'b0)
