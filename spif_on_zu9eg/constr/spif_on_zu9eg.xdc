@@ -36,7 +36,7 @@ set_false_path -to [get_pins -filter REF_PIN_NAME=~*PRE -of_objects [get_cells -
 
 
 set_false_path -to [get_cells -hierarchical -filter {NAME =~ *gtwiz_userclk_tx_inst/*gtwiz_userclk_tx_active_*_reg}] -quiet
-set_false_path -to [get_cells -hierarchical -filter {NAME =~ *gtwiz_userclk_rx_inst/*gtwiz_userclk_rx_active_*_reg}] -quiet
+
 
 # debug hub interfaces to the virtual IO block
 # ----------------------------------------------------------------------------------------------------------------------

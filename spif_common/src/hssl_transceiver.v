@@ -96,6 +96,8 @@ module hssl_transceiver
   localparam NUM_CLKC_FOR_HSR = 75000000;
   localparam HSB              = $clog2(NUM_CLKC_FOR_HSR + 1);
 
+  wire hsr_reset_int;
+
   // keep track of the number of clock cycles without handshake
   reg [HSB : 0] hsr_cnt_int;
   always @ (posedge freerun_clk_in, posedge reset_all_in)
@@ -118,7 +120,6 @@ module hssl_transceiver
       else if (hsr_cnt_int == NUM_CLKC_FOR_HSR)
         hsr_pulse_int <= LEN_HSR;
 
-  wire hsr_reset_int;
   assign hsr_reset_int = (hsr_pulse_int != 0);
   //---------------------------------------------------------------
 
