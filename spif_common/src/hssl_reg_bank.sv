@@ -83,7 +83,6 @@ module hssl_reg_bank
         2'd2: apb_prdata_out <= reg_mask_out[reg_num];
         2'd3: apb_prdata_out <= reg_route_out[reg_num];
       endcase
-      ;
 
   // APB status
   assign apb_pready_out  =  1'b1;
