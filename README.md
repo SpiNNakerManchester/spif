@@ -31,7 +31,7 @@ Authors
 
 The designs in this repository are largely the work of:
 
-* Luis A. Plana (The University of Manchester)
+* LA Plana (The University of Manchester)
 
 with input from J Conradt (KTH), JE Pedersen (KTH), JP Romero Bermúdez (KTH), AG Rowley (UManchester), S Davidson (UManchester) and O Rhodes (UManchester).
 
