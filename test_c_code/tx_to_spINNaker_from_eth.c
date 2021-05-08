@@ -139,7 +139,7 @@ int setup_eth_srv (int eth_port) {
   // open data stream for Ethernet READ
   data_strm = fdopen (sckt_cli, "r");
   if (data_strm == NULL) {
-    printf ("error: cannot open raw event stream\n");
+    printf ("error: cannot open raw data stream\n");
     return (-1);
   }
 
@@ -189,7 +189,7 @@ int main (int argc, char * argv[])
   // get initial processing timer value as reference
   clock_gettime(CLOCK_MONOTONIC, &proc_first);
 
-  // iterate over the entire event file
+  // iterate until the data stream is empty
   uint data_items;
   while (data_items = get_raw_data_batch ()) {
     // wait until AXI transmitter has room for data batch
@@ -198,7 +198,7 @@ int main (int argc, char * argv[])
     while (axi_registers[3] < data_items) {
       wc++;
       if (wc < 0) {
-	exit (-1);
+        exit (-1);
       }
     }
 
@@ -210,7 +210,7 @@ int main (int argc, char * argv[])
     // write length of data batch (in bytes!)
     axi_registers[5] = data_items * sizeof (uint);
 
-    // stats: total event data items and wait cycles
+    // stats: total data items and wait cycles
     total_data += data_items;
     wait_cycles += wc;
   }
@@ -222,7 +222,7 @@ int main (int argc, char * argv[])
   proc_dif += pd2;
 
   // report total_data, wait cycles and elapsed processing ticks
-  printf ("raw events  = %lu\n", total_data);
+  printf ("data items  = %lu\n", total_data);
   printf ("wait cycles = %lu\n", wait_cycles);
   printf ("proc ticks  = %lu\n", proc_dif);
 
