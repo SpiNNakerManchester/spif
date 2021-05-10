@@ -8,7 +8,7 @@
 
 //---------------------------------------------------------------
 // FPGA selection
-//NOTE: un-comment the required FPGA `define
+//NOTE: un-comment the required FPGA #define
 //---------------------------------------------------------------
 //#define TARGET_XC7Z015   // Zynq7 on TE0715 board
 //#define TARGET_XCZU9EG   // Zynq Ultrascale+ on zcu102 board
