@@ -1,0 +1,77 @@
+#!/bin/sh
+#-------------------------------------------------------------------------------
+#
+# Setup script for low-level Spinnaker work
+#
+#-------------------------------------------------------------------------------
+
+set -a
+
+#-------------------------------------------------------------------------------
+
+# remove environmental variables set on activation
+spinx () {
+    # reset old environment variables
+    if ! [ -z "${_OLDX_VIRTUAL_PATH+_}" ] ; then
+        PATH="$_OLDX_VIRTUAL_PATH"
+        export PATH
+        unset _OLDX_VIRTUAL_PATH
+    fi
+    if ! [ -z "${_OLDX_VIRTUAL_LM_LICENSE_FILE+_}" ] ; then
+        LM_LICENSE_FILE="$_OLDX_VIRTUAL_LM_LICENSE_FILE"
+        export LM_LICENSE_FILE
+        unset _OLDX_VIRTUAL_LM_LICENSE_FILE
+    fi
+    if ! [ -z "${_OLDX_VIRTUAL_PS1+_}" ] ; then
+        PS1="$_OLDX_VIRTUAL_PS1"
+        export PS1
+        unset _OLDX_VIRTUAL_PS1
+    fi
+    unset $(compgen -v | grep "SPINN")
+    unset $(compgen -v | grep "ARM")
+    unset $(compgen -v | grep "GNU")
+    unset PERL5LIB
+}
+
+#-------------------------------------------------------------------------------
+
+# This file should be sourced, not executed!
+if [ "$0" == "${BASH_SOURCE[0]}" ]; then
+  echo "WARNING: $0 should be sourced, not executed. Try: source $0"
+fi
+
+#-------------------------------------------------------------------------------
+# remember environmental variables that will be modified
+_OLDX_VIRTUAL_LM_LICENSE_FILE="$LM_LICENSE_FILE"
+_OLDX_VIRTUAL_PATH="$PATH"
+_OLDX_VIRTUAL_PS1="$PS1"
+
+#-------------------------------------------------------------------------------
+
+# SPINN_DIRS should point to the directory containing subdirs "tools",
+# "lib", "include", etc. It's used by many tools to locate resources.
+# used during the building of SpiNNaker applications. The subdirectory
+# "tools" contains locally developed tools for building applications.
+
+SPINN_DIRS=/opt/spinnaker_tools
+
+#-------------------------------------------------------------------------------
+
+# SPINN_PATH is a path variable (elements separated by ":"). It's used
+# to find resources used while building and running applications. It
+# should always contain at least the "tools/boot" directory of $SPINN_DIRS
+
+SPINN_PATH=$SPINN_DIRS/tools/boot
+
+#-------------------------------------------------------------------------------
+
+# Add the "tools" directory to the Unix PATH and to the Perl library
+# search path.
+
+PATH=$SPINN_DIRS/tools:$PATH
+
+PERL5LIB=$SPINN_DIRS/tools:$PERL5LIB
+
+#-------------------------------------------------------------------------------
+
+PS1="(spin) $PS1"
