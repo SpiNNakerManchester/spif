@@ -10,11 +10,13 @@
 // FPGA selection
 //NOTE: un-comment the required FPGA #define
 //---------------------------------------------------------------
-//#define TARGET_XC7Z015   // Zynq7 on TE0715 board
+#define TARGET_XC7Z015   // Zynq7 on TE0715 board
 //#define TARGET_XCZU9EG   // Zynq Ultrascale+ on zcu102 board
 //---------------------------------------------------------------
 
+//---------------------------------------------------------------
 // addresses of memory-mapped FPGA interfaces
+//---------------------------------------------------------------
 #ifdef TARGET_XC7Z015
 
 // SPIF_OUT FIFO configuration interface
@@ -40,5 +42,24 @@
 #define APB_BRIDGE        0xa0030000
 
 #endif /* TARGET_XCZU9EG */
+//---------------------------------------------------------------
+
+
+//---------------------------------------------------------------
+// SPIF_OUT FIFO (SOF) control and status registers
+//---------------------------------------------------------------
+#define SOF_ISR 0      // interrupt status register
+#define SOF_IER 1      // interrupt enable register
+#define SOF_TFV 3      // transmitter FIFO vacancy register
+#define SOF_LEN 5      // transmitter length register
+#define SOF_RFO 7      // receiver FIFO occupancy register
+//---------------------------------------------------------------
+
+
+//---------------------------------------------------------------
+// SPIF_OUT FIFO (SOF) data ports
+//---------------------------------------------------------------
+#define SOF_DWR 0      // data write port
+//---------------------------------------------------------------
 
 #endif /* __AXI_ADDR_MAP_H__ */
