@@ -28,20 +28,21 @@
 // AXI_GP0 PS -> PL interface
 
 // DMA controller configuration
-#define DMA_AXI_LITE      0x40400000
+#define DMA_REGS_ADDR     0x40400000
+#define DMA_REGS_SIZE     0x10000
 // ---------------------------------
 
 // ---------------------------------
 // DMA controller registers
-#define DMACR            0   // control
-#define DMASR            1   // status
-#define DMASA            6   // source 
-#define DMALEN           10  // length
+#define DMACR             0   // control
+#define DMASR             1   // status
+#define DMASA             6   // source 
+#define DMALEN            10  // length
 
 // DMA controller commands/status
-#define DMA_RESET        0x04
-#define DMA_RUN          0x01
-#define DMA_IDLE_MSK     0x02
+#define DMA_RESET         0x04
+#define DMA_RUN           0x01
+#define DMA_IDLE_MSK      0x02
 // ---------------------------------
 
 //NOTE: global to speed up processing
@@ -53,7 +54,7 @@ extern volatile uint * dma_registers;
 //
 // returns address of DMA data buffer -- NULL if problems found
 //--------------------------------------------------------------------
-uint * dma_setup (size_t buf_size) {
+void * dma_setup (size_t buf_size) {
   // check that requested size fits in the reserved memory space
   if (buf_size > DDR_RES_MEM_ADDR) {
     printf ("error: requested buffer size exceeds limit\n");
@@ -68,21 +69,28 @@ uint * dma_setup (size_t buf_size) {
     return (NULL);
   }
 
-  // map reserved DDR memory to DMA buffer virtual space
-  uint * dma_buffer = (unsigned int *) mmap (
+  // map reserved DDR memory to process address space
+  void * dma_buffer = mmap (
     NULL, DDR_RES_MEM_SIZE, PROT_READ | PROT_WRITE,
     MAP_SHARED, fd, DDR_RES_MEM_ADDR
     );
 
-  // map DMA registers (configuration) - 64KB address space
+  // map DMA (configuration) registers to process address space
   dma_registers = (unsigned int *) mmap (
-    NULL, 0x10000, PROT_READ | PROT_WRITE,
-    MAP_SHARED, fd, DMA_AXI_LITE
+    NULL, DMA_REGS_SIZE, PROT_READ | PROT_WRITE,
+    MAP_SHARED, fd, DMA_REGS_ADDR
     );
 
   // close /dev/mem and drop root privileges
   close (fd);
   if (setuid (getuid ()) < 0) {
+    printf ("error: unable to access DMA memory space\n");
+    return (NULL);
+  }
+
+  // check that everything went well
+  if ((dma_buffer == MAP_FAILED) || (dma_registers == MAP_FAILED)) {
+    printf ("error: unable to access DMA memory space\n");
     return (NULL);
   }
 
