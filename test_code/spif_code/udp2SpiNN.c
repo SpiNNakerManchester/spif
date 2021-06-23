@@ -108,7 +108,7 @@ int main (int argc, char * argv[])
 
   // get pointer to DMA buffer
   size_t const batch_size = DATA_BATCH_SIZE * sizeof (uint);
-  uint * dma_buffer = dma_setup (batch_size);
+  uint * dma_buffer = (uint *) dma_setup (batch_size);
   if (dma_buffer == NULL) {
     printf ("error: failed to setup DMA controller\n");
     exit (-1);

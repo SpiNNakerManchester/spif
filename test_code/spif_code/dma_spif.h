@@ -76,7 +76,7 @@ void * dma_setup (size_t buf_size) {
     );
 
   // map DMA (configuration) registers to process address space
-  dma_registers = (unsigned int *) mmap (
+  dma_registers = (uint *) mmap (
     NULL, DMA_REGS_SIZE, PROT_READ | PROT_WRITE,
     MAP_SHARED, fd, DMA_REGS_ADDR
     );
