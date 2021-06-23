@@ -107,7 +107,8 @@ int main (int argc, char * argv[])
   }
 
   // get pointer to DMA buffer
-  uint * dma_buffer = dma_setup ();
+  size_t const batch_size = DATA_BATCH_SIZE * sizeof (uint);
+  uint * dma_buffer = dma_setup (batch_size);
   if (dma_buffer == NULL) {
     printf ("error: failed to setup DMA controller\n");
     exit (-1);
@@ -123,8 +124,6 @@ int main (int argc, char * argv[])
   // time-tracking variables
   struct timespec proc_first;
   struct timespec proc_cur;
-
-  size_t const batch_size = DATA_BATCH_SIZE * sizeof (uint);
 
   // wait for initial data batch to start time measurement
   int rcv_bytes = udp_get_data_batch (dma_buffer, batch_size);

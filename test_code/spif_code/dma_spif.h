@@ -53,16 +53,22 @@ extern volatile uint * dma_registers;
 //
 // returns address of DMA data buffer -- NULL if problems found
 //--------------------------------------------------------------------
-uint * dma_setup () {
+uint * dma_setup (size_t buf_size) {
+  // check that requested size fits in the reserved memory space
+  if (buf_size > DDR_RES_MEM_ADDR) {
+    printf ("error: requested buffer size exceeds limit\n");
+    return (NULL);
+  }
+
   //NOTE: make sure that mapped memory is *not* cached!
   int fd = open ("/dev/mem", O_RDWR | O_SYNC);
 
   if (fd < 1) {
-    printf ("error: unable to open /dev/mem\n");
+    printf ("error: unable to access DMA memory space\n");
     return (NULL);
   }
 
-  // map reserved DDR memory to DMA buffer virtual address
+  // map reserved DDR memory to DMA buffer virtual space
   uint * dma_buffer = (unsigned int *) mmap (
     NULL, DDR_RES_MEM_SIZE, PROT_READ | PROT_WRITE,
     MAP_SHARED, fd, DDR_RES_MEM_ADDR
@@ -102,7 +108,6 @@ uint * dma_setup () {
 
 //--------------------------------------------------------------------
 // trigger a DMA transfer
-//
 //--------------------------------------------------------------------
 void dma_trigger (uint size) {
   // write length of data batch (in bytes!)
@@ -115,7 +120,6 @@ void dma_trigger (uint size) {
 // check status of DMA controller
 //
 // returns 0 if DMA controller busy
-//
 //--------------------------------------------------------------------
 uint dma_idle (void) {
   return (dma_registers[DMASR] & DMA_IDLE_MSK);
