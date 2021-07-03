@@ -4,7 +4,8 @@
 *.f
 *.swp
 *~
-check_files.sh
+check_files*.sh
+*.synctex.*
 
 # Xilinx and LaTeX Junk
 *.asy
