@@ -28,15 +28,15 @@
 module pkt_router
 #(
   parameter PACKET_BITS  = 72,
+  parameter NUM_RREGS    = 16,
   parameter KEY_LSB      = 8,
-  parameter NUM_CHANNELS = 8,
-  parameter NUM_ENTRIES  = 16
+  parameter NUM_CHANNELS = 8
 )
 (
   // routing table components
-  input  wire              [31:0] reg_key_in   [NUM_ENTRIES - 1:0],
-  input  wire              [31:0] reg_mask_in  [NUM_ENTRIES - 1:0],
-  input  wire               [2:0] reg_route_in [NUM_ENTRIES - 1:0],
+  input  wire              [31:0] reg_key_in   [NUM_RREGS - 1:0],
+  input  wire              [31:0] reg_mask_in  [NUM_RREGS - 1:0],
+  input  wire               [2:0] reg_route_in [NUM_RREGS - 1:0],
 
   // incoming packet
   input  wire [PACKET_BITS - 1:0] pkt_in_data_in,
@@ -60,7 +60,7 @@ module pkt_router
   // ternary CAM-like routing table
   genvar te;
   generate
-    for (te = 0; te < NUM_ENTRIES; te = te + 1)
+    for (te = 0; te < NUM_RREGS; te = te + 1)
       begin : routing_table
         //NOTE: bit-wise and - it is a mask!
         assign hit[te] = ((packet_key & reg_mask_in[te]) == reg_key_in[te]);

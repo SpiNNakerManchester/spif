@@ -26,24 +26,36 @@
 `timescale 1ps/1ps
 module pkt_assembler
 #(
-    parameter PACKET_BITS  = 72
+  parameter PACKET_BITS = 72,
+  parameter NUM_MREGS   = 4
 )
 (
   input  wire                     clk,
   input  wire                     reset,
 
+  // event mapper configuration
+  input  wire              [31:0] reg_mask_in  [NUM_MREGS - 1:0],
+  input  wire               [2:0] reg_shift_in [NUM_MREGS - 1:0],
+
+  // event inputs
   input  wire              [31:0] evt_data_in,
   input  wire                     evt_vld_in,
   output reg                      evt_rdy_out,
 
+  // packet outputs
   output reg  [PACKET_BITS - 1:0] pkt_data_out,
   output reg                      pkt_vld_out,
   input  wire                     pkt_rdy_in
 );
 
+  genvar i;
+
   //---------------------------------------------------------------
   // internal signals
   //---------------------------------------------------------------
+  // mapped event data - to be used as packet key
+  wire [31:0] mapped_data_int;
+
   // interface status
   wire  evt_present_int = evt_vld_in && evt_rdy_out;
   wire  pkt_busy_int = pkt_vld_out && !pkt_rdy_in;
@@ -52,7 +64,27 @@ module pkt_assembler
   reg         parked_int;
   reg  [31:0] parked_data_int;
 
-  // park input data when output is busy
+  // map input event data to output packet key
+  wire [31:0] evt_field_int [NUM_MREGS - 1:0];
+  wire [31:0] field_acc_int [NUM_MREGS - 1:0];
+
+  // extract, shift and OR together event fields
+  //NOTE: could use an OR tree instead!
+  generate
+    begin
+      for (i = 0; i < NUM_MREGS; i = i + 1)
+        assign evt_field_int[i] =
+          (evt_data_in & reg_mask_in[i]) >> reg_shift_in[i];
+
+      for (i = 1; i < NUM_MREGS; i = i + 1)
+        assign field_acc_int[i] = field_acc_int[i - 1] | evt_field_int[i];
+    end
+  endgenerate
+
+  assign field_acc_int[0] = evt_field_int[0];
+  assign mapped_data_int  = field_acc_int[NUM_MREGS - 1];
+
+  // park mapped data when output is busy
   always @ (posedge clk or posedge reset)
     if (reset)
       parked_int <= 1'b0;
@@ -64,7 +96,7 @@ module pkt_assembler
 
   always @ (posedge clk)
     if (evt_present_int && pkt_busy_int)
-      parked_data_int <= evt_data_in;
+      parked_data_int <= mapped_data_int;
 
   // don't accept a new key when parked or parking data
   always @ (posedge clk or posedge reset)
@@ -80,7 +112,6 @@ module pkt_assembler
         3'b001 : evt_rdy_out <= 1'b1;  // busy but park available
       endcase
 
-
   // output packet interface
   reg   [31:0] pkt_key_int;
   wire  [31:0] pkt_pld_int = 32'h0000_0000;
@@ -92,7 +123,7 @@ module pkt_assembler
     if (parked_int)
       pkt_key_int = parked_data_int;
     else
-      pkt_key_int = evt_data_in;
+      pkt_key_int = mapped_data_int;
 
   // packet data must not change when busy 
   always @ (posedge clk)
