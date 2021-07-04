@@ -18,9 +18,10 @@
 % --------------------------------------------------------------------------
 % define useful variables
 % --------------------------------------------------------------------------
-\def\myversion{Version 1.0}
+\def\myversion{Version 1.0.0}
 \def\mydate{03 July 2021}
 
+\def\bcw{3mm}
 \def\ncw{45mm}
 \def\ocw{10mm}
 \def\rcw{10mm}
@@ -33,6 +34,20 @@
 \usepackage{graphicx}
 \usepackage{tabularx}
 \usepackage[table]{xcolor}
+% --------------------------------------------------------------------------
+
+% --------------------------------------------------------------------------
+% adjust paper size and margins
+% --------------------------------------------------------------------------
+\textheight 246mm
+\textwidth 154mm
+\voffset -7.5mm
+\topmargin -8mm
+\oddsidemargin 2.7mm
+\evensidemargin 2.7mm
+\headheight 18.0pt
+\headsep 15mm
+\raggedbottom
 % --------------------------------------------------------------------------
 
 % --------------------------------------------------------------------------
@@ -52,23 +67,38 @@
 
 \begin{document}
 
+\rule{\linewidth}{2pt}
+
 \begin{center}
 	\textbf{
-		\Large{SpiNNaker Peripheral Interface Configuration} \\
+		\Large{SpiNNaker Peripheral Interface} \\
 		\vspace*{0.5cm}
 		\large {\myversion} \\
-		\vspace*{0.5cm}
 		\large{\mydate}
 	}
 \end{center}
 
+\rule{\linewidth}{2pt}
+
+\vspace*{1.0cm}
+
+
+\image[width = \textwidth]{!h}{spin_per_if}{fig:spin_if}
+	{SpiNNaker peripheral interface.}
+
 
 \image[width = \textwidth]{!h}{spif_bd}{fig:spif_bd}
-	{spif microarchitecture.}
+{spif microarchitecture.}
 
 
 \image[width = 0.9 \textwidth]{!h}{spif_cf}{fig:spif_cf}
-{SpiNNaker peripheral configuration registers.}
+{SpiNNaker peripheral interface configuration registers.}
+
+
+\section{spif Configuration}
+
+
+\subsection{Register Summary}
 
 
 \begin{table}[!ht]
@@ -90,6 +120,47 @@
 \end{table}
 
 
+\subsection{Register Details}
+
+
+\subsubsection*{\textbf{r0: control}}
+
+{\footnotesize
+%\begin{tabularx}{\textwidth}{p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}}
+%	31 & 30 & 29 & 28 & 27 & 26 & 25 & 24 & 23 & 22 & 21 & 20 & 19 & 18 & 17 & 16 & 15 & 15 & 13 & 12 & 11 & 19 &  9 &  8 &  7 &  6 &  5 &  4 &  3 &  2 &  1 & 0\ 
+%\end{tabularx}
+~31~~30~~29~~28~~27~~26~~25~~24~~23~~22~~21~~20~~19~~18~~17~~16~~15~~15~~13~~12~~11~~19~~~~9~~~~8~~~~7~~~~6~~~~5~~~~4~~~~3~~~~2~~~~1~~~~0
+}
+
+\noindent
+\begin{tabularx}{\linewidth}{| p{0.028\textwidth} | p{0.028\textwidth} | p{0.855\textwidth} |}
+	\hline
+	0             & 0            & 0  \\%
+	\hline
+\end{tabularx}
+
+
+	\begin{center}
+		\rowcolors {1}{}{ \tblc }
+		\renewcommand{\arraystretch}{1.2}
+		\begin{tabularx}{\textwidth}{| p{\ncw} p{\ocw} p{\rcw} X |}
+			\hline
+			\textbf{name}    & \textbf{bits} & \textbf{r/w} & \textbf{function} \\%
+			\hline
+			\hline
+			\textbf{start}   & 0x0           & w            & start/stop input  \\%
+			\textbf{stop}    & 0x1           & w            & start/stop input  \\%
+			\hline
+		\end{tabularx}
+	\end{center}
+
+
+\section{SpiNNaker FPGA Configuration}
+
+
+\subsection{Register Summary}
+
+
 \begin{table}[!ht]
 	\caption{SpiNNaker FPGA configuration Registers}
 	\begin{center}
@@ -107,6 +178,21 @@
 	\end{center}
 	\label{tab:resources}
 \end{table}
+
+
+\subsection{Register Details}
+
+
+\vspace*{1.0cm}
+
+\rule{\linewidth}{2pt}
+
+\subsection*{\itshape Change log:}
+
+\begin{itemize}
+	\item {\itshape 1.0.0 - 03jul21 - lap} - initial release - comments to
+	{\itshape luis.plana@manchester.ac.uk}
+\end{itemize}
 
 
 \end{document}
