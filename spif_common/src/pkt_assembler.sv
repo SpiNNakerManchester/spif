@@ -34,8 +34,9 @@ module pkt_assembler
   input  wire                     reset,
 
   // event mapper configuration
-  input  wire              [31:0] reg_mask_in  [NUM_MREGS - 1:0],
-  input  wire               [2:0] reg_shift_in [NUM_MREGS - 1:0],
+  input  wire              [31:0] mp_key_in,
+  input  wire              [31:0] field_msk_in  [NUM_MREGS - 1:0],
+  input  wire               [2:0] field_sft_in [NUM_MREGS - 1:0],
 
   // event inputs
   input  wire              [31:0] evt_data_in,
@@ -74,14 +75,16 @@ module pkt_assembler
     begin
       for (i = 0; i < NUM_MREGS; i = i + 1)
         assign evt_field_int[i] =
-          (evt_data_in & reg_mask_in[i]) >> reg_shift_in[i];
+          (evt_data_in & field_msk_in[i]) >> field_sft_in[i];
 
+      //NOTE: field accumulator 0 is a special case - see below
       for (i = 1; i < NUM_MREGS; i = i + 1)
         assign field_acc_int[i] = field_acc_int[i - 1] | evt_field_int[i];
     end
   endgenerate
 
-  assign field_acc_int[0] = evt_field_int[0];
+  // use the mapper routing key as the mapping base
+  assign field_acc_int[0] = mp_key_in | evt_field_int[0];
   assign mapped_data_int  = field_acc_int[NUM_MREGS - 1];
 
   // park mapped data when output is busy

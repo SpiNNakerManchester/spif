@@ -36,7 +36,7 @@ module dvs_on_hssl_top
 
   parameter PACKET_BITS  = `PKT_BITS,
   parameter NUM_CHANNELS = 8,
-  parameter NUM_HREGS    = 1,
+  parameter NUM_HREGS    = 2,
   parameter NUM_RREGS    = 16,
   parameter NUM_CREGS    = 2,
   parameter NUM_MREGS    = 4
@@ -107,16 +107,17 @@ module dvs_on_hssl_top
 
   // register bank signals
   //  - HSSL interface control
-  wire        reg_hi_int [NUM_HREGS - 1:0];
+  wire        hi_stop_int;
 
   //  - packet routing table
-  wire [31:0] reg_key_int   [NUM_RREGS - 1:0];
-  wire [31:0] reg_mask_int  [NUM_RREGS - 1:0];
-  wire  [2:0] reg_route_int [NUM_RREGS - 1:0];
+  wire [31:0] rt_key_int   [NUM_RREGS - 1:0];
+  wire [31:0] rt_mask_int  [NUM_RREGS - 1:0];
+  wire  [2:0] rt_route_int [NUM_RREGS - 1:0];
 
   //  - event mapper registers
-  wire [31:0] reg_mpm_int   [NUM_MREGS - 1:0];
-  wire  [2:0] reg_mps_int   [NUM_MREGS - 1:0];
+  wire [31:0] mp_key_int;
+  wire [31:0] mp_fmsk_int [NUM_MREGS - 1:0];
+  wire  [2:0] mp_fsft_int [NUM_MREGS - 1:0];
 
   // - packet receiver interface
   wire  [7:0] prx_addr_int;
@@ -304,34 +305,42 @@ module dvs_on_hssl_top
     , .NUM_RREGS       (NUM_RREGS)
     , .NUM_CREGS       (NUM_CREGS)
     , .NUM_MREGS       (NUM_MREGS)
-  )
+    )
   rb (
-      .clk             (axi_clk_int)
-    , .resetn          (axi_resetn_int)
+      .clk              (axi_clk_int)
+    , .resetn           (axi_resetn_int)
 
-    , .apb_psel_in     (apb_psel_int)
-    , .apb_pwrite_in   (apb_pwrite_int)
-    , .apb_penable_in  (apb_penable_int)
+      // processor APB interface
+    , .apb_psel_in      (apb_psel_int)
+    , .apb_pwrite_in    (apb_pwrite_int)
+    , .apb_penable_in   (apb_penable_int)
 
-    , .apb_paddr_in    (apb_paddr_int)
-    , .apb_pwdata_in   (apb_pwdata_int)
-    , .apb_prdata_out  (apb_prdata_int)
+    , .apb_paddr_in     (apb_paddr_int)
+    , .apb_pwdata_in    (apb_pwdata_int)
+    , .apb_prdata_out   (apb_prdata_int)
 
-    , .apb_pready_out  (apb_pready_int)
-    , .apb_pslverr_out (apb_pslverr_int)
+    , .apb_pready_out   (apb_pready_int)
+    , .apb_pslverr_out  (apb_pslverr_int)
 
-    , .prx_addr_in     (prx_addr_int)
-    , .prx_data_in     (prx_data_int)
-    , .prx_vld_in      (prx_vld_int)
+      // packet receiver interface
+    , .prx_addr_in      (prx_addr_int)
+    , .prx_data_in      (prx_data_int)
+    , .prx_vld_in       (prx_vld_int)
 
-    , .ctr_cnt_in      (ctr_cnt_int)
+    , .ctr_cnt_in       (ctr_cnt_int)
 
-    , .reg_hssl_out    (reg_hi_int)
-    , .reg_key_out     (reg_key_int)
-    , .reg_mask_out    (reg_mask_int)
-    , .reg_route_out   (reg_route_int)
-    , .reg_mpmsk_out   (reg_mpm_int)
-    , .reg_mpsft_out   (reg_mps_int)
+      // hssl
+    , .hssl_stop_out    (hi_stop_int)
+
+      // input router
+    , .reg_rt_key_out   (rt_key_int)
+    , .reg_rt_mask_out  (rt_mask_int)
+    , .reg_rt_route_out (rt_route_int)
+
+      // event mapper
+    , .mp_key           (mp_key_int)
+    , .reg_mp_fmsk_out  (mp_fmsk_int)
+    , .reg_mp_fsft_out  (mp_fsft_int)
     );
   //---------------------------------------------------------------
 
@@ -357,8 +366,9 @@ module dvs_on_hssl_top
     , .reset              (hi_reset_int)
 
        // event mapper registers
-    , .reg_mask_in        (reg_mpm_int)
-    , .reg_shift_in       (reg_mps_int)
+    , .mp_key_in          (mp_key_int)
+    , .field_msk_in       (mp_fmsk_int)
+    , .field_sft_in       (mp_fsft_int)
 
       // incoming event
     , .evt_data_in        (evt_data_int)
@@ -378,9 +388,9 @@ module dvs_on_hssl_top
     )
   pr (
       // routing table data from register bank
-      .reg_key_in         (reg_key_int)
-    , .reg_mask_in        (reg_mask_int)
-    , .reg_route_in       (reg_route_int)
+      .reg_key_in         (rt_key_int)
+    , .reg_mask_in        (rt_mask_int)
+    , .reg_route_in       (rt_route_int)
 
       //  assembled packet
     , .pkt_in_data_in     (pkt_data_int)
@@ -449,7 +459,7 @@ module dvs_on_hssl_top
     , .version_mismatch_out           (hi_version_mismatch_int)
 
     , .idsi_out                       (hi_idsi_int)
-    , .stop_in                        (reg_hi_int[0])
+    , .stop_in                        (hi_stop_int)
 
       // Gigabit transmitter
     , .tx_data_out                    (gt_tx_data_int)

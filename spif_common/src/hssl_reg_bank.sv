@@ -26,10 +26,10 @@
 `timescale 1ps/1ps
 module hssl_reg_bank
 #(
-    parameter NUM_HREGS    = 1,
-    parameter NUM_RREGS    = 16,
-    parameter NUM_CREGS    = 2,
-    parameter NUM_MREGS    = 4
+    parameter NUM_HREGS = 2,
+    parameter NUM_RREGS = 16,
+    parameter NUM_CREGS = 2,
+    parameter NUM_MREGS = 4
 )
 (
   input  wire                      clk,
@@ -55,13 +55,18 @@ module hssl_reg_bank
   // pkt counter interface
   input  wire    [NUM_CREGS - 1:0] ctr_cnt_in,
 
-  // register interface
-  output reg                 [0:0] reg_hssl_out  [NUM_HREGS - 1:0],
-  output reg                [31:0] reg_key_out   [NUM_RREGS - 1:0],
-  output reg                [31:0] reg_mask_out  [NUM_RREGS - 1:0],
-  output reg                 [2:0] reg_route_out [NUM_RREGS - 1:0],
-  output reg                [31:0] reg_mpmsk_out [NUM_MREGS - 1:0],
-  output reg                 [2:0] reg_mpsft_out [NUM_MREGS - 1:0]
+  // hssl interface
+  output wire                      hssl_stop_out,
+
+  // input router interface
+  output reg                [31:0] reg_rt_key_out   [NUM_RREGS - 1:0],
+  output reg                [31:0] reg_rt_mask_out  [NUM_RREGS - 1:0],
+  output reg                 [2:0] reg_rt_route_out [NUM_RREGS - 1:0],
+
+  // mapper interface
+  output wire               [31:0] mp_key,
+  output reg                [31:0] reg_mp_fmsk_out [NUM_MREGS - 1:0],
+  output reg                 [2:0] reg_mp_fsft_out [NUM_MREGS - 1:0]
 );
 
   genvar i;
@@ -81,13 +86,18 @@ module hssl_reg_bank
   localparam APB_SEC_LSB = 6;
   localparam APB_NUM_LSB = 2;
 
-  //NOTE: packet addresses are "word" addresses
-  localparam PRX_SEC_LSB = APB_SEC_LSB - 2;
-  localparam PRX_NUM_LSB = APB_NUM_LSB - 2;
+  //NOTE: packet addresses are already "word" addresses
+  localparam PRX_SEC_LSB = 4;
+  localparam PRX_NUM_LSB = 0;
 
   //---------------------------------------------------------------
   // internal signals
   //---------------------------------------------------------------
+  reg [31:0] reg_hssl_out [NUM_RREGS - 1:0];
+
+  assign hssl_stop_out = reg_hssl_out[0][0];
+  assign mp_key = reg_hssl_out[1];
+
   // APB register access
   wire       apb_read    = apb_psel_in && !apb_pwrite_in;
   wire       apb_write   = apb_psel_in &&  apb_pwrite_in;
@@ -137,25 +147,27 @@ module hssl_reg_bank
   //NOTE: packet writes have priority - APB writes can be delayed
   always @ (posedge clk or negedge resetn)
     if (resetn == 0)
-      reg_hssl_out[0] <= 1'b0;
+      begin
+        reg_hssl_out[0] <= 1'b0;
+      end
     else
       if (prx_write)
         case (prx_reg_sec)
-          HREGS: reg_hssl_out[prx_reg_num]  <= prx_data_in;
-          KREGS: reg_key_out[prx_reg_num]   <= prx_data_in;
-          MREGS: reg_mask_out[prx_reg_num]  <= prx_data_in;
-          RREGS: reg_route_out[prx_reg_num] <= prx_data_in;
-          AREGS: reg_mpmsk_out[prx_reg_num] <= prx_data_in;
-          SREGS: reg_mpsft_out[prx_reg_num] <= prx_data_in;
+          HREGS: reg_hssl_out[prx_reg_num]     <= prx_data_in;
+          KREGS: reg_rt_key_out[prx_reg_num]   <= prx_data_in;
+          MREGS: reg_rt_mask_out[prx_reg_num]  <= prx_data_in;
+          RREGS: reg_rt_route_out[prx_reg_num] <= prx_data_in;
+          AREGS: reg_mp_fmsk_out[prx_reg_num]  <= prx_data_in;
+          SREGS: reg_mp_fsft_out[prx_reg_num]  <= prx_data_in;
         endcase
       else if (apb_write)
         case (apb_reg_sec)
-          HREGS: reg_hssl_out[apb_reg_num]  <= apb_pwdata_in;
-          KREGS: reg_key_out[apb_reg_num]   <= apb_pwdata_in;
-          MREGS: reg_mask_out[apb_reg_num]  <= apb_pwdata_in;
-          RREGS: reg_route_out[apb_reg_num] <= apb_pwdata_in;
-          AREGS: reg_mpmsk_out[apb_reg_num] <= apb_pwdata_in;
-          SREGS: reg_mpsft_out[apb_reg_num] <= apb_pwdata_in;
+          HREGS: reg_hssl_out[apb_reg_num]     <= apb_pwdata_in;
+          KREGS: reg_rt_key_out[apb_reg_num]   <= apb_pwdata_in;
+          MREGS: reg_rt_mask_out[apb_reg_num]  <= apb_pwdata_in;
+          RREGS: reg_rt_route_out[apb_reg_num] <= apb_pwdata_in;
+          AREGS: reg_mp_fmsk_out[apb_reg_num]  <= apb_pwdata_in;
+          SREGS: reg_mp_fsft_out[apb_reg_num]  <= apb_pwdata_in;
         endcase
 
   // APB register reads
@@ -164,12 +176,12 @@ module hssl_reg_bank
     if (apb_read)
       case (apb_reg_sec)
         HREGS:   apb_prdata_out <= reg_hssl_out[apb_reg_num];
-        KREGS:   apb_prdata_out <= reg_key_out[apb_reg_num];
-        MREGS:   apb_prdata_out <= reg_mask_out[apb_reg_num];
-        RREGS:   apb_prdata_out <= reg_route_out[apb_reg_num];
+        KREGS:   apb_prdata_out <= reg_rt_key_out[apb_reg_num];
+        MREGS:   apb_prdata_out <= reg_rt_mask_out[apb_reg_num];
+        RREGS:   apb_prdata_out <= reg_rt_route_out[apb_reg_num];
         CREGS:   apb_prdata_out <= ctr_reg_int[apb_reg_num];
-        AREGS:   apb_prdata_out <= reg_mpmsk_out[apb_reg_num];
-        SREGS:   apb_prdata_out <= reg_mpsft_out[apb_reg_num];
+        AREGS:   apb_prdata_out <= reg_mp_fmsk_out[apb_reg_num];
+        SREGS:   apb_prdata_out <= reg_mp_fsft_out[apb_reg_num];
         default: apb_prdata_out <= 32'hdead_beef;
       endcase
   //---------------------------------------------------------------
