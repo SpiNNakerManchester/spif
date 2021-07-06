@@ -21,7 +21,7 @@
 \def\myversion{Version 1.0.0}
 \def\mydate{03 July 2021}
 
-\def\bcw{3mm}
+\def\bcw{5mm}
 \def\ncw{45mm}
 \def\ocw{10mm}
 \def\rcw{10mm}
@@ -34,6 +34,9 @@
 \usepackage{graphicx}
 \usepackage{tabularx}
 \usepackage[table]{xcolor}
+\usepackage[ruled]{algorithm}
+\usepackage[noend]{algpseudocode}
+\floatname{algorithm}{scheme}
 % --------------------------------------------------------------------------
 
 % --------------------------------------------------------------------------
@@ -83,6 +86,8 @@
 \vspace*{1.0cm}
 
 
+\section{Interface architecture}
+
 \image[width = \textwidth]{!h}{spin_per_if}{fig:spin_if}
 	{SpiNNaker peripheral interface.}
 
@@ -94,7 +99,8 @@
 \image[width = 0.9 \textwidth]{!h}{spif_cf}{fig:spif_cf}
 {SpiNNaker peripheral interface configuration registers.}
 
-
+\clearpage
+ 
 \section{spif Configuration}
 
 
@@ -102,19 +108,30 @@
 
 
 \begin{table}[!ht]
-	\caption{spif configuration Registers}
 	\begin{center}
 		\rowcolors {1}{}{ \tblc }
 		\renewcommand{\arraystretch}{1.2}
-		\begin{tabularx}{\textwidth}{| p{\ncw} p{\ocw} p{\rcw} X |}
+		\begin{tabular}{| l l l l l |}
 			\hline
-			\textbf{name}        & \textbf{offset} & \textbf{r/w} & \textbf{function} \\%
+			\textbf{name} & \textbf{offset} & \textbf{offset} & \textbf{r/w} & \textbf{function} \\%
 			\hline
 			\hline
-			\textbf{r0: control} & 0x0             & w            & start/stop input  \\%
-			\textbf{r1: control} & 0x1             & w            & start/stop input  \\%
+			\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}00      & \cellcolor{gray!25}(0x00)      & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+			\textbf{mapper routing key}          & 01                         & (0x01)                         & w                   & map events to packets \\%
+			\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}02-15   & \cellcolor{gray!25}(0x02-0x0f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+			\textbf{input routing key [15:0]}    & 16-31                      & (0x10-0x1f)                    & w                   & route input packets \\%
+			\textbf{input routing mask [15:0]}   & 32-47                      & (0x20-0x2f)                    & w                   & route input packets \\%
+			\textbf{input routing route [15:0]}  & 48-63                      & (0x30-0x3f)                    & w                   & route input packets \\%
+			\textbf{peripheral output counter}   & 64                         & (0x40)                         & r/w                 & count periph output pkts\\%
+			\textbf{config packet counter}       & 65                         & (0x41)                         & r/w                 & count config packets \\%
+			\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}66-79   & \cellcolor{gray!25}(0x42-0x4f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+			\textbf{mapper field mask [3:0]}     & 80-83                      & (0x50-0x53)                    & w                   & map events to packets \\%
+			\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}84-95   & \cellcolor{gray!25}(0x54-0x5f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+			\textbf{mapper field shift [3:0]}    & 96-99                      & (0x60-0x63)                    & w                   & map events to packets \\%
+			\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}100-127 & \cellcolor{gray!25}(0x67-0x6f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 			\hline
-		\end{tabularx}
+		\end{tabular}
+		\caption{spif configuration Registers}
 	\end{center}
 	\label{tab:spif_regs}
 \end{table}
@@ -123,37 +140,59 @@
 \subsection{Register Details}
 
 
-\subsubsection*{\textbf{r0: control}}
-
-{\footnotesize
-%\begin{tabularx}{\textwidth}{p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}p{0.000008\textwidth}}
-%	31 & 30 & 29 & 28 & 27 & 26 & 25 & 24 & 23 & 22 & 21 & 20 & 19 & 18 & 17 & 16 & 15 & 15 & 13 & 12 & 11 & 19 &  9 &  8 &  7 &  6 &  5 &  4 &  3 &  2 &  1 & 0\ 
-%\end{tabularx}
-~31~~30~~29~~28~~27~~26~~25~~24~~23~~22~~21~~20~~19~~18~~17~~16~~15~~15~~13~~12~~11~~19~~~~9~~~~8~~~~7~~~~6~~~~5~~~~4~~~~3~~~~2~~~~1~~~~0
-}
+\subsubsection*{\textbf{mapper field mask}}
 
 \noindent
-\begin{tabularx}{\linewidth}{| p{0.028\textwidth} | p{0.028\textwidth} | p{0.855\textwidth} |}
-	\hline
-	0             & 0            & 0  \\%
-	\hline
-\end{tabularx}
-
-
+\setlength{\tabcolsep}{1.6pt}
 \begin{center}
+	\begin{tabular}{| *{32}{c |}}
+		\multicolumn{1}{c}{31} & \multicolumn{1}{c}{30} & \multicolumn{1}{c}{29} & \multicolumn{1}{c}{28} & \multicolumn{1}{c}{27} & \multicolumn{1}{c}{26} & \multicolumn{1}{c}{25} & \multicolumn{1}{c}{24} & \multicolumn{1}{c}{23} & \multicolumn{1}{c}{22} & \multicolumn{1}{c}{21} & \multicolumn{1}{c}{20} & \multicolumn{1}{c}{19} & \multicolumn{1}{c}{18} & \multicolumn{1}{c}{17} & \multicolumn{1}{c}{16} & \multicolumn{1}{c}{15} & \multicolumn{1}{c}{14} & \multicolumn{1}{c}{13} & \multicolumn{1}{c}{12} & \multicolumn{1}{c}{11} & \multicolumn{1}{c}{10} & \multicolumn{1}{c}{~9} & \multicolumn{1}{c}{~8} & \multicolumn{1}{c}{~7} & \multicolumn{1}{c}{~6} & \multicolumn{1}{c}{~5} & \multicolumn{1}{c}{~4} & \multicolumn{1}{c}{~3} & \multicolumn{1}{c}{~2} & \multicolumn{1}{c}{~1} & \multicolumn{1}{c}{~0} \\%
+		\hline
+		\multicolumn{32}{|c|}{32-bit mask}\\%
+		\hline
+	\end{tabular}
+	
+	\vspace {5mm}
+	
 	\rowcolors {1}{}{ \tblc }
-	\renewcommand{\arraystretch}{1.2}
 	\begin{tabularx}{\textwidth}{| p{\ncw} p{\ocw} p{\rcw} X |}
 		\hline
 		\textbf{name}    & \textbf{bits} & \textbf{r/w} & \textbf{function} \\%
 		\hline
 		\hline
-		\textbf{start}   & 0x0           & w            & start/stop input  \\%
-		\textbf{stop}    & 0x1           & w            & start/stop input  \\%
+		\textbf{field mask} & 31:0 & w & mask applied to event to obtain field value  \\%
 		\hline
 	\end{tabularx}
 \end{center}
 
+
+\subsubsection*{\textbf{mapper field shift}}
+
+\noindent
+\setlength{\tabcolsep}{1.6pt}
+\begin{center}
+	\begin{tabular}{| *{32}{c |}}
+		\multicolumn{1}{c}{31} & \multicolumn{1}{c}{30} & \multicolumn{1}{c}{29} & \multicolumn{1}{c}{28} & \multicolumn{1}{c}{27} & \multicolumn{1}{c}{26} & \multicolumn{1}{c}{25} & \multicolumn{1}{c}{24} & \multicolumn{1}{c}{23} & \multicolumn{1}{c}{22} & \multicolumn{1}{c}{21} & \multicolumn{1}{c}{20} & \multicolumn{1}{c}{19} & \multicolumn{1}{c}{18} & \multicolumn{1}{c}{17} & \multicolumn{1}{c}{16} & \multicolumn{1}{c}{15} & \multicolumn{1}{c}{14} & \multicolumn{1}{c}{13} & \multicolumn{1}{c}{12} & \multicolumn{1}{c}{11} & \multicolumn{1}{c}{10} & \multicolumn{1}{c}{~9} & \multicolumn{1}{c}{~8} & \multicolumn{1}{c}{~7} & \multicolumn{1}{c}{~6} & \multicolumn{1}{c}{~5} & \multicolumn{1}{c}{~4} & \multicolumn{1}{c}{~3} & \multicolumn{1}{c}{~2} & \multicolumn{1}{c}{~1} & \multicolumn{1}{c}{~0} \\%
+		\hline
+		\multicolumn{27}{|c|}{\cellcolor{gray!25}~} & \multicolumn{5}{c|}{5-bit shift}\\%
+		\hline
+	\end{tabular}
+	
+	\vspace {5mm}
+	
+	\rowcolors {1}{}{ \tblc }
+	\begin{tabularx}{\textwidth}{| p{\ncw} p{\ocw} p{\rcw} X |}
+		\hline
+		\textbf{name}    & \textbf{bits} & \textbf{r/w} & \textbf{function} \\%
+		\hline
+		\hline
+		\textbf{field shift} & 4:0 & w & right-shift value to position field \\%
+		\hline
+	\end{tabularx}
+\end{center}
+
+
+\clearpage
 
 \section{SpiNNaker FPGA Configuration}
 
@@ -162,19 +201,28 @@
 
 
 \begin{table}[!ht]
-	\caption{SpiNNaker FPGA configuration Registers}
 	\begin{center}
 		\rowcolors {1}{}{ \tblc }
 		\renewcommand{\arraystretch}{1.2}
-		\begin{tabularx}{\textwidth}{| p{\ncw} p{\ocw} p{\rcw} X |}
+		\begin{tabular}{| l l l l |}
 			\hline
 			\textbf{name}        & \textbf{offset} & \textbf{r/w} & \textbf{function} \\%
 			\hline
 			\hline
-			\textbf{r0: control} & 0x0             & w            & start/stop input  \\%
-			\textbf{r1: control} & 0x0             & w            & start/stop input  \\%
+			\cellcolor{gray!25}\textbf{reserved}           & \cellcolor{gray!25}00 (0x00)         & \cellcolor{gray!25}   & \cellcolor{gray!25}\\%
+			\cellcolor{gray!25}\textbf{reserved}           & \cellcolor{gray!25}01 (0x01)         & \cellcolor{gray!25}   & \cellcolor{gray!25}\\%
+			\textbf{peripheral key}     & 02 (0x02)         & w  & route packets to peripheral device             \\%
+			\textbf{peripheral mask}    & 03 (0x03)         & w  & route packets to peripheral device             \\%
+			\cellcolor{gray!25}\textbf{reserved}           & \cellcolor{gray!25}04-11 (0x04-0x0b) & \cellcolor{gray!25}   & \cellcolor{gray!25}\\%
+			\textbf{local config key}   & 12 (0x0c)         & w  & route packets to SpiNNaker FPGA  \\%
+			\textbf{local config mask}  & 13 (0x0d)         & w  & route packets to SpiNNaker FPGA  \\%
+			\textbf{remote config key}  & 14 (0x0e)         & w  & route packets to spif configuration   \\%
+			\textbf{remote config mask} & 15 (0x0f)         & w  & route packets to spif configuration   \\%
+			\textbf{stop command}       & 16 (0x10)         & w  & stop peripheral input           \\%
+			\textbf{start command}      & 17 (0x11)         & w  & allow peripheral input           \\%
 			\hline
-		\end{tabularx}
+		\end{tabular}
+		\caption{SpiNNaker FPGA configuration Registers}
 	\end{center}
 	\label{tab:spinn_regs}
 \end{table}
@@ -183,11 +231,67 @@
 \subsection{Register Details}
 
 
-\vspace*{1.0cm}
+\clearpage
 
+
+\section{Mapping peripheral inputs to SpiNNaker packets}
+
+
+\begin{figure}[!ht]
+	\centering
+	\begin{minipage}{0.70\columnwidth}
+		\begin{algorithm}[H]
+			\caption{event to SpiNNaker packet mapping pseudocode}
+			\begin{algorithmic}[1]
+				\For {i in [0 .. 3]}
+				\State field[i] = (event \textit{AND} mask[i]) \textit{RIGHT\_SHIFT} shift[i]
+				\EndFor
+				\State accumulator[0] = map\_key
+				\For {i in [1 .. 3]}
+				\State accumulator[i] = accumulator[i-1] \textit{OR} field[i]
+				\EndFor
+				\State packet\_key = accumulator[3]
+			\end{algorithmic}
+			\label{alg:crd+cfc_fifo}
+		\end{algorithm}
+	\end{minipage}
+\end{figure}
+
+
+\image[width = 0.9 \textwidth]{!h}{mapper_ex}{fig:maper_fig}
+{DVS event to SpiNNaker packet mapping example.}
+
+
+\begin{table}[!ht]
+	\caption{Register configuration for mapping example}
+	\begin{center}
+		\begin{tabular}{| l l l l |}
+			\hline
+			\textbf{register}      & \textbf{field name} & \textbf{value} & \textbf{comment} \\%
+			\hline
+			\hline
+			\textbf{map key}       &                   & 0xeeee0000 & no mask/shift  \\%
+			\textbf{field mask 0}  & y coord           & 0x0000007f &                \\%
+			\textbf{field mask 1}  & x coord           & 0x007f0000 &                \\%
+			\textbf{field mask 2}  & p (polarity)      & 0x00008000 &                \\%
+			\textbf{field mask 3}  & \textit{not used} & 0x00000000 & must be 0      \\%
+			\textbf{field shift 0} & y coord           & 0          &                \\%
+			\textbf{field shift 1} & x coord           & 9          &                \\%
+			\textbf{field shift 2} & p (polarity)      & 1          &                \\%
+			\textbf{field shift 3} & \textit{not used} & -          & ignored (mask is 0) \\%
+			\hline
+		\end{tabular}
+	\end{center}
+	\label{tab:map_regs}
+\end{table}
+
+
+\vspace*{1.0cm}
 \rule{\linewidth}{2pt}
 
+
 \subsection*{\itshape Change log:}
+
 
 \begin{itemize}
 	\item {\itshape 1.0.0 - 03jul21 - lap} - initial release - comments to
