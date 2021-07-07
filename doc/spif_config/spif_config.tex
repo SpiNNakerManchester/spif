@@ -96,15 +96,18 @@
 {spif microarchitecture.}
 
 
+\clearpage
+\section{Interface configuration}
+
 \image[width = 0.9 \textwidth]{!h}{spif_cf}{fig:spif_cf}
 {SpiNNaker peripheral interface configuration registers.}
 
+
 \clearpage
- 
-\section{spif Configuration}
+\subsection{spif Configuration}
 
 
-\subsection{Register Summary}
+\subsubsection*{Register Summary}
 
 
 \begin{center}
@@ -116,24 +119,25 @@
 		\hline
 		\hline
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}00      & \cellcolor{gray!25}(0x00)      & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\textbf{mp\_key}                     & 01                         & (0x01)                         & w                   & map events to packets \\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}02-15   & \cellcolor{gray!25}(0x02-0x0f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\textbf{ir\_key [15:0]}              & 16-31                      & (0x10-0x1f)                    & w                   & route input packets \\%
-		\textbf{ir\_mask [15:0]}             & 32-47                      & (0x20-0x2f)                    & w                   & route input packets \\%
-		\textbf{ir\_route [15:0]}            & 48-63                      & (0x30-0x3f)                    & w                   & route input packets \\%
-		\textbf{periph\_pkt\_cnt}            & 64                         & (0x40)                         & r/w                 & count periph output pkts\\%
-		\textbf{config\_pkt \_cnt}           & 65                         & (0x41)                         & r/w                 & count config packets \\%
+		\textbf{mp\_key}                     & 01                         & (0x01)                         & w                   & routing key for event mapping \\%
+		\textbf{reply\_key}                  & 02                         & (0x02)                         & w                   & routing key for read replies \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}03-15   & \cellcolor{gray!25}(0x02-0x0f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{ir\_key [15:0]}              & 16-31                      & (0x10-0x1f)                    & w                   & keys to route input packets \\%
+		\textbf{ir\_mask [15:0]}             & 32-47                      & (0x20-0x2f)                    & w                   & masks to route input packets \\%
+		\textbf{ir\_route [15:0]}            & 48-63                      & (0x30-0x3f)                    & w                   & routes to route input packets \\%
+		\textbf{periph\_pkt\_cnt}            & 64                         & (0x40)                         & r/w                 & count periph output packets\\%
+		\textbf{config\_pkt\_cnt}            & 65                         & (0x41)                         & r/w                 & count config packets \\%
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}66-79   & \cellcolor{gray!25}(0x42-0x4f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\textbf{mp\_fld\_mask [3:0]}         & 80-83                      & (0x50-0x53)                    & w                   & map events to packets \\%
+		\textbf{mp\_fld\_mask [3:0]}         & 80-83                      & (0x50-0x53)                    & w                   & field masks for event mapping \\%
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}84-95   & \cellcolor{gray!25}(0x54-0x5f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\textbf{mp\_fld\_shift [3:0]}        & 96-99                      & (0x60-0x63)                    & w                   & map events to packets \\%
+		\textbf{mp\_fld\_shift [3:0]}        & 96-99                      & (0x60-0x63)                    & w                   & field shifts for event mapping  \\%
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}100-127 & \cellcolor{gray!25}(0x67-0x6f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\hline
 	\end{tabularx}
 \end{center}
 
 
-\subsection{Register Details}
+\subsubsection*{Register Details}
 
 
 \begin{center}
@@ -144,26 +148,25 @@
 		\textbf{name} & \textbf{width}  & \textbf{default} & \textbf{comment} \\%
 		\hline
 		\hline
-		\textbf{mp\_key}                     & 32b  & \ttfamily{0x00000000} & no default value adequate - requires setup \\%
-		\textbf{ir\_key [15:0]}              & 32b  & \ttfamily{0x00000000} & match all by default \\%
-		\textbf{ir\_mask [15:0]}             & 32b  & \ttfamily{0x00000000} & match all by default \\%
-		\textbf{ir\_route [15:0]}            & ~~3b & \ttfamily{0}          & route to (0, 0) by default \\%
-		\textbf{periph\_pkt\_cnt}            & 32b  & \ttfamily{0x00000000} & write 0 to reset \\%
-		\textbf{config\_pkt \_cnt}           & 32b  & \ttfamily{0x00000000} & write 0 to reset \\%
-		\textbf{mp\_fld\_mask [3:0]}         & 32b  & \ttfamily{0x00000000} & mapping off by default \\%
-		\textbf{mp\_fld\_shift [3:0]}        & ~~5b & \ttfamily{0}          & limited to right shift only \\%
+		\textbf{mp\_key}                     & \ttfamily{32b} & \ttfamily{0x00000000} & no adequate default value - requires setup \\%
+		\textbf{reply\_key}                  & \ttfamily{32b} & \ttfamily{0xfffffd00} & \\%
+		\textbf{ir\_key [15:0]}              & \ttfamily{32b} & \ttfamily{0x00000000} & match all by default \\%
+		\textbf{ir\_mask [15:0]}             & \ttfamily{32b} & \ttfamily{0x00000000} & match all by default \\%
+		\textbf{ir\_route [15:0]}            & \ttfamily{~3b} & \ttfamily{0}          & route to (0, 0) by default \\%
+		\textbf{periph\_pkt\_cnt}            & \ttfamily{32b} & \ttfamily{0x00000000} & write 0 to reset \\%
+		\textbf{config\_pkt\_cnt}            & \ttfamily{32b} & \ttfamily{0x00000000} & write 0 to reset \\%
+		\textbf{mp\_fld\_mask [3:0]}         & \ttfamily{32b} & \ttfamily{0x00000000} & mapping off by default (mask = 0) \\%
+		\textbf{mp\_fld\_shift [3:0]}        & \ttfamily{~5b} & \ttfamily{0}          & limited to right shift only \\%
 		\hline
 	\end{tabularx}
 \end{center}
 
 
 \clearpage
+\subsection{SpiNNaker FPGA Configuration}
 
 
-\section{SpiNNaker FPGA Configuration}
-
-
-\subsection{Register Summary}
+\subsubsection*{Register Summary}
 
 
 \begin{center}
@@ -183,14 +186,14 @@
 		\textbf{lc\_mask}                    & 13                       & (0x0d)                          & w                   & route packets to SpiNNaker FPGA  \\%
 		\textbf{rc\_key}                     & 14                       & (0x0e)                          & w                   & route packets to spif configuration   \\%
 		\textbf{rc\_mask}                    & 15                       & (0x0f)                          & w                   & route packets to spif configuration   \\%
-		\textbf{stop}                        & 16                       & (0x10)                          & w                   & stop peripheral input packets         \\%
-		\textbf{start}                       & 17                       & (0x11)                          & w                   & allow peripheral input packets         \\%
+		\textbf{stop}                        & 16                       & (0x10)                          & r/w                 & stop peripheral input packets         \\%
+		\textbf{start}                       & 17                       & (0x11)                          & r/w                 & allow peripheral input packets         \\%
 		\hline
 	\end{tabularx}
 \end{center}
 
 
-\subsection{Register Details}
+\subsubsection*{Register Details}
 
 
 \begin{center}
@@ -201,39 +204,33 @@
 		\textbf{name} & \textbf{width}  & \textbf{default} & \textbf{comment} \\%
 		\hline
 		\hline
-		\textbf{p\_key}                      & 32b  & \ttfamily{0xffffffff} &  no packets routed to periheral by default \\%
-		\textbf{p\_mask}                     & 32b  & \ttfamily{0x00000000} &  no packets routed to periheral by default \\%
-		\textbf{lc\_key}                     & 32b  & \ttfamily{0xfffffe00} &  lc\_key and lc\_mask updated atomically  \\%
-		\textbf{lc\_mask}                    & 32b  & \ttfamily{0xffffff00} &  write lc\_mask first then lc\_key        \\%
-		\textbf{rc\_key}                     & 32b  & \ttfamily{0xffffff00} &  \\%
-		\textbf{rc\_mask}                    & 32b  & \ttfamily{0xffffff00} &  \\%
-		\textbf{stop}                        &      & stop                  &  access triggers command - data ignored  \\%
-		\textbf{start}                       &      & stop                  &  access triggers command - data ignored  \\%
+		\textbf{p\_key}                      & \ttfamily{32b}  & \ttfamily{0xffffffff} &  no packets routed to periheral by default \\%
+		\textbf{p\_mask}                     & \ttfamily{32b}  & \ttfamily{0x00000000} &  no packets routed to periheral by default \\%
+		\textbf{lc\_key}                     & \ttfamily{32b}  & \ttfamily{0xfffffe00} &  lc\_key and lc\_mask updated atomically  \\%
+		\textbf{lc\_mask}                    & \ttfamily{32b}  & \ttfamily{0xffffff00} &  write lc\_mask first then lc\_key        \\%
+		\textbf{rc\_key}                     & \ttfamily{32b}  & \ttfamily{0xffffff00} &  \\%
+		\textbf{rc\_mask}                    & \ttfamily{32b}  & \ttfamily{0xffffff00} &  \\%
+		\textbf{stop}                        &                 & stop                  &  any (r/w) access stops input \\%
+		\textbf{start}                       &                 & stop                  &  any (r/w) access starts input \\%
 		\hline
 	\end{tabularx}
 \end{center}
 
 
 \clearpage
-
-
 \section{Mapping peripheral inputs to SpiNNaker packets}
 
 
 \begin{figure}[!ht]
 	\centering
-	\begin{minipage}{0.70\columnwidth}
+	\begin{minipage}{0.85\columnwidth}
 		\begin{algorithm}[H]
 			\caption{event to SpiNNaker packet mapping pseudocode}
 			\begin{algorithmic}[1]
 				\For {i in [0 .. 3]}
-				\State field[i] = (event \textit{AND} mask[i]) \textit{RIGHT\_SHIFT} shift[i]
+					\State field[i] = (event \textit{AND} mp\_fld\_mask[i]) \textit{RIGHT\_SHIFT} mp\_fld\_shift[i]
 				\EndFor
-				\State accumulator[0] = map\_key
-				\For {i in [1 .. 3]}
-				\State accumulator[i] = accumulator[i-1] \textit{OR} field[i]
-				\EndFor
-				\State packet\_key = accumulator[3]
+				\State packet\_key = mp\_key \textit{OR} field[0] \textit{OR} field[1] \textit{OR} field[2] \textit{OR} field[3]
 			\end{algorithmic}
 			\label{alg:crd+cfc_fifo}
 		\end{algorithm}
@@ -249,18 +246,18 @@
 	\begin{center}
 		\begin{tabular}{| l l l l |}
 			\hline
-			\textbf{register}      & \textbf{field name} & \textbf{value} & \textbf{comment} \\%
+			\textbf{register} & \textbf{field} & \textbf{value} & \textbf{comment}  \\%
 			\hline
 			\hline
-			\textbf{map key}       &                   & 0xeeee0000 & no mask/shift  \\%
-			\textbf{field mask 0}  & y coord           & 0x0000007f &                \\%
-			\textbf{field mask 1}  & x coord           & 0x007f0000 &                \\%
-			\textbf{field mask 2}  & p (polarity)      & 0x00008000 &                \\%
-			\textbf{field mask 3}  & \textit{not used} & 0x00000000 & must be 0      \\%
-			\textbf{field shift 0} & y coord           & 0          &                \\%
-			\textbf{field shift 1} & x coord           & 9          &                \\%
-			\textbf{field shift 2} & p (polarity)      & 1          &                \\%
-			\textbf{field shift 3} & \textit{not used} & -          & ignored (mask is 0) \\%
+			\textbf{mp\_key}           &                   & 0xeeee0000 & no mask / no shift  \\%
+			\textbf{mp\_fld\_mask[0]}  & y coord           & 0x0000007f &                     \\%
+			\textbf{mp\_fld\_mask[1]}  & x coord           & 0x007f0000 &                     \\%
+			\textbf{mp\_fld\_mask[2]}  & p (polarity)      & 0x00008000 &                     \\%
+			\textbf{mp\_fld\_mask[3]}  & \textit{not used} & 0x00000000 & must be 0           \\%
+			\textbf{mp\_fld\_shift[0]} & y coord           & 0          &                     \\%
+			\textbf{mp\_fld\_shift[1]} & x coord           & 9          &                     \\%
+			\textbf{mp\_fld\_shift[2]} & p (polarity)      & 1          &                     \\%
+			\textbf{mp\_fld\_shift[3]} & \textit{not used} & -          & ignored (mp\_fld\_mask[3] = 0) \\%
 			\hline
 		\end{tabular}
 		\caption{Register configuration for mapping example}
