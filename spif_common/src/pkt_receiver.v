@@ -60,7 +60,7 @@ module pkt_receiver
 
   // received packet counter enable signals
   //NOTE: packet type encoded in emergency routing bits!
-  assign prx_cnt_out[1] = ( pkt_data_in[4] && pkt_vld_in); 
-  assign prx_cnt_out[0] = (!pkt_data_in[4] && pkt_vld_in); 
+  assign prx_cnt_out[1] = ( pkt_data_in[4] && pkt_vld_in);
+  assign prx_cnt_out[0] = (!pkt_data_in[4] && pkt_vld_in);
   //---------------------------------------------------------------
 endmodule

@@ -127,7 +127,8 @@
 		\textbf{ir\_route [15:0]}            & 48-63                      & (0x30-0x3f)                    & w                   & routes to route input packets \\%
 		\textbf{periph\_pkt\_cnt}            & 64                         & (0x40)                         & r/w                 & count periph output packets\\%
 		\textbf{config\_pkt\_cnt}            & 65                         & (0x41)                         & r/w                 & count config packets \\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}66-79   & \cellcolor{gray!25}(0x42-0x4f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{dropped\_pkt\_cnt}           & 66                         & (0x42)                         & r/w                 & count dropped input packets \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}67-79   & \cellcolor{gray!25}(0x43-0x4f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\textbf{mp\_fld\_mask [3:0]}         & 80-83                      & (0x50-0x53)                    & w                   & field masks for event mapping \\%
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}84-95   & \cellcolor{gray!25}(0x54-0x5f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\textbf{mp\_fld\_shift [3:0]}        & 96-99                      & (0x60-0x63)                    & w                   & field shifts for event mapping  \\%
