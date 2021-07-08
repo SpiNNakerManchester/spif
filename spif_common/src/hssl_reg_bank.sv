@@ -28,7 +28,7 @@ module hssl_reg_bank
 #(
     parameter NUM_HREGS = 2,
     parameter NUM_RREGS = 16,
-    parameter NUM_CREGS = 2,
+    parameter NUM_CREGS = 3,
     parameter NUM_MREGS = 4
 )
 (

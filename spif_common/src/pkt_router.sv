@@ -33,6 +33,9 @@ module pkt_router
   parameter NUM_CHANNELS = 8
 )
 (
+  input  wire                     clk,
+  input  wire                     reset,
+
   // routing table components
   input  wire              [31:0] reg_key_in   [NUM_RREGS - 1:0],
   input  wire              [31:0] reg_mask_in  [NUM_RREGS - 1:0],
@@ -46,15 +49,35 @@ module pkt_router
   // outgoing packet channels
   output wire [PACKET_BITS - 1:0] pkt_out_data_out [NUM_CHANNELS - 1:0],
   output wire                     pkt_out_vld_out  [NUM_CHANNELS - 1:0],
-  input  wire                     pkt_out_rdy_in   [NUM_CHANNELS - 1:0]
+  input  wire                     pkt_out_rdy_in   [NUM_CHANNELS - 1:0],
+
+  // packet counter
+  output wire                     rt_cnt_out
 );
 
   //---------------------------------------------------------------
   // internal signals
   //---------------------------------------------------------------
-  wire [15:0] hit;
-  reg   [2:0] route;
+  reg              [2:0] route;
+  wire [NUM_RREGS - 1:0] hit;
 
+  // route destination output ready signal to pkt_in rdy
+  //NOTE: signal ready if no table hit!
+  assign pkt_in_rdy_out = pkt_out_rdy_in[route] || !hit;
+
+  // check if destination output is busy
+  wire [NUM_CHANNELS - 1:0] busy_out;
+
+  genvar chan;
+  generate
+    for (chan = 0; chan < NUM_CHANNELS; chan = chan + 1)
+      assign busy_out[chan] = pkt_out_vld_out[chan] && !pkt_out_rdy_in[chan];
+  endgenerate
+
+  // dropped packet counter enable signal
+  assign rt_cnt_out = 1'b0;
+
+  // route input packet
   wire [31:0] packet_key = pkt_in_data_in[KEY_LSB +: 32];
 
   // ternary CAM-like routing table
@@ -89,7 +112,6 @@ module pkt_router
       default:                 route = 0;
     endcase
 
-  genvar chan;
   generate
     for (chan = 0; chan < NUM_CHANNELS; chan = chan + 1)
       begin : route_data_vld
@@ -100,10 +122,5 @@ module pkt_router
         assign pkt_out_vld_out[chan] = pkt_in_vld_in && (route == chan);
       end
   endgenerate
-
-
-  // route selected channel ready signal to pkt_in rdy
-  //NOTE: signal ready if no table hit!
-  assign pkt_in_rdy_out = pkt_out_rdy_in[route] || !hit;
   //---------------------------------------------------------------
 endmodule

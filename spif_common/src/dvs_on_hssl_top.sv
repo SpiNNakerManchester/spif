@@ -38,7 +38,7 @@ module dvs_on_hssl_top
   parameter NUM_CHANNELS = 8,
   parameter NUM_HREGS    = 2,
   parameter NUM_RREGS    = 16,
-  parameter NUM_CREGS    = 2,
+  parameter NUM_CREGS    = 3,
   parameter NUM_MREGS    = 4
 )
 (
@@ -127,6 +127,7 @@ module dvs_on_hssl_top
   //  - diagnostic counter signals
   wire [NUM_CREGS - 1:0] ctr_cnt_int;
   wire             [1:0] prx_cnt_int;
+  wire                   rt_cnt_int;
 
   // HSSL interface signals
   wire        hi_clk_int;
@@ -298,6 +299,7 @@ module dvs_on_hssl_top
   // assemble counter signals together
   assign ctr_cnt_int[0] = prx_cnt_int[0];  // peripheral pkts
   assign ctr_cnt_int[1] = prx_cnt_int[1];  // config pkts
+  assign ctr_cnt_int[2] = rt_cnt_int;      // dropped pkts
 
   hssl_reg_bank
   #(
@@ -387,8 +389,11 @@ module dvs_on_hssl_top
       .NUM_RREGS          (NUM_RREGS)
     )
   pr (
+      .clk                (hi_clk_int)
+    , .reset              (hi_reset_int)
+
       // routing table data from register bank
-      .reg_key_in         (rt_key_int)
+    , .reg_key_in         (rt_key_int)
     , .reg_mask_in        (rt_mask_int)
     , .reg_route_in       (rt_route_int)
 
@@ -401,6 +406,9 @@ module dvs_on_hssl_top
     , .pkt_out_data_out   (txpkt_data_int)
     , .pkt_out_vld_out    (txpkt_vld_int)
     , .pkt_out_rdy_in     (txpkt_rdy_int)
+
+    // packet counter
+    , .rt_cnt_out         (rt_cnt_int)
     );
   //---------------------------------------------------------------
 
