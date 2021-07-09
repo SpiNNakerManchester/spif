@@ -125,10 +125,12 @@
 		\textbf{ir\_key [15:0]}              & 16-31                      & (0x10-0x1f)                    & w                   & keys to route input packets \\%
 		\textbf{ir\_mask [15:0]}             & 32-47                      & (0x20-0x2f)                    & w                   & masks to route input packets \\%
 		\textbf{ir\_route [15:0]}            & 48-63                      & (0x30-0x3f)                    & w                   & routes to route input packets \\%
-		\textbf{periph\_pkt\_cnt}            & 64                         & (0x40)                         & r/w                 & count periph output packets\\%
+		\textbf{out\_periph\_pkt\_cnt}       & 64                         & (0x40)                         & r/w                 & count periph output packets\\%
 		\textbf{config\_pkt\_cnt}            & 65                         & (0x41)                         & r/w                 & count config packets \\%
 		\textbf{dropped\_pkt\_cnt}           & 66                         & (0x42)                         & r/w                 & count dropped input packets \\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}67-79   & \cellcolor{gray!25}(0x43-0x4f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{in\_periph\_pkt\_cnt}        & 67                         & (0x43)                         & r/w                 & count periph input packets\\%
+		\textbf{diag\_pkt\_cnt}              & 68                         & (0x44)                         & r/w                 & count diagnostic counter packets \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}69-79   & \cellcolor{gray!25}(0x45-0x4f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\textbf{mp\_fld\_mask [3:0]}         & 80-83                      & (0x50-0x53)                    & w                   & field masks for event mapping \\%
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}84-95   & \cellcolor{gray!25}(0x54-0x5f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\textbf{mp\_fld\_shift [3:0]}        & 96-99                      & (0x60-0x63)                    & w                   & field shifts for event mapping  \\%
@@ -154,8 +156,11 @@
 		\textbf{ir\_key [15:0]}              & \ttfamily{32b} & \ttfamily{0x00000000} & match all by default \\%
 		\textbf{ir\_mask [15:0]}             & \ttfamily{32b} & \ttfamily{0x00000000} & match all by default \\%
 		\textbf{ir\_route [15:0]}            & \ttfamily{~3b} & \ttfamily{0}          & route to (0, 0) by default \\%
-		\textbf{periph\_pkt\_cnt}            & \ttfamily{32b} & \ttfamily{0x00000000} & write 0 to reset \\%
+		\textbf{out\_periph\_pkt\_cnt}       & \ttfamily{32b} & \ttfamily{0x00000000} & write 0 to reset \\%
 		\textbf{config\_pkt\_cnt}            & \ttfamily{32b} & \ttfamily{0x00000000} & write 0 to reset \\%
+		\textbf{dropped\_pkt\_cnt}           & \ttfamily{32b} & \ttfamily{0x00000000} & write 0 to reset \\%
+		\textbf{in\_periph\_pkt\_cnt}        & \ttfamily{32b} & \ttfamily{0x00000000} & write 0 to reset \\%
+		\textbf{diag\_pkt\_cnt}              & \ttfamily{32b} & \ttfamily{0x00000000} & write 0 to reset \\%
 		\textbf{mp\_fld\_mask [3:0]}         & \ttfamily{32b} & \ttfamily{0x00000000} & mapping off by default (mask = 0) \\%
 		\textbf{mp\_fld\_shift [3:0]}        & \ttfamily{~5b} & \ttfamily{0}          & limited to right shift only \\%
 		\hline

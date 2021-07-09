@@ -46,6 +46,11 @@ module pkt_router
   input  wire                     pkt_in_vld_in,
   output wire                     pkt_in_rdy_out,
 
+  // diagnostic counter packet
+  input  wire [PACKET_BITS - 1:0] dcp_data_in,
+  input  wire                     dcp_vld_in,
+  output wire                     dcp_rdy_out,
+
   // outgoing packet channels
   output wire [PACKET_BITS - 1:0] pkt_out_data_out [NUM_CHANNELS - 1:0],
   output wire                     pkt_out_vld_out  [NUM_CHANNELS - 1:0],

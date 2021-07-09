@@ -47,16 +47,20 @@ module hssl_reg_bank
   output reg                 [0:0] apb_pready_out,
   output wire                [0:0] apb_pslverr_out,
 
-  // pkt receiver interface
+  // packet receiver interface
   input  wire                [7:0] prx_addr_in,
-  input  wire               [31:0] prx_data_in,
-  input  wire                      prx_vld_in,
+  input  wire               [31:0] prx_wdata_in,
+  input  wire                      prx_en_in,
 
-  // pkt counter interface
+  // packet counter enables interface
   input  wire    [NUM_CREGS - 1:0] ctr_cnt_in,
 
   // hssl interface
   output wire                      hssl_stop_out,
+
+  // packet counter interface
+  output reg                [31:0] reg_ctr_out [NUM_CREGS - 1:0],
+  output wire               [31:0] reply_key_out,
 
   // input router interface
   output reg                [31:0] reg_rt_key_out   [NUM_RREGS - 1:0],
@@ -64,7 +68,7 @@ module hssl_reg_bank
   output reg                 [2:0] reg_rt_route_out [NUM_RREGS - 1:0],
 
   // mapper interface
-  output wire               [31:0] mp_key,
+  output wire               [31:0] mp_key_out,
   output reg                [31:0] reg_mp_fmsk_out [NUM_MREGS - 1:0],
   output reg                 [2:0] reg_mp_fsft_out [NUM_MREGS - 1:0]
 );
@@ -96,7 +100,8 @@ module hssl_reg_bank
   reg [31:0] reg_hssl_out [NUM_RREGS - 1:0];
 
   assign hssl_stop_out = reg_hssl_out[0][0];
-  assign mp_key = reg_hssl_out[1];
+  assign mp_key_out    = reg_hssl_out[1];
+  assign reply_key_out = reg_hssl_out[2];
 
   // APB register access
   wire       apb_read    = apb_psel_in && !apb_pwrite_in;
@@ -105,7 +110,7 @@ module hssl_reg_bank
   wire [3:0] apb_reg_num = apb_paddr_in[APB_NUM_LSB +: REG_BITS];
 
   // packet register access
-  wire       prx_write   = prx_vld_in;
+  wire       prx_write   = prx_en_in;
   wire [2:0] prx_reg_sec = prx_addr_in[PRX_SEC_LSB +: SEC_BITS];
   wire [3:0] prx_reg_num = prx_addr_in[PRX_NUM_LSB +: REG_BITS];
 
@@ -124,23 +129,29 @@ module hssl_reg_bank
 
   // diagnostic counters
   //NOTE: register writes have priority over counting
-  reg [31:0] ctr_reg_int [NUM_CREGS - 1:0];
   generate
-    for (i = 0; i < NUM_CREGS; i = i + 1)
-      begin
-        wire apb_ctr_wr = apb_write && (apb_reg_sec == CREGS) && (apb_reg_num == i);
-        wire prx_ctr_wr = prx_write && (prx_reg_sec == CREGS) && (prx_reg_num == i);
+    begin
+      for (i = 0; i < NUM_CREGS; i = i + 1)
+        begin
+          wire apb_ctr_wr = apb_write && (apb_reg_sec == CREGS) && (apb_reg_num == i);
+          wire prx_ctr_wr = prx_write && (prx_reg_sec == CREGS) && (prx_reg_num == i);
 
-        always @ (posedge clk or negedge resetn)
+          always @ (posedge clk or negedge resetn)
+            if (resetn == 0)
+              reg_ctr_out[i] <= 32'd0;
+            else
+              casex ({prx_ctr_wr, apb_ctr_wr, ctr_cnt_in[i]})
+                3'b1xx: reg_ctr_out[i] <= prx_wdata_in;
+                3'b01x: reg_ctr_out[i] <= apb_pwdata_in;
+                3'b001: reg_ctr_out[i] <= reg_ctr_out[i] + 1;
+              endcase
+        end
+
+      for (i = NUM_CREGS; i < 16; i = i + 1)
+        always @ (negedge resetn)
           if (resetn == 0)
-            ctr_reg_int[i] <= 32'd0;
-          else
-            casex ({prx_ctr_wr, apb_ctr_wr, ctr_cnt_in[i]})
-              3'b1xx: ctr_reg_int[i] <= prx_data_in;
-              3'b01x: ctr_reg_int[i] <= apb_pwdata_in;
-              3'b001: ctr_reg_int[i] <= ctr_reg_int[i] + 1;
-            endcase
-      end
+            reg_ctr_out[i] <= 32'hdead_beef;
+    end
   endgenerate
 
   // register writes
@@ -153,12 +164,12 @@ module hssl_reg_bank
     else
       if (prx_write)
         case (prx_reg_sec)
-          HREGS: reg_hssl_out[prx_reg_num]     <= prx_data_in;
-          KREGS: reg_rt_key_out[prx_reg_num]   <= prx_data_in;
-          MREGS: reg_rt_mask_out[prx_reg_num]  <= prx_data_in;
-          RREGS: reg_rt_route_out[prx_reg_num] <= prx_data_in;
-          AREGS: reg_mp_fmsk_out[prx_reg_num]  <= prx_data_in;
-          SREGS: reg_mp_fsft_out[prx_reg_num]  <= prx_data_in;
+          HREGS: reg_hssl_out[prx_reg_num]     <= prx_wdata_in;
+          KREGS: reg_rt_key_out[prx_reg_num]   <= prx_wdata_in;
+          MREGS: reg_rt_mask_out[prx_reg_num]  <= prx_wdata_in;
+          RREGS: reg_rt_route_out[prx_reg_num] <= prx_wdata_in;
+          AREGS: reg_mp_fmsk_out[prx_reg_num]  <= prx_wdata_in;
+          SREGS: reg_mp_fsft_out[prx_reg_num]  <= prx_wdata_in;
         endcase
       else if (apb_write)
         case (apb_reg_sec)
@@ -179,7 +190,7 @@ module hssl_reg_bank
         KREGS:   apb_prdata_out <= reg_rt_key_out[apb_reg_num];
         MREGS:   apb_prdata_out <= reg_rt_mask_out[apb_reg_num];
         RREGS:   apb_prdata_out <= reg_rt_route_out[apb_reg_num];
-        CREGS:   apb_prdata_out <= ctr_reg_int[apb_reg_num];
+        CREGS:   apb_prdata_out <= reg_ctr_out[apb_reg_num];
         AREGS:   apb_prdata_out <= reg_mp_fmsk_out[apb_reg_num];
         SREGS:   apb_prdata_out <= reg_mp_fsft_out[apb_reg_num];
         default: apb_prdata_out <= 32'hdead_beef;

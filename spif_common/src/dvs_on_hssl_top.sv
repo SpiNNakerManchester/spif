@@ -109,6 +109,10 @@ module dvs_on_hssl_top
   //  - HSSL interface control
   wire        hi_stop_int;
 
+  // - packet counters
+  wire [31:0] pkt_ctr_int [NUM_CREGS - 1:0];
+  wire [31:0] pkt_reply_key_int;
+
   //  - packet routing table
   wire [31:0] rt_key_int   [NUM_RREGS - 1:0];
   wire [31:0] rt_mask_int  [NUM_RREGS - 1:0];
@@ -121,8 +125,8 @@ module dvs_on_hssl_top
 
   // - packet receiver interface
   wire  [7:0] prx_addr_int;
-  wire [31:0] prx_data_int;
-  wire        prx_vld_int;
+  wire [31:0] prx_wdata_int;
+  wire        prx_en_int;
 
   //  - diagnostic counter signals
   wire [NUM_CREGS - 1:0] ctr_cnt_int;
@@ -297,7 +301,7 @@ module dvs_on_hssl_top
   // register bank (APB peripheral)
   //---------------------------------------------------------------
   // assemble counter signals together
-  assign ctr_cnt_int[0] = prx_cnt_int[0];  // peripheral pkts
+  assign ctr_cnt_int[0] = prx_cnt_int[0];  // peripheral output_pkts
   assign ctr_cnt_int[1] = prx_cnt_int[1];  // config pkts
   assign ctr_cnt_int[2] = rt_cnt_int;      // dropped pkts
 
@@ -326,13 +330,17 @@ module dvs_on_hssl_top
 
       // packet receiver interface
     , .prx_addr_in      (prx_addr_int)
-    , .prx_data_in      (prx_data_int)
-    , .prx_vld_in       (prx_vld_int)
+    , .prx_wdata_in     (prx_wdata_int)
+    , .prx_en_in        (prx_en_int)
 
     , .ctr_cnt_in       (ctr_cnt_int)
 
       // hssl
     , .hssl_stop_out    (hi_stop_int)
+
+      // packet counters
+    , .reg_ctr_out      (pkt_ctr_int)
+    , .reply_key_out    (pkt_reply_key_int)
 
       // input router
     , .reg_rt_key_out   (rt_key_int)
@@ -340,7 +348,7 @@ module dvs_on_hssl_top
     , .reg_rt_route_out (rt_route_int)
 
       // event mapper
-    , .mp_key           (mp_key_int)
+    , .mp_key_out       (mp_key_int)
     , .reg_mp_fmsk_out  (mp_fmsk_int)
     , .reg_mp_fsft_out  (mp_fsft_int)
     );
@@ -357,6 +365,10 @@ module dvs_on_hssl_top
   wire [PACKET_BITS - 1:0] txpkt_data_int [NUM_CHANNELS - 1:0];
   wire                     txpkt_vld_int  [NUM_CHANNELS - 1:0];
   wire                     txpkt_rdy_int  [NUM_CHANNELS - 1:0];
+
+  wire [PACKET_BITS - 1:0] dcp_data_int;
+  wire                     dcp_vld_int;
+  wire                     dcp_rdy_int; 
 
   // assemble packets using events sent by processor subsystem
   pkt_assembler
@@ -397,12 +409,17 @@ module dvs_on_hssl_top
     , .reg_mask_in        (rt_mask_int)
     , .reg_route_in       (rt_route_int)
 
-      //  assembled packet
+      // assembled packet
     , .pkt_in_data_in     (pkt_data_int)
     , .pkt_in_vld_in      (pkt_vld_int)
     , .pkt_in_rdy_out     (pkt_rdy_int)
 
-      // outgoing packets -- can be multicast
+    // diagnostic counter reply packet
+    , .dcp_data_in        (dcp_data_int)
+    , .dcp_vld_in         (dcp_vld_int)
+    , .dcp_rdy_out        (dcp_rdy_int)
+
+      // outgoing packets
     , .pkt_out_data_out   (txpkt_data_int)
     , .pkt_out_vld_out    (txpkt_vld_int)
     , .pkt_out_rdy_in     (txpkt_rdy_int)
@@ -424,7 +441,11 @@ module dvs_on_hssl_top
   wire                     rxpkt_rdy_int; 
 
   // processes packets received from the HSSL channel
-  pkt_receiver prx (
+  pkt_receiver
+  #(
+      .NUM_CREGS          (NUM_CREGS)
+    )
+  prx (
       .clk                (hi_clk_int)
     , .reset              (hi_reset_int)
 
@@ -433,10 +454,19 @@ module dvs_on_hssl_top
     , .pkt_vld_in         (rxpkt_vld_int)
     , .pkt_rdy_out        (rxpkt_rdy_int)
 
+    // packet counters
+    , .reg_ctr_in         (pkt_ctr_int)
+    , .reply_key_in       (pkt_reply_key_int)
+
       // register bank interface
     , .prx_addr_out       (prx_addr_int)
-    , .prx_data_out       (prx_data_int)
-    , .prx_vld_out        (prx_vld_int)
+    , .prx_wdata_out      (prx_wdata_int)
+    , .prx_en_out         (prx_en_int)
+
+    // diagnostic counter reply packet
+    , .dcp_data_out       (dcp_data_int)
+    , .dcp_vld_out        (dcp_vld_int)
+    , .dcp_rdy_in         (dcp_rdy_int)
 
       // packet counters
     , .prx_cnt_out        (prx_cnt_int)
