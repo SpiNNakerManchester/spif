@@ -103,14 +103,41 @@
 {SpiNNaker peripheral interface configuration registers.}
 
 
+\begin{center}
+	\begin{tabularx}{\textwidth}{| p{49mm} p{24mm} p{19mm} X |}
+		\hline
+		\textbf{configuration block}    & \textbf{routing key} & \textbf{default}      & \textbf{comment} \\%
+		\hline
+		\hline
+		\textbf{spif (remote)}          & rc\_key + offset     & \ttfamily{0xffffff00} & register offsets in Table~\ref{tab:spif_regs} \\%
+		\textbf{SpiNNaker FPGA (local)} & lc\_key + offset     & \ttfamily{0xfffffe00} & register offsets in Table~\ref{tab:spin_regs} \\%
+		\hline
+	\end{tabularx}
+\end{center}
+
+
+\begin{center}
+	\begin{tabularx}{\textwidth}{| p{44mm} p{20mm} p{20mm} X |}
+		\hline
+		\textbf{routing entry on (0, 0)} & \textbf{key}          & \textbf{mask}         & \textbf{route} \\%
+		\hline
+		\hline
+		\textbf{remote reads/writes}     & \ttfamily{0xffffff00} & \ttfamily{0xffffff00} & \ttfamily{32 (0x20)} \\%
+		\textbf{remote read replies}     & \ttfamily{0xfffffd00} & \ttfamily{0xffffff00} & \ttfamily{(route to receiving core)} \\%
+		\textbf{local writes}            & \ttfamily{0xfffffe00} & \ttfamily{0xffffff00} & \ttfamily{32 (0x20)} \\%
+		\hline
+	\end{tabularx}
+\end{center}
+
+
 \clearpage
 \subsection{spif Configuration}
 
 
 \subsubsection*{Register Summary}
 
-
 \begin{center}
+\begin{table}[!h]
 	\rowcolors {1}{}{ \tblc }
 %		\renewcommand{\arraystretch}{1.2}
 	\begin{tabularx}{\textwidth}{| p{34mm} p{13mm} p{21mm} p{7mm} X |}
@@ -134,9 +161,12 @@
 		\textbf{mp\_fld\_mask [3:0]}         & 80-83                      & (0x50-0x53)                    & w                   & field masks for event mapping \\%
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}84-95   & \cellcolor{gray!25}(0x54-0x5f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\textbf{mp\_fld\_shift [3:0]}        & 96-99                      & (0x60-0x63)                    & w                   & field shifts for event mapping  \\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}100-127 & \cellcolor{gray!25}(0x67-0x6f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}100-127 & \cellcolor{gray!25}(0x64-0x7f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\hline
 	\end{tabularx}
+	\caption{spif configuration registers}
+	\label{tab:spif_regs}
+\end{table}
 \end{center}
 
 
@@ -176,6 +206,7 @@
 
 
 \begin{center}
+\begin{table}[!h]
 	\rowcolors {1}{}{ \tblc }
 %		\renewcommand{\arraystretch}{1.2}
 	\begin{tabularx}{\textwidth}{| p{34mm} p{13mm} p{21mm} p{7mm} X |}
@@ -183,19 +214,23 @@
 		\textbf{name} & \textbf{offset} & \textbf{offset} (hex) & \textbf{r/w} & \textbf{function} \\%
 		\hline
 		\hline
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}00    & \cellcolor{gray!25}(0x00)       & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}01    & \cellcolor{gray!25}(0x01)       & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\textbf{p\_key}                      & 02                       & (0x02)                          & w                   & route packets to peripheral device             \\%
-		\textbf{p\_mask}                     & 03                       & (0x03)                          & w                   & route packets to peripheral device             \\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}04-11 & \cellcolor{gray!25} (0x04-0x0b) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\textbf{lc\_key}                     & 12                       & (0x0c)                          & w                   & route packets to SpiNNaker FPGA  \\%
-		\textbf{lc\_mask}                    & 13                       & (0x0d)                          & w                   & route packets to SpiNNaker FPGA  \\%
-		\textbf{rc\_key}                     & 14                       & (0x0e)                          & w                   & route packets to spif configuration   \\%
-		\textbf{rc\_mask}                    & 15                       & (0x0f)                          & w                   & route packets to spif configuration   \\%
-		\textbf{stop}                        & 16                       & (0x10)                          & r/w                 & stop peripheral input packets         \\%
-		\textbf{start}                       & 17                       & (0x11)                          & r/w                 & allow peripheral input packets         \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}00     & \cellcolor{gray!25}(0x00)       & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}01     & \cellcolor{gray!25}(0x01)       & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{p\_key}                      & 02                        & (0x02)                          & w                   & route packets to peripheral device             \\%
+		\textbf{p\_mask}                     & 03                        & (0x03)                          & w                   & route packets to peripheral device             \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}04-11  & \cellcolor{gray!25} (0x04-0x0b) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{lc\_key}                     & 12                        & (0x0c)                          & w                   & route packets to SpiNNaker FPGA  \\%
+		\textbf{lc\_mask}                    & 13                        & (0x0d)                          & w                   & route packets to SpiNNaker FPGA  \\%
+		\textbf{rc\_key}                     & 14                        & (0x0e)                          & w                   & route packets to spif configuration   \\%
+		\textbf{rc\_mask}                    & 15                        & (0x0f)                          & w                   & route packets to spif configuration   \\%
+		\textbf{stop}                        & 16                        & (0x10)                          & r/w                 & stop peripheral input packets         \\%
+		\textbf{start}                       & 17                        & (0x11)                          & r/w                 & allow peripheral input packets         \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}18-127 & \cellcolor{gray!25} (0x12-0x7f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\hline
 	\end{tabularx}
+	\caption{SpiNNaker FPGA configuration registers}
+	\label{tab:spin_regs}
+\end{table}
 \end{center}
 
 
