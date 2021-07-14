@@ -6,6 +6,10 @@
 *~
 check_files.sh
 
+# SpiNNaker executables
+**/build/
+*.aplx
+
 # Xilinx and LaTeX Junk
 *.asy
 *.aux
