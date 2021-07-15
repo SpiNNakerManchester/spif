@@ -13,5 +13,5 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-APP := count_events
+APP ?= count_events
 include $(SPINN_DIRS)/make/app.make
