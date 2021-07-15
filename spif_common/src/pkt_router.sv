@@ -10,11 +10,11 @@
 // -------------------------------------------------------------------------
 // DETAILS
 //  Created on       : 21 Oct 2020
-//  Last modified on : Mon  9 Nov 08:54:58 GMT 2020
+//  Last modified on : Thu 15 Jul 18:56:59 BST 2021
 //  Last modified by : lap
 // -------------------------------------------------------------------------
 // COPYRIGHT
-//  Copyright (c) The University of Manchester, 2020.
+//  Copyright (c) The University of Manchester, 2020-2021.
 //  SpiNNaker Project
 //  Advanced Processor Technologies Group
 //  School of Computer Science
@@ -44,46 +44,28 @@ module pkt_router
   // incoming packet
   input  wire [PACKET_BITS - 1:0] pkt_in_data_in,
   input  wire                     pkt_in_vld_in,
-  output wire                     pkt_in_rdy_out,
-
-  // diagnostic counter packet
-  input  wire [PACKET_BITS - 1:0] dcp_data_in,
-  input  wire                     dcp_vld_in,
-  output wire                     dcp_rdy_out,
+  output reg                      pkt_in_rdy_out,
 
   // outgoing packet channels
-  output wire [PACKET_BITS - 1:0] pkt_out_data_out [NUM_CHANNELS - 1:0],
-  output wire                     pkt_out_vld_out  [NUM_CHANNELS - 1:0],
+  output reg  [PACKET_BITS - 1:0] pkt_out_data_out [NUM_CHANNELS - 1:0],
+  output reg                      pkt_out_vld_out  [NUM_CHANNELS - 1:0],
   input  wire                     pkt_out_rdy_in   [NUM_CHANNELS - 1:0],
 
   // packet counter
-  output wire                     rt_cnt_out
+  output wire               [1:0] rt_cnt_out
 );
 
   //---------------------------------------------------------------
   // internal signals
   //---------------------------------------------------------------
-  reg              [2:0] route;
-  wire [NUM_RREGS - 1:0] hit;
-
-  // route destination output ready signal to pkt_in rdy
-  //NOTE: signal ready if no table hit!
-  assign pkt_in_rdy_out = pkt_out_rdy_in[route] || !hit;
-
-  // check if destination output is busy
-  wire [NUM_CHANNELS - 1:0] busy_out;
-
-  genvar chan;
-  generate
-    for (chan = 0; chan < NUM_CHANNELS; chan = chan + 1)
-      assign busy_out[chan] = pkt_out_vld_out[chan] && !pkt_out_rdy_in[chan];
-  endgenerate
-
-  // dropped packet counter enable signal
-  assign rt_cnt_out = 1'b0;
+  wire               [31:0] packet_key;
+  wire    [NUM_RREGS - 1:0] hit;
+  wire                      routing;
+  reg                 [2:0] route;
+  wire                      dropped;
 
   // route input packet
-  wire [31:0] packet_key = pkt_in_data_in[KEY_LSB +: 32];
+  assign packet_key = pkt_in_data_in[KEY_LSB +: 32];
 
   // ternary CAM-like routing table
   genvar te;
@@ -117,15 +99,63 @@ module pkt_router
       default:                 route = 0;
     endcase
 
+  //---------------------------------------------------------------
+  // output stages
+  //---------------------------------------------------------------
+  // switch output ports
+  //NOTE: must be split into output channels
+  wire [(PACKET_BITS * NUM_CHANNELS) - 1:0] swi_data;
+  wire                 [NUM_CHANNELS - 1:0] swi_vld;
+  wire                 [NUM_CHANNELS - 1:0] swi_rdy;
+
+  // switch expects route in different format
+  wire [NUM_CHANNELS - 1:0] swi_route = hit ? (1 << route) : 0;
+
+  spio_switch
+  #(
+        .PKT_BITS             (PACKET_BITS)
+      , .NUM_PORTS            (NUM_CHANNELS)
+      )
+  swi (
+        .CLK_IN               (clk)
+      , .RESET_IN             (reset)
+
+      , .IN_OUTPUT_SELECT_IN  (swi_route)
+
+      , .IN_DATA_IN           (pkt_in_data_in)
+      , .IN_VLD_IN            (pkt_in_vld_in)
+      , .IN_RDY_OUT           (pkt_in_rdy_out)
+
+      , .OUT_DATA_OUT         (swi_data)
+      , .OUT_VLD_OUT          (swi_vld)
+      , .OUT_RDY_IN           (swi_rdy)
+
+      , .BLOCKED_OUTPUTS_OUT  ()
+      , .SELECTED_OUTPUTS_OUT ()
+
+        //NOTE: packet dropping not yet implemented!
+      , .DROP_IN              (1'b0)
+
+      , .DROPPED_DATA_OUT     ()
+      , .DROPPED_OUTPUTS_OUT  ()
+      , .DROPPED_VLD_OUT      (dropped)
+      );
+
+  // packets go out directly from switch outputs
+  genvar chan;
   generate
     for (chan = 0; chan < NUM_CHANNELS; chan = chan + 1)
-      begin : route_data_vld
-        // incoming packet to all outputs
-        assign pkt_out_data_out[chan] = pkt_in_data_in;
-
-        // route pkt_in valid signal to selected channel only
-        assign pkt_out_vld_out[chan] = pkt_in_vld_in && (route == chan);
+      begin : output_channels
+        assign pkt_out_data_out[chan] = swi_data[chan * PACKET_BITS +: PACKET_BITS];
+        assign pkt_out_vld_out[chan]  = swi_vld[chan];
+        assign swi_rdy[chan]          = pkt_out_rdy_in[chan];
       end
   endgenerate
+
+  // packet counter enable signals
+  //NOTE: packets with a routing table miss are counted as dropped!
+  assign rt_cnt_out[0] = dropped;
+  assign rt_cnt_out[1] = pkt_in_vld_in && pkt_in_rdy_out && !dropped;
+  
   //---------------------------------------------------------------
 endmodule

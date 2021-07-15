@@ -111,6 +111,7 @@ module pkt_assembler
         3'bx11,                        // busy and parking
         3'b1x1 : evt_rdy_out <= 1'b0;  // busy and parked 
 
+        //NOTE: 3'b110 must not happen - data loss!
         3'bxx0,                        // not busy
         3'b001 : evt_rdy_out <= 1'b1;  // busy but park available
       endcase

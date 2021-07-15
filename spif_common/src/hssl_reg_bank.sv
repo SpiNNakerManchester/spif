@@ -28,7 +28,7 @@ module hssl_reg_bank
 #(
     parameter NUM_HREGS = 2,
     parameter NUM_RREGS = 16,
-    parameter NUM_CREGS = 3,
+    parameter NUM_CREGS = 4,
     parameter NUM_MREGS = 4
 )
 (
@@ -73,7 +73,16 @@ module hssl_reg_bank
   output reg                 [2:0] reg_mp_fsft_out [NUM_MREGS - 1:0]
 );
 
-  genvar i;
+  // general purpose registers
+  localparam HSSL_STOP_REG = 0;
+  localparam MP_KEY_REG    = 1;
+  localparam REPLY_KEY_REG = 2;
+
+  // register default values
+  localparam HSSL_STOP_DEF = 1'b0;
+  localparam REPLY_KEY_DEF = 32'hffff_fd00;  // remote reply routing key
+
+  localparam BAD_REG = 32'hdead_beef;
 
   localparam HREGS = 3'd0;
   localparam KREGS = 3'd1;
@@ -129,6 +138,7 @@ module hssl_reg_bank
 
   // diagnostic counters
   //NOTE: register writes have priority over counting
+  genvar i;
   generate
     begin
       for (i = 0; i < NUM_CREGS; i = i + 1)
@@ -150,7 +160,7 @@ module hssl_reg_bank
       for (i = NUM_CREGS; i < 16; i = i + 1)
         always @ (negedge resetn)
           if (resetn == 0)
-            reg_ctr_out[i] <= 32'hdead_beef;
+            reg_ctr_out[i] <= BAD_REG;
     end
   endgenerate
 
@@ -159,7 +169,8 @@ module hssl_reg_bank
   always @ (posedge clk or negedge resetn)
     if (resetn == 0)
       begin
-        reg_hssl_out[0] <= 1'b0;
+        reg_hssl_out[HSSL_STOP_REG] <= HSSL_STOP_DEF;
+        reg_hssl_out[REPLY_KEY_REG] <= REPLY_KEY_DEF;
       end
     else
       if (prx_write)
@@ -193,7 +204,7 @@ module hssl_reg_bank
         CREGS:   apb_prdata_out <= reg_ctr_out[apb_reg_num];
         AREGS:   apb_prdata_out <= reg_mp_fmsk_out[apb_reg_num];
         SREGS:   apb_prdata_out <= reg_mp_fsft_out[apb_reg_num];
-        default: apb_prdata_out <= 32'hdead_beef;
+        default: apb_prdata_out <= BAD_REG;
       endcase
   //---------------------------------------------------------------
 endmodule

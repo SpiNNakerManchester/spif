@@ -12,11 +12,11 @@
 // -------------------------------------------------------------------------
 // DETAILS
 //  Created on       : 21 Oct 2020
-//  Last modified on : Thu  1 Jul 09:54:58 BST 2021
+//  Last modified on : Thu 15 Jul 18:56:59 BST 2021
 //  Last modified by : lap
 // -------------------------------------------------------------------------
 // COPYRIGHT
-//  Copyright (c) The University of Manchester, 2020.
+//  Copyright (c) The University of Manchester, 2020-2021.
 //  SpiNNaker Project
 //  Advanced Processor Technologies Group
 //  School of Computer Science
@@ -38,7 +38,7 @@ module dvs_on_hssl_top
   parameter NUM_CHANNELS = 8,
   parameter NUM_HREGS    = 2,
   parameter NUM_RREGS    = 16,
-  parameter NUM_CREGS    = 3,
+  parameter NUM_CREGS    = 4,
   parameter NUM_MREGS    = 4
 )
 (
@@ -131,7 +131,7 @@ module dvs_on_hssl_top
   //  - diagnostic counter signals
   wire [NUM_CREGS - 1:0] ctr_cnt_int;
   wire             [1:0] prx_cnt_int;
-  wire                   rt_cnt_int;
+  wire             [1:0] rt_cnt_int;
 
   // HSSL interface signals
   wire        hi_clk_int;
@@ -300,10 +300,11 @@ module dvs_on_hssl_top
   //---------------------------------------------------------------
   // register bank (APB peripheral)
   //---------------------------------------------------------------
-  // assemble counter signals together
-  assign ctr_cnt_int[0] = prx_cnt_int[0];  // peripheral output_pkts
+  // assemble counter enable signals together
+  assign ctr_cnt_int[0] = prx_cnt_int[0];  // peripheral output pkts
   assign ctr_cnt_int[1] = prx_cnt_int[1];  // config pkts
-  assign ctr_cnt_int[2] = rt_cnt_int;      // dropped pkts
+  assign ctr_cnt_int[2] = rt_cnt_int[0];   // dropped input pkts
+  assign ctr_cnt_int[3] = rt_cnt_int[1];   // peripheral input pkts
 
   hssl_reg_bank
   #(
@@ -362,15 +363,22 @@ module dvs_on_hssl_top
   wire                     pkt_vld_int;
   wire                     pkt_rdy_int;
 
-  wire [PACKET_BITS - 1:0] txpkt_data_int [NUM_CHANNELS - 1:0];
-  wire                     txpkt_vld_int  [NUM_CHANNELS - 1:0];
-  wire                     txpkt_rdy_int  [NUM_CHANNELS - 1:0];
+  wire [PACKET_BITS - 1:0] rtr_data_int [NUM_CHANNELS - 1:0];
+  wire                     rtr_vld_int  [NUM_CHANNELS - 1:0];
+  wire                     rtr_rdy_int  [NUM_CHANNELS - 1:0];
 
   wire [PACKET_BITS - 1:0] dcp_data_int;
   wire                     dcp_vld_int;
   wire                     dcp_rdy_int; 
 
+  wire [PACKET_BITS - 1:0] txp_data_int [NUM_CHANNELS - 1:0];
+  wire                     txp_vld_int  [NUM_CHANNELS - 1:0];
+  wire                     txp_rdy_int  [NUM_CHANNELS - 1:0];
+
+
+  //---------------------------------------------------------------
   // assemble packets using events sent by processor subsystem
+  //---------------------------------------------------------------
   pkt_assembler
   #(
       .NUM_MREGS          (NUM_MREGS)
@@ -394,8 +402,12 @@ module dvs_on_hssl_top
     , .pkt_vld_out        (pkt_vld_int)
     , .pkt_rdy_in         (pkt_rdy_int)
     );
+  //---------------------------------------------------------------
 
+
+  //---------------------------------------------------------------
   // route packets to HSSL channels
+  //---------------------------------------------------------------
   pkt_router
   #(
       .NUM_RREGS          (NUM_RREGS)
@@ -414,19 +426,57 @@ module dvs_on_hssl_top
     , .pkt_in_vld_in      (pkt_vld_int)
     , .pkt_in_rdy_out     (pkt_rdy_int)
 
-    // diagnostic counter reply packet
-    , .dcp_data_in        (dcp_data_int)
-    , .dcp_vld_in         (dcp_vld_int)
-    , .dcp_rdy_out        (dcp_rdy_int)
-
       // outgoing packets
-    , .pkt_out_data_out   (txpkt_data_int)
-    , .pkt_out_vld_out    (txpkt_vld_int)
-    , .pkt_out_rdy_in     (txpkt_rdy_int)
+    , .pkt_out_data_out   (rtr_data_int)
+    , .pkt_out_vld_out    (rtr_vld_int)
+    , .pkt_out_rdy_in     (rtr_rdy_int)
 
     // packet counter
     , .rt_cnt_out         (rt_cnt_int)
     );
+  //---------------------------------------------------------------
+
+
+  //---------------------------------------------------------------
+  // merge diagnostics read replies with channel 0 routed packets
+  //---------------------------------------------------------------
+  // channel 0:
+  // need to arbitrate between routed and diagnostics packets
+  spio_rr_arbiter
+  #(
+        .PKT_BITS (PACKET_BITS)
+      )
+  arb (
+        .CLK_IN    (hi_clk_int)
+      , .RESET_IN  (hi_reset_int)
+
+        // routed packets
+      , .DATA0_IN  (rtr_data_int[0])
+      , .VLD0_IN   (rtr_vld_int[0])
+      , .RDY0_OUT  (rtr_rdy_int[0])
+
+        // diagnostics packets
+      , .DATA1_IN  (dcp_data_int)
+      , .VLD1_IN   (dcp_vld_int)
+      , .RDY1_OUT  (dcp_rdy_int)
+
+        // packets to channel 0
+      , .DATA_OUT  (txp_data_int[0])
+      , .VLD_OUT   (txp_vld_int[0])
+      , .RDY_IN    (txp_rdy_int[0])
+      );
+
+  // channels 1 to (NUM_CHANNELS - 1):
+  // no need for arbitration
+  genvar chan;
+  generate
+    for (chan = 1; chan < NUM_CHANNELS; chan = chan + 1)
+      begin
+        assign txp_data_int[chan] = rtr_data_int[chan];
+        assign txp_vld_int[chan]  = rtr_vld_int[chan];
+        assign rtr_rdy_int[chan]  = txp_rdy_int[chan];
+      end
+  endgenerate
   //---------------------------------------------------------------
 
 
@@ -436,9 +486,9 @@ module dvs_on_hssl_top
   //TODO: peripheral output not yet implemented
   //---------------------------------------------------------------
   // channel 0 receiver is the only one active
-  wire [PACKET_BITS - 1:0] rxpkt_data_int;
-  wire                     rxpkt_vld_int;
-  wire                     rxpkt_rdy_int; 
+  wire [PACKET_BITS - 1:0] rxp_data_int;
+  wire                     rxp_vld_int;
+  wire                     rxp_rdy_int; 
 
   // processes packets received from the HSSL channel
   pkt_receiver
@@ -450,9 +500,9 @@ module dvs_on_hssl_top
     , .reset              (hi_reset_int)
 
       // incoming packets from transceiver
-    , .pkt_data_in        (rxpkt_data_int)
-    , .pkt_vld_in         (rxpkt_vld_int)
-    , .pkt_rdy_out        (rxpkt_rdy_int)
+    , .pkt_data_in        (rxp_data_int)
+    , .pkt_vld_in         (rxp_vld_int)
+    , .pkt_rdy_out        (rxp_rdy_int)
 
     // packet counters
     , .reg_ctr_in         (pkt_ctr_int)
@@ -468,6 +518,13 @@ module dvs_on_hssl_top
     , .dcp_vld_out        (dcp_vld_int)
     , .dcp_rdy_in         (dcp_rdy_int)
 
+    // peripheral output packet
+    //NOTE: currently always ready to avoid backpressure!
+    //TODO: implement peripheral output packet processing
+    , .per_data_out       ()
+    , .per_vld_out        ()
+    , .per_rdy_in         (1'b1)
+
       // packet counters
     , .prx_cnt_out        (prx_cnt_int)
     );
@@ -482,14 +539,14 @@ module dvs_on_hssl_top
     , .reset                          (hi_reset_int)
 
       // routed packets to be sent to SpiNNaker
-    , .txpkt_data_in                  (txpkt_data_int)
-    , .txpkt_vld_in                   (txpkt_vld_int)
-    , .txpkt_rdy_out                  (txpkt_rdy_int)
+    , .txpkt_data_in                  (txp_data_int)
+    , .txpkt_vld_in                   (txp_vld_int)
+    , .txpkt_rdy_out                  (txp_rdy_int)
 
       // packets received from SpiNNaker
-    , .rxpkt_data_out                 (rxpkt_data_int)
-    , .rxpkt_vld_out                  (rxpkt_vld_int)
-    , .rxpkt_rdy_in                   (rxpkt_rdy_int)
+    , .rxpkt_data_out                 (rxp_data_int)
+    , .rxpkt_vld_out                  (rxp_vld_int)
+    , .rxpkt_rdy_in                   (rxp_rdy_int)
 
       // interface status and control
     , .loss_of_sync_state_out         (hi_loss_of_sync_int)
