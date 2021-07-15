@@ -258,8 +258,22 @@
 \end{center}
 
 
+\begin{center}
+	\rowcolors {1}{ blue!25 }{ blue!25 }
+	\begin{tabularx}{\textwidth}{| l X |}
+		\hline
+		\textbf{notes:} & $\bullet$ a write to \textbf{lc\_mask} takes effect only after  a write to \textbf{lc\_key}. \\%
+		& $\bullet$ \textbf{stop} prevents all incoming traffic including diagnostic counter read replies. \\%
+		\hline
+	\end{tabularx}
+\end{center}
+
+
 \clearpage
 \section{Mapping peripheral inputs to SpiNNaker packets}
+
+
+\subsection{Mapping Scheme}
 
 
 \begin{figure}[!ht]
@@ -277,6 +291,9 @@
 		\end{algorithm}
 	\end{minipage}
 \end{figure}
+
+
+\subsection{Mapping Example}
 
 
 \image[width = 0.9 \textwidth]{!h}{mapper_ex}{fig:maper_fig}
@@ -305,6 +322,14 @@
 	\end{center}
 	\label{tab:map_regs}
 \end{table}
+
+
+\clearpage
+\section{Interface test environment}
+
+
+\image[width = 0.8 \textwidth]{!h}{spif_test_env}{fig:spif_test}
+{SpiNNaker peripheral interface test environment.}
 
 
 \vspace*{1.0cm}
