@@ -8,6 +8,8 @@
 #define LCMD_MSK           0xffffff00
 #define RCMD_KEY           0xffffff00
 #define RCMD_MSK           0xffffff00
+#define RPLY_KEY           0xfffffd00
+#define RPLY_MSK           0xffffff00
 
 // local configuration commands
 //NOTE: in most cases payload carries the value
@@ -22,26 +24,28 @@
 
 // remote configuration commands
 //NOTE: in most cases payload carries the value
-#define NUM_RMT_CNT        3
+#define NUM_RMT_CNT        4
 #define RWR_MPK_CMD        1
+#define RWR_RYK_CMD        2
 #define RWR_KEY_CMD        16
 #define RWR_MSK_CMD        32
 #define RWR_RTE_CMD        48
 #define RWR_CPP_CMD        64
 #define RWR_CCP_CMD        65
 #define RWR_CDP_CMD        66
+#define RWR_CIP_CMD        67
 #define RWR_MPM_CMD        80
 #define RWR_MPS_CMD        96
 
 // spif is always connected to the SOUTH link of chip (0, 0)
 #define SPIF_ROUTE         (1 << 5)
-
+#define CORE_ROUTE(core)   (1 << (core + 6))
 
 uint spif_init ()
 {
   // initialise spif configuration MC routing table entries
   // -----------------------------------------------------------------
-  uint entry = rtr_alloc (2);
+  uint entry = rtr_alloc (3);
   if (entry == 0) {
     return (FAILURE);
   }
@@ -58,6 +62,16 @@ uint spif_init ()
                RCMD_KEY,
                RCMD_MSK,
                SPIF_ROUTE
+             );
+
+  // identify this core for reply messages
+  uint core = spin1_get_core_id ();
+
+  // setup remote reply configuration route
+  rtr_mc_set (entry + 2,
+               RPLY_KEY,
+               RPLY_MSK,
+               CORE_ROUTE(core)
              );
 
   return (SUCCESS);
@@ -124,7 +138,7 @@ void spif_set_mapper_key (uint key)
 }
 
 
-void spif_set_mapper_mask (uint field, uint mask)
+void spif_set_mapper_field_mask (uint field, uint mask)
 {
   while (!spin1_send_mc_packet (
           RCMD_KEY | RWR_MPM_CMD + field,
@@ -134,7 +148,7 @@ void spif_set_mapper_mask (uint field, uint mask)
 }
 
 
-void spif_set_mapper_shift (uint field, uint shift)
+void spif_set_mapper_field_shift (uint field, uint shift)
 {
   while (!spin1_send_mc_packet (
           RCMD_KEY | RWR_MPS_CMD + field,
@@ -158,6 +172,17 @@ void spif_stop_input (void)
 {
   while (!spin1_send_mc_packet (
           LCMD_KEY | STOP_CMD,
+          0,
+          NO_PAYLOAD)
+        );
+}
+
+
+void spif_read_counter (uint counter)
+{
+  // send counter read request
+  while (!spin1_send_mc_packet (
+          RCMD_KEY | counter,
           0,
           NO_PAYLOAD)
         );

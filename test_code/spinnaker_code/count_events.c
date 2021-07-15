@@ -29,12 +29,12 @@
 
 //NOTE: this packet key checks lower 3 bits of the event x coordinate
 #define COORD_SHIFT        3
-#define PKT_KEY(p)         (((p - 1) << COORD_SHIFT) | MPR_KEY)
-#define PKT_MSK            ((0x07 << COORD_SHIFT) | 0xffff0000)
+#define PKT_KEY(p)         (MPR_KEY | ((p - 1) << COORD_SHIFT))
+#define PKT_MSK            (0xffff0000 | (0x07 << COORD_SHIFT))
 
 //event to packet mapper parameters
 #define MPR_KEY            0xeeee0000
-#define MPR_MASK_0         0x0000ffff
+#define MPF_MASK_0         0x0000ffff
 
 
 // ------------------------------------------------------------------------
@@ -42,6 +42,7 @@
 // ------------------------------------------------------------------------
 uchar lead_0_0;
 uint  rec_pkts = 0;
+uint  spif_cnt_pkts;
 
 // ------------------------------------------------------------------------
 // code
@@ -68,7 +69,7 @@ void start_spif (uint a, uint b)
   //NOTE: map event directly to key
   spif_set_mapper_key (MPR_KEY);
 
-  spif_set_mapper_mask (0, MPR_MASK_0);
+  spif_set_mapper_field_mask (0, MPF_MASK_0);
 }
 
 
@@ -122,33 +123,44 @@ uint app_init ()
 
 void count_packets (uint key, uint payload)
 {
-  (void) key;
-  (void) payload;
+  // treat spif replies differently
+  if ((key & RPLY_MSK) == RPLY_KEY) {
+    spif_cnt_pkts = payload;
+    sark.vcpu->user2 = payload;
+    return;
+  }
 
-  // count packets
+  // count peripheral packets
   rec_pkts++;
 }
 
 
-void timertick (uint ticks, uint null)
+void test_control (uint ticks, uint null)
 {
   (void) null;
 
-  if (ticks == 1) {
+  // interface management done by lead_0_0 only
+  if (lead_0_0) {
     // allow peripheral input
-    if (lead_0_0) {
+    if (ticks == 1) {
       spif_start_input ();
     }
-  }
   
-  if (ticks >= TIMEOUT)
-  {
-    // stop peripheral input
-    if (lead_0_0) {
-      spif_stop_input ();
+    // read spif packet counter
+    //NOTE: must have callback in place to receive reply
+    if (ticks == (TIMEOUT - 1)) {
+      spif_read_counter (RWR_CIP_CMD);
     }
 
-    // finish simulation
+    // stop peripheral input
+    if (ticks >= TIMEOUT) {
+      spif_stop_input ();
+    }
+  }
+
+  // finish simulation
+  if (ticks >= TIMEOUT)
+  {
     spin1_exit (0);
   }
 }
@@ -173,7 +185,7 @@ void c_main()
     spin1_set_timer_tick (TIMER_TICK_PERIOD);
 
     // register callbacks
-    spin1_callback_on (TIMER_TICK, timertick, -1);
+    spin1_callback_on (TIMER_TICK, test_control, -1);
     spin1_callback_on (MC_PACKET_RECEIVED, count_packets, 0);
     spin1_callback_on (MCPL_PACKET_RECEIVED, count_packets, 0);
 
@@ -183,6 +195,10 @@ void c_main()
     // report results
     sark.vcpu->user1 = rec_pkts;
     io_printf (IO_BUF, "received %u packets\n", rec_pkts);
+
+    if (lead_0_0) {
+      io_printf (IO_BUF, "spif reports %d packets sent\n", spif_cnt_pkts);
+    }
   }
   else
   {
