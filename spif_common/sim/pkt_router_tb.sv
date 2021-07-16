@@ -36,6 +36,9 @@ module pkt_router_tb ();
   localparam INIT_DELAY   = (10 * TB_CLK_HALF);
   localparam RST_DELAY    = (51 * TB_CLK_HALF);  // align with clock posedge
 
+  localparam DROP_WAIT    = 4;
+
+
   //---------------------------------------------------------------
   // internal signals
   //---------------------------------------------------------------
@@ -114,7 +117,7 @@ module pkt_router_tb ();
     if (reset_tb)
       drop_wait_tb <= 0;
     else
-      drop_wait_tb <= 4;
+      drop_wait_tb <= DROP_WAIT;
 
   genvar te;
   generate

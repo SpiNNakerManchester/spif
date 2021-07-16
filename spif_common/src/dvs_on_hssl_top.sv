@@ -36,7 +36,7 @@ module dvs_on_hssl_top
 
   parameter PACKET_BITS  = `PKT_BITS,
   parameter NUM_CHANNELS = 8,
-  parameter NUM_HREGS    = 2,
+  parameter NUM_HREGS    = 5,
   parameter NUM_RREGS    = 16,
   parameter NUM_CREGS    = 4,
   parameter NUM_MREGS    = 4
@@ -112,6 +112,10 @@ module dvs_on_hssl_top
   // - packet counters
   wire [31:0] pkt_ctr_int [NUM_CREGS - 1:0];
   wire [31:0] pkt_reply_key_int;
+
+  //  - wait values for packet dropping
+  wire [31:0] rtr_drop_wait_int;
+  wire [31:0] prx_drop_wait_int;
 
   //  - packet routing table
   wire [31:0] rt_key_int   [NUM_RREGS - 1:0];
@@ -343,6 +347,9 @@ module dvs_on_hssl_top
     , .reg_ctr_out      (pkt_ctr_int)
     , .reply_key_out    (pkt_reply_key_int)
 
+    , .input_wait_out   (rtr_drop_wait_int)
+    , .output_wait_out  (prx_drop_wait_int)
+
       // input router
     , .reg_rt_key_out   (rt_key_int)
     , .reg_rt_mask_out  (rt_mask_int)
@@ -415,6 +422,9 @@ module dvs_on_hssl_top
   pr (
       .clk                (hi_clk_int)
     , .reset              (hi_reset_int)
+
+      // wait value for packet drop
+    , .drop_wait_in       (rtr_drop_wait_int)
 
       // routing table data from register bank
     , .reg_key_in         (rt_key_int)

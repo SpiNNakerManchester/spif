@@ -36,6 +36,9 @@ module pkt_router
   input  wire                     clk,
   input  wire                     reset,
 
+  // wait value for packet dropping
+  input  wire              [31:0] drop_wait_in,
+
   // routing table components
   input  wire              [31:0] reg_key_in   [NUM_RREGS - 1:0],
   input  wire              [31:0] reg_mask_in  [NUM_RREGS - 1:0],
@@ -64,6 +67,13 @@ module pkt_router
   reg                 [2:0] route;
   wire                      dropped;
 
+  reg                [31:0] wait_cnt;
+  wire [NUM_CHANNELS - 1:0] blocked;
+  wire                      drop_pkt;
+
+  //---------------------------------------------------------------
+  // routing stage
+  //---------------------------------------------------------------
   // route input packet
   assign packet_key = pkt_in_data_in[KEY_LSB +: 32];
 
@@ -98,9 +108,28 @@ module pkt_router
       16'b1000_0000_0000_0000: route = reg_route_in[15];
       default:                 route = 0;
     endcase
+  //---------------------------------------------------------------
+
 
   //---------------------------------------------------------------
-  // output stages
+  // packet dropping
+  //---------------------------------------------------------------
+  // drop wait counter - count down triggered by blocked!
+  always @ (posedge clk or posedge reset)
+    if (reset)
+      wait_cnt <= 0;
+    else
+      if ((wait_cnt == 0) | (!blocked))
+        wait_cnt <= drop_wait_in;
+      else
+        wait_cnt <= wait_cnt - 1;
+
+  assign drop_pkt = blocked && (wait_cnt == 0);
+  //---------------------------------------------------------------
+
+
+  //---------------------------------------------------------------
+  // output stage
   //---------------------------------------------------------------
   // switch output ports
   //NOTE: must be split into output channels
@@ -130,11 +159,10 @@ module pkt_router
       , .OUT_VLD_OUT          (swi_vld)
       , .OUT_RDY_IN           (swi_rdy)
 
-      , .BLOCKED_OUTPUTS_OUT  ()
+      , .BLOCKED_OUTPUTS_OUT  (blocked)
       , .SELECTED_OUTPUTS_OUT ()
 
-        //NOTE: packet dropping not yet implemented!
-      , .DROP_IN              (1'b0)
+      , .DROP_IN              (drop_pkt)
 
       , .DROPPED_DATA_OUT     ()
       , .DROPPED_OUTPUTS_OUT  ()
@@ -151,11 +179,14 @@ module pkt_router
         assign swi_rdy[chan]          = pkt_out_rdy_in[chan];
       end
   endgenerate
+  //---------------------------------------------------------------
 
-  // packet counter enable signals
+
+  //---------------------------------------------------------------
+  // packet counter enables
+  //---------------------------------------------------------------
   //NOTE: packets with a routing table miss are counted as dropped!
   assign rt_cnt_out[0] = dropped;
   assign rt_cnt_out[1] = pkt_in_vld_in && pkt_in_rdy_out && !dropped;
-  
   //---------------------------------------------------------------
 endmodule

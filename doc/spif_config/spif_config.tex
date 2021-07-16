@@ -148,7 +148,9 @@
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}00      & \cellcolor{gray!25}(0x00)      & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\textbf{mp\_key}                     & 01                         & (0x01)                         & w                   & routing key for event mapping \\%
 		\textbf{reply\_key}                  & 02                         & (0x02)                         & w                   & routing key for read replies \\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}03-15   & \cellcolor{gray!25}(0x02-0x0f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{input\_drop\_wait}           & 03                         & (0x03)                         & w                   & periph in wait-before-drop value \\%
+		\textbf{output\_drop\_wait}          & 04                         & (0x04)                         & w                   & periph out wait-before-drop value \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}05-15   & \cellcolor{gray!25}(0x05-0x0f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\textbf{ir\_key [15:0]}              & 16-31                      & (0x10-0x1f)                    & w                   & keys to route input packets \\%
 		\textbf{ir\_mask [15:0]}             & 32-47                      & (0x20-0x2f)                    & w                   & masks to route input packets \\%
 		\textbf{ir\_route [15:0]}            & 48-63                      & (0x30-0x3f)                    & w                   & routes to route input packets \\%
@@ -183,6 +185,8 @@
 		\hline
 		\textbf{mp\_key}                     & \ttfamily{32b} & \ttfamily{0x00000000} & no adequate default value - requires setup \\%
 		\textbf{reply\_key}                  & \ttfamily{32b} & \ttfamily{0xfffffd00} & \\%
+		\textbf{input\_drop\_wait}           & \ttfamily{32b} & \ttfamily{32}         & 512 for 0 drops in worst-case traffic \\%
+		\textbf{output\_drop\_wait}          & \ttfamily{32b} & \ttfamily{32}         & \\%
 		\textbf{ir\_key [15:0]}              & \ttfamily{32b} & \ttfamily{0x00000000} & match all by default \\%
 		\textbf{ir\_mask [15:0]}             & \ttfamily{32b} & \ttfamily{0x00000000} & match all by default \\%
 		\textbf{ir\_route [15:0]}            & \ttfamily{~3b} & \ttfamily{0}          & route to (0, 0) by default \\%

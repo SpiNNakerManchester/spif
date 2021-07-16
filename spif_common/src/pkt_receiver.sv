@@ -87,12 +87,16 @@ module pkt_receiver
   wire                            cfg_rdy;
 
   //NOTE: emergency routing bits replaced with packet type code!
-  wire cfg_pkt = pkt_data_in[4] && pkt_vld_in && pkt_rdy_out;
+  wire cfg_pkt = pkt_data_in[4];
 
   wire [SP - 1:0] route;
   assign route[PER_OUT] = !cfg_pkt;
-  assign route[CFG_OUT] = cfg_pkt;
+  assign route[CFG_OUT] =  cfg_pkt;
 
+
+  //---------------------------------------------------------------
+  // input switch
+  //---------------------------------------------------------------
   // split peripheral and configuration packets
   spio_switch
   #(
@@ -124,16 +128,21 @@ module pkt_receiver
       , .DROPPED_VLD_OUT      ()
       );
 
-  // peripheral packets directly from switch output
+  // peripheral packets go out directly from switch output
   assign per_data_out     = swi_data[PER_OUT * PACKET_BITS +: PACKET_BITS];
   assign per_vld_out      = swi_vld[PER_OUT];
   assign swi_rdy[PER_OUT] = per_rdy_in;
 
-  // config packets treated differently if read or write
+  // config packets managed internally
   assign cfg_data         = swi_data[CFG_OUT * PACKET_BITS +: PACKET_BITS];
   assign cfg_vld          = swi_vld[CFG_OUT];
   assign swi_rdy[CFG_OUT] = cfg_rdy;
+  //---------------------------------------------------------------
 
+
+  //---------------------------------------------------------------
+  // configuration packet handling
+  //---------------------------------------------------------------
   // payload presence indicates read or write
   wire pld_pst = cfg_data[1];
 
@@ -142,23 +151,30 @@ module pkt_receiver
 
   // diagnostic counters can be read
   //NOTE: non-existing counters always read BAD_REG!
-  wire   [3:0] ctr_num = cfg_data[8 +: REG_BITS];
-  wire   [2:0] ctr_sec = cfg_data[12 +: SEC_BITS];
-  wire         ctr_ok  = (ctr_num < NUM_CREGS) && (ctr_sec == CREGS);
+  wire [(SEC_BITS + REG_BITS) - 1:0] ctr_offset;
+  wire              [SEC_BITS - 1:0] ctr_sec;
+  wire              [REG_BITS - 1:0] ctr_num;
+  wire                               ctr_ok;
+
+  assign ctr_offset = cfg_data[8 +: (SEC_BITS + REG_BITS)];
+  assign ctr_sec    = cfg_data[12 +: SEC_BITS];
+  assign ctr_num    = cfg_data[8 +: REG_BITS];
+  assign ctr_ok     = (ctr_num < NUM_CREGS) && (ctr_sec == CREGS);
 
   wire   [7:0] dcp_hdr;
   wire  [31:0] dcp_key;
   wire  [31:0] dcp_pld;
   wire         dcp_pty;
 
+  // basic counter read interface
+  //NOTE: enable only when payload not present in configuration packet!
   // assemble reply packet with counter data
   assign dcp_hdr = {7'b000_0001, dcp_pty};
-  assign dcp_key = reply_key_in | ctr_num;
+  assign dcp_key = reply_key_in | ctr_offset;
   assign dcp_pld = ctr_ok ? reg_ctr_in[ctr_num] : BAD_REG;
   assign dcp_pty = (^dcp_key ^ ^dcp_pld);
 
-  // basic counter read interface
-  //NOTE: enable only when payload not present in configuration packet!
+  // send assembled reply packet back
   assign dcp_data_out = {dcp_pld, dcp_key, dcp_hdr};
   assign dcp_vld_out  = cfg_vld && !pld_pst;
 
@@ -167,7 +183,12 @@ module pkt_receiver
   assign prx_en_out    = cfg_vld && pld_pst;
   assign prx_addr_out  = cfg_data[8 +: 8];
   assign prx_wdata_out = cfg_data[40 +: 32];
+  //---------------------------------------------------------------
 
+
+  //---------------------------------------------------------------
+  // packet counter enables
+  //---------------------------------------------------------------
   // received packet counter enable signals
   assign prx_cnt_out[1] = ( cfg_pkt && pkt_vld_in && pkt_rdy_out);
   assign prx_cnt_out[0] = (!cfg_pkt && pkt_vld_in && pkt_rdy_out);

@@ -26,7 +26,7 @@
 `timescale 1ps/1ps
 module hssl_reg_bank
 #(
-    parameter NUM_HREGS = 2,
+    parameter NUM_HREGS = 5,
     parameter NUM_RREGS = 16,
     parameter NUM_CREGS = 4,
     parameter NUM_MREGS = 4
@@ -62,6 +62,10 @@ module hssl_reg_bank
   output reg                [31:0] reg_ctr_out [NUM_CREGS - 1:0],
   output wire               [31:0] reply_key_out,
 
+  // wait values for packet dropping
+  output wire               [31:0] input_wait_out,
+  output wire               [31:0] output_wait_out,
+
   // input router interface
   output reg                [31:0] reg_rt_key_out   [NUM_RREGS - 1:0],
   output reg                [31:0] reg_rt_mask_out  [NUM_RREGS - 1:0],
@@ -77,10 +81,14 @@ module hssl_reg_bank
   localparam HSSL_STOP_REG = 0;
   localparam MP_KEY_REG    = 1;
   localparam REPLY_KEY_REG = 2;
+  localparam IN_WAIT_REG   = 3;
+  localparam OUT_WAIT_REG  = 4;
 
   // register default values
   localparam HSSL_STOP_DEF = 1'b0;
   localparam REPLY_KEY_DEF = 32'hffff_fd00;  // remote reply routing key
+  localparam IN_WAIT_DEF   = 32;
+  localparam OUT_WAIT_DEF  = 32;
 
   localparam BAD_REG = 32'hdead_beef;
 
@@ -106,11 +114,13 @@ module hssl_reg_bank
   //---------------------------------------------------------------
   // internal signals
   //---------------------------------------------------------------
-  reg [31:0] reg_hssl_out [NUM_RREGS - 1:0];
+  reg [31:0] reg_hssl_out [NUM_HREGS - 1:0];
 
-  assign hssl_stop_out = reg_hssl_out[0][0];
-  assign mp_key_out    = reg_hssl_out[1];
-  assign reply_key_out = reg_hssl_out[2];
+  assign hssl_stop_out   = reg_hssl_out[HSSL_STOP_REG][0];
+  assign mp_key_out      = reg_hssl_out[MP_KEY_REG];
+  assign reply_key_out   = reg_hssl_out[REPLY_KEY_REG];
+  assign input_wait_out  = reg_hssl_out[IN_WAIT_REG];
+  assign output_wait_out = reg_hssl_out[OUT_WAIT_REG];
 
   // APB register access
   wire       apb_read    = apb_psel_in && !apb_pwrite_in;
@@ -171,6 +181,8 @@ module hssl_reg_bank
       begin
         reg_hssl_out[HSSL_STOP_REG] <= HSSL_STOP_DEF;
         reg_hssl_out[REPLY_KEY_REG] <= REPLY_KEY_DEF;
+        reg_hssl_out[IN_WAIT_REG]   <= IN_WAIT_DEF;
+        reg_hssl_out[OUT_WAIT_REG]  <= OUT_WAIT_DEF;
       end
     else
       if (prx_write)
