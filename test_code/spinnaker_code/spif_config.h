@@ -27,6 +27,8 @@
 #define NUM_RMT_CNT        4
 #define RWR_MPK_CMD        1
 #define RWR_RYK_CMD        2
+#define RWR_IDW_CMD        3
+#define RWR_ODW_CMD        4
 #define RWR_KEY_CMD        16
 #define RWR_MSK_CMD        32
 #define RWR_RTE_CMD        48
@@ -123,6 +125,16 @@ void spif_set_routing_route (uint entry, uint route)
   while (!spin1_send_mc_packet (
           RCMD_KEY | RWR_RTE_CMD + entry,
           route,
+          WITH_PAYLOAD)
+        );
+}
+
+
+void spif_set_input_drop_wait (uint wait)
+{
+  while (!spin1_send_mc_packet (
+          RCMD_KEY | RWR_IDW_CMD,
+          wait,
           WITH_PAYLOAD)
         );
 }
