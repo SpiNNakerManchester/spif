@@ -7,7 +7,7 @@
 // constants
 // ------------------------------------------------------------------------
 #define TIMER_TICK_PERIOD  1000     // 1 ms
-#define RUN_TIME           40       // (in seconds)
+#define RUN_TIME           60       // (in seconds)
 #define TIMEOUT            (RUN_TIME * 1000000 / TIMER_TICK_PERIOD)
 
 #define EAST               0
@@ -18,6 +18,13 @@
 #define SOUTH              5
 
 #define OUT_LINK           SOUTH
+
+//event to packet mapper parameters
+#define MPR_KEY            0xeeee0000
+#define MPF_MASK_0         0x0000ffff
+
+// packet dropping parameters
+#define PKT_DROP_WAIT      512
 
 
 // ------------------------------------------------------------------------
@@ -32,10 +39,6 @@
 #define PKT_KEY(p)         (MPR_KEY | ((p - 1) << COORD_SHIFT))
 #define PKT_MSK            (0xffff0000 | (0x07 << COORD_SHIFT))
 
-//event to packet mapper parameters
-#define MPR_KEY            0xeeee0000
-#define MPF_MASK_0         0x0000ffff
-
 
 // ------------------------------------------------------------------------
 // global variables
@@ -43,6 +46,8 @@
 uchar lead_0_0;
 uint  rec_pkts = 0;
 uint  spif_cnt_pkts;
+uint  spif_cnt_drop;
+uint  spif_cnt = 0;
 
 // ------------------------------------------------------------------------
 // code
@@ -70,6 +75,9 @@ void start_spif (uint a, uint b)
   spif_set_mapper_key (MPR_KEY);
 
   spif_set_mapper_field_mask (0, MPF_MASK_0);
+
+  // ajust peripheral input wait-before-drop value
+  spif_set_input_drop_wait (PKT_DROP_WAIT);
 }
 
 
@@ -121,14 +129,29 @@ uint app_init ()
 }
 
 
+void rcv_replies (uint key, uint payload)
+{
+  // check key for counter ID
+  if ((key & RPLY_MSK) == RPLY_KEY) {
+    if ((key & ~RPLY_MSK) == RWR_CIP_CMD) {
+      spif_cnt_pkts = payload;
+      sark.vcpu->user2 = payload;
+      return;
+    }
+
+    if ((key & ~RPLY_MSK) == RWR_CDP_CMD) {
+      spif_cnt_drop = payload;
+      sark.vcpu->user3 = payload;
+      return;
+    }
+  }
+}
+
+
 void count_packets (uint key, uint payload)
 {
-  // treat spif replies differently
-  if ((key & RPLY_MSK) == RPLY_KEY) {
-    spif_cnt_pkts = payload;
-    sark.vcpu->user2 = payload;
-    return;
-  }
+  (void) key;
+  (void) payload;
 
   // count peripheral packets
   rec_pkts++;
@@ -149,7 +172,13 @@ void test_control (uint ticks, uint null)
     // read spif packet counter
     //NOTE: must have callback in place to receive reply
     if (ticks == (TIMEOUT - 1)) {
+      // register callbacks to service spif replies
+      spin1_callback_on (MC_PACKET_RECEIVED, rcv_replies, 0);
+      spin1_callback_on (MCPL_PACKET_RECEIVED, rcv_replies, 0);
+
+      // send counter read requests
       spif_read_counter (RWR_CIP_CMD);
+      spif_read_counter (RWR_CDP_CMD);
     }
 
     // stop peripheral input
@@ -198,6 +227,7 @@ void c_main()
 
     if (lead_0_0) {
       io_printf (IO_BUF, "spif reports %d packets sent\n", spif_cnt_pkts);
+      io_printf (IO_BUF, "spif reports %d packets dropped\n", spif_cnt_drop);
     }
   }
   else
