@@ -26,6 +26,9 @@
 // packet dropping parameters
 #define PKT_DROP_WAIT      512
 
+#define SPIF_SNT_CNT       0x1
+#define SPIF_DRP_CNT       0x2
+
 
 // ------------------------------------------------------------------------
 // macros
@@ -136,12 +139,14 @@ void rcv_replies (uint key, uint payload)
     if ((key & ~RPLY_MSK) == RWR_CIP_CMD) {
       spif_cnt_pkts = payload;
       sark.vcpu->user2 = payload;
+      spif_cnt |= SPIF_SNT_CNT;
       return;
     }
 
     if ((key & ~RPLY_MSK) == RWR_CDP_CMD) {
       spif_cnt_drop = payload;
       sark.vcpu->user3 = payload;
+      spif_cnt |= SPIF_DRP_CNT;
       return;
     }
   }
@@ -226,8 +231,17 @@ void c_main()
     io_printf (IO_BUF, "received %u packets\n", rec_pkts);
 
     if (lead_0_0) {
-      io_printf (IO_BUF, "spif reports %d packets sent\n", spif_cnt_pkts);
-      io_printf (IO_BUF, "spif reports %d packets dropped\n", spif_cnt_drop);
+      if (spif_cnt & SPIF_SNT_CNT) {
+	io_printf (IO_BUF, "spif reports %d packets sent\n", spif_cnt_pkts);
+      } else {
+	io_printf (IO_BUF, "spif sent packet read failed\n", spif_cnt_pkts);
+      }
+
+      if (spif_cnt & SPIF_DRP_CNT) {
+	io_printf (IO_BUF, "spif reports %d packets dropped\n", spif_cnt_drop);
+      } else {
+	io_printf (IO_BUF, "spif dropped packet read failed\n", spif_cnt_pkts);
+      }
     }
   }
   else
