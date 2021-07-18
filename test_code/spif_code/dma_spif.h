@@ -55,7 +55,7 @@
 // ---------------------------------
 
 // ---------------------------------
-// AXI_HPM)_FPD PS -> PL interface
+// AXI_HPM0_FPD PS -> PL interface
 
 // DMA controller configuration
 #define DMA_REGS_ADDR     0xa0000000
