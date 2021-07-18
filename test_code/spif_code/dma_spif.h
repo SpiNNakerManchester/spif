@@ -14,7 +14,17 @@
 #include <fcntl.h>
 
 
+//---------------------------------------------------------------
+// FPGA selection
+//NOTE: un-comment the required FPGA #define
+//---------------------------------------------------------------
+#define TARGET_XC7Z015   // Zynq7 on TE0715 board
+//#define TARGET_XCZU9EG   // Zynq Ultrascale+ on zcu102 board
+//---------------------------------------------------------------
+
 // addresses of memory-mapped FPGA interfaces 
+
+#ifdef TARGET_XC7Z015
 
 // ---------------------------------
 // AXI_HP0 PL -> DDR interface
@@ -31,6 +41,28 @@
 #define DMA_REGS_ADDR     0x40400000
 #define DMA_REGS_SIZE     0x10000
 // ---------------------------------
+
+#endif /* TARGET_XC7Z015 */
+
+#ifdef TARGET_XCZU9EG
+
+// ---------------------------------
+// AXI_HP0_FPD PL -> DDR interface
+
+// reserved DDR range for DMA buffers 
+#define DDR_RES_MEM_ADDR  0x7feff000
+#define DDR_RES_MEM_SIZE  0x1000
+// ---------------------------------
+
+// ---------------------------------
+// AXI_HPM)_FPD PS -> PL interface
+
+// DMA controller configuration
+#define DMA_REGS_ADDR     0xa0000000
+#define DMA_REGS_SIZE     0x10000
+// ---------------------------------
+
+#endif /* TARGET_XCZU9EG */
 
 // ---------------------------------
 // DMA controller registers
