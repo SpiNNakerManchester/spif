@@ -26,6 +26,9 @@
 // packet dropping parameters
 #define PKT_DROP_WAIT      512
 
+#define SPIF_SNT_CNT       0x1
+#define SPIF_DRP_CNT       0x2
+
 
 // ------------------------------------------------------------------------
 // macros
@@ -63,11 +66,11 @@ void start_spif (uint a, uint b)
   // configure peripheral input routing table
   //NOTE: route based on 3 least-significant bits
   for (uint i = 0; i < 8; i++) {
-	spif_set_routing_key (i, i);
+    spif_set_routing_key (i, i);
 
-	spif_set_routing_mask (i, 0x00000007);
+    spif_set_routing_mask (i, 0x00000007);
 
-	spif_set_routing_route (i, i);
+    spif_set_routing_route (i, i);
   }
 
   // configure peripheral input mapper
@@ -94,10 +97,10 @@ uint app_init ()
 
   // set a MC routing entry to catch packets that match my id lsb
   rtr_mc_set (entry,
-	      PKT_KEY(core),
-	      PKT_MSK,
-	      ROUTE_TO_CORE(core)
-    );
+          PKT_KEY(core),
+          PKT_MSK,
+          ROUTE_TO_CORE(core)
+          );
 
   if (lead_0_0) {
     // initialise spif configuration MC routing table entries
@@ -136,12 +139,14 @@ void rcv_replies (uint key, uint payload)
     if ((key & ~RPLY_MSK) == RWR_CIP_CMD) {
       spif_cnt_pkts = payload;
       sark.vcpu->user2 = payload;
+      spif_cnt |= SPIF_SNT_CNT;
       return;
     }
 
     if ((key & ~RPLY_MSK) == RWR_CDP_CMD) {
       spif_cnt_drop = payload;
       sark.vcpu->user3 = payload;
+      spif_cnt |= SPIF_DRP_CNT;
       return;
     }
   }
@@ -226,8 +231,17 @@ void c_main()
     io_printf (IO_BUF, "received %u packets\n", rec_pkts);
 
     if (lead_0_0) {
-      io_printf (IO_BUF, "spif reports %d packets sent\n", spif_cnt_pkts);
-      io_printf (IO_BUF, "spif reports %d packets dropped\n", spif_cnt_drop);
+      if (spif_cnt & SPIF_SNT_CNT) {
+        io_printf (IO_BUF, "spif reports %d packets sent\n", spif_cnt_pkts);
+      } else {
+        io_printf (IO_BUF, "spif sent packet read failed\n", spif_cnt_pkts);
+      }
+
+      if (spif_cnt & SPIF_DRP_CNT) {
+        io_printf (IO_BUF, "spif reports %d packets dropped\n", spif_cnt_drop);
+      } else {
+        io_printf (IO_BUF, "spif dropped packet read failed\n", spif_cnt_pkts);
+      }
     }
   }
   else
