@@ -4,7 +4,7 @@
 *.f
 *.swp
 *~
-check_files.sh
+check_files_*.sh
 
 # SpiNNaker executables
 **/build/

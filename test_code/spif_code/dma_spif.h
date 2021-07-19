@@ -50,7 +50,7 @@
 // AXI_HP0_FPD PL -> DDR interface
 
 // reserved DDR range for DMA buffers 
-#define DDR_RES_MEM_ADDR  0x7feff000
+#define DDR_RES_MEM_ADDR  0x7fef5000
 #define DDR_RES_MEM_SIZE  0x1000
 // ---------------------------------
 

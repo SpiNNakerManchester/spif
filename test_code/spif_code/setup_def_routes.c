@@ -61,7 +61,7 @@ int main (int argc, char* argv[]) {
     mask_regs[i]  = DEF_MASKS[i];
     route_regs[i] = DEF_ROUTES[i];
     printf ("route %u: key/%u mask/%u route/%u\n",
-	    i, DEF_KEYS[i], DEF_MASKS[i], DEF_ROUTES[i]);
+      i, DEF_KEYS[i], DEF_MASKS[i], DEF_ROUTES[i]);
   }
 
   return 0;
