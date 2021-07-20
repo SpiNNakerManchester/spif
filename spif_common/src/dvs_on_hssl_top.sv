@@ -12,11 +12,11 @@
 // -------------------------------------------------------------------------
 // DETAILS
 //  Created on       : 21 Oct 2020
-//  Last modified on : Mon 29 Mar 09:47:33 BST 2021
+//  Last modified on : Thu 15 Jul 18:56:59 BST 2021
 //  Last modified by : lap
 // -------------------------------------------------------------------------
 // COPYRIGHT
-//  Copyright (c) The University of Manchester, 2020.
+//  Copyright (c) The University of Manchester, 2020-2021.
 //  SpiNNaker Project
 //  Advanced Processor Technologies Group
 //  School of Computer Science
@@ -36,8 +36,10 @@ module dvs_on_hssl_top
 
   parameter PACKET_BITS  = `PKT_BITS,
   parameter NUM_CHANNELS = 8,
-  parameter NUM_REGS     = 1,
-  parameter NUM_ENTRIES  = 16
+  parameter NUM_HREGS    = 5,
+  parameter NUM_RREGS    = 16,
+  parameter NUM_CREGS    = 4,
+  parameter NUM_MREGS    = 4
 )
 (
   // differential reference clock inputs
@@ -105,12 +107,35 @@ module dvs_on_hssl_top
 
   // register bank signals
   //  - HSSL interface control
-  wire        reg_hi_int [NUM_REGS - 1:0];
+  wire        hi_stop_int;
+
+  // - packet counters
+  wire [31:0] pkt_ctr_int [NUM_CREGS - 1:0];
+  wire [31:0] pkt_reply_key_int;
+
+  //  - wait values for packet dropping
+  wire [31:0] rtr_drop_wait_int;
+  wire [31:0] prx_drop_wait_int;
 
   //  - packet routing table
-  wire [31:0] reg_key_int   [NUM_ENTRIES - 1:0];
-  wire [31:0] reg_mask_int  [NUM_ENTRIES - 1:0];
-  wire  [2:0] reg_route_int [NUM_ENTRIES - 1:0];
+  wire [31:0] rt_key_int   [NUM_RREGS - 1:0];
+  wire [31:0] rt_mask_int  [NUM_RREGS - 1:0];
+  wire  [2:0] rt_route_int [NUM_RREGS - 1:0];
+
+  //  - event mapper registers
+  wire [31:0] mp_key_int;
+  wire [31:0] mp_fmsk_int [NUM_MREGS - 1:0];
+  wire  [2:0] mp_fsft_int [NUM_MREGS - 1:0];
+
+  // - packet receiver interface
+  wire  [7:0] prx_addr_int;
+  wire [31:0] prx_wdata_int;
+  wire        prx_en_int;
+
+  //  - diagnostic counter signals
+  wire [NUM_CREGS - 1:0] ctr_cnt_int;
+  wire             [1:0] prx_cnt_int;
+  wire             [1:0] rt_cnt_int;
 
   // HSSL interface signals
   wire        hi_clk_int;
@@ -279,25 +304,61 @@ module dvs_on_hssl_top
   //---------------------------------------------------------------
   // register bank (APB peripheral)
   //---------------------------------------------------------------
-  hssl_reg_bank rb (
-      .clk             (axi_clk_int)
-    , .resetn          (axi_resetn_int)
+  // assemble counter enable signals together
+  assign ctr_cnt_int[0] = prx_cnt_int[0];  // peripheral output pkts
+  assign ctr_cnt_int[1] = prx_cnt_int[1];  // config pkts
+  assign ctr_cnt_int[2] = rt_cnt_int[0];   // dropped input pkts
+  assign ctr_cnt_int[3] = rt_cnt_int[1];   // peripheral input pkts
 
-    , .apb_psel_in     (apb_psel_int)
-    , .apb_pwrite_in   (apb_pwrite_int)
-    , .apb_penable_in  (apb_penable_int)
+  hssl_reg_bank
+  #(
+      .NUM_HREGS       (NUM_HREGS)
+    , .NUM_RREGS       (NUM_RREGS)
+    , .NUM_CREGS       (NUM_CREGS)
+    , .NUM_MREGS       (NUM_MREGS)
+    )
+  rb (
+      .clk              (axi_clk_int)
+    , .resetn           (axi_resetn_int)
 
-    , .apb_paddr_in    (apb_paddr_int)
-    , .apb_pwdata_in   (apb_pwdata_int)
-    , .apb_prdata_out  (apb_prdata_int)
+      // processor APB interface
+    , .apb_psel_in      (apb_psel_int)
+    , .apb_pwrite_in    (apb_pwrite_int)
+    , .apb_penable_in   (apb_penable_int)
 
-    , .apb_pready_out  (apb_pready_int)
-    , .apb_pslverr_out (apb_pslverr_int)
+    , .apb_paddr_in     (apb_paddr_int)
+    , .apb_pwdata_in    (apb_pwdata_int)
+    , .apb_prdata_out   (apb_prdata_int)
 
-    , .reg_hssl_out    (reg_hi_int)
-    , .reg_key_out     (reg_key_int)
-    , .reg_mask_out    (reg_mask_int)
-    , .reg_route_out   (reg_route_int)
+    , .apb_pready_out   (apb_pready_int)
+    , .apb_pslverr_out  (apb_pslverr_int)
+
+      // packet receiver interface
+    , .prx_addr_in      (prx_addr_int)
+    , .prx_wdata_in     (prx_wdata_int)
+    , .prx_en_in        (prx_en_int)
+
+    , .ctr_cnt_in       (ctr_cnt_int)
+
+      // hssl
+    , .hssl_stop_out    (hi_stop_int)
+
+      // packet counters
+    , .reg_ctr_out      (pkt_ctr_int)
+    , .reply_key_out    (pkt_reply_key_int)
+
+    , .input_wait_out   (rtr_drop_wait_int)
+    , .output_wait_out  (prx_drop_wait_int)
+
+      // input router
+    , .reg_rt_key_out   (rt_key_int)
+    , .reg_rt_mask_out  (rt_mask_int)
+    , .reg_rt_route_out (rt_route_int)
+
+      // event mapper
+    , .mp_key_out       (mp_key_int)
+    , .reg_mp_fmsk_out  (mp_fmsk_int)
+    , .reg_mp_fsft_out  (mp_fsft_int)
     );
   //---------------------------------------------------------------
 
@@ -309,24 +370,34 @@ module dvs_on_hssl_top
   wire                     pkt_vld_int;
   wire                     pkt_rdy_int;
 
-  wire [PACKET_BITS - 1:0] txpkt_data_int [NUM_CHANNELS - 1:0];
-  wire                     txpkt_vld_int  [NUM_CHANNELS - 1:0];
-  wire                     txpkt_rdy_int  [NUM_CHANNELS - 1:0];
+  wire [PACKET_BITS - 1:0] rtr_data_int [NUM_CHANNELS - 1:0];
+  wire                     rtr_vld_int  [NUM_CHANNELS - 1:0];
+  wire                     rtr_rdy_int  [NUM_CHANNELS - 1:0];
 
-  // make unused receivers *not* ready
-  wire rxpkt_rdy_int [NUM_CHANNELS - 1:0];
-  genvar chan;
-  generate
-    for (chan = 0; chan < NUM_CHANNELS; chan = chan + 1)
-      begin : rx_not_rdy
-        assign rxpkt_rdy_int[chan] = 1'b0;
-      end
-  endgenerate
+  wire [PACKET_BITS - 1:0] dcp_data_int;
+  wire                     dcp_vld_int;
+  wire                     dcp_rdy_int; 
 
+  wire [PACKET_BITS - 1:0] txp_data_int [NUM_CHANNELS - 1:0];
+  wire                     txp_vld_int  [NUM_CHANNELS - 1:0];
+  wire                     txp_rdy_int  [NUM_CHANNELS - 1:0];
+
+
+  //---------------------------------------------------------------
   // assemble packets using events sent by processor subsystem
-  pkt_assembler pa (
+  //---------------------------------------------------------------
+  pkt_assembler
+  #(
+      .NUM_MREGS          (NUM_MREGS)
+    )
+  pa (
       .clk                (hi_clk_int)
     , .reset              (hi_reset_int)
+
+       // event mapper registers
+    , .mp_key_in          (mp_key_int)
+    , .field_msk_in       (mp_fmsk_int)
+    , .field_sft_in       (mp_fsft_int)
 
       // incoming event
     , .evt_data_in        (evt_data_int)
@@ -338,23 +409,134 @@ module dvs_on_hssl_top
     , .pkt_vld_out        (pkt_vld_int)
     , .pkt_rdy_in         (pkt_rdy_int)
     );
+  //---------------------------------------------------------------
 
+
+  //---------------------------------------------------------------
   // route packets to HSSL channels
-  pkt_router pr (
-      // routing table data from register bank
-      .reg_key_in         (reg_key_int)
-    , .reg_mask_in        (reg_mask_int)
-    , .reg_route_in       (reg_route_int)
+  //---------------------------------------------------------------
+  pkt_router
+  #(
+      .NUM_RREGS          (NUM_RREGS)
+    )
+  pr (
+      .clk                (hi_clk_int)
+    , .reset              (hi_reset_int)
 
-      //  assembled packet
+      // wait value for packet drop
+    , .drop_wait_in       (rtr_drop_wait_int)
+
+      // routing table data from register bank
+    , .reg_key_in         (rt_key_int)
+    , .reg_mask_in        (rt_mask_int)
+    , .reg_route_in       (rt_route_int)
+
+      // assembled packet
     , .pkt_in_data_in     (pkt_data_int)
     , .pkt_in_vld_in      (pkt_vld_int)
     , .pkt_in_rdy_out     (pkt_rdy_int)
 
-      // outgoing packets -- can be multicast
-    , .pkt_out_data_out   (txpkt_data_int)
-    , .pkt_out_vld_out    (txpkt_vld_int)
-    , .pkt_out_rdy_in     (txpkt_rdy_int)
+      // outgoing packets
+    , .pkt_out_data_out   (rtr_data_int)
+    , .pkt_out_vld_out    (rtr_vld_int)
+    , .pkt_out_rdy_in     (rtr_rdy_int)
+
+    // packet counter
+    , .rt_cnt_out         (rt_cnt_int)
+    );
+  //---------------------------------------------------------------
+
+
+  //---------------------------------------------------------------
+  // merge diagnostics read replies with channel 0 routed packets
+  //---------------------------------------------------------------
+  // channel 0:
+  // need to arbitrate between routed and diagnostics packets
+  spio_rr_arbiter
+  #(
+        .PKT_BITS (PACKET_BITS)
+      )
+  arb (
+        .CLK_IN    (hi_clk_int)
+      , .RESET_IN  (hi_reset_int)
+
+        // routed packets
+      , .DATA0_IN  (rtr_data_int[0])
+      , .VLD0_IN   (rtr_vld_int[0])
+      , .RDY0_OUT  (rtr_rdy_int[0])
+
+        // diagnostics packets
+      , .DATA1_IN  (dcp_data_int)
+      , .VLD1_IN   (dcp_vld_int)
+      , .RDY1_OUT  (dcp_rdy_int)
+
+        // packets to channel 0
+      , .DATA_OUT  (txp_data_int[0])
+      , .VLD_OUT   (txp_vld_int[0])
+      , .RDY_IN    (txp_rdy_int[0])
+      );
+
+  // channels 1 to (NUM_CHANNELS - 1):
+  // no need for arbitration
+  genvar chan;
+  generate
+    for (chan = 1; chan < NUM_CHANNELS; chan = chan + 1)
+      begin
+        assign txp_data_int[chan] = rtr_data_int[chan];
+        assign txp_vld_int[chan]  = rtr_vld_int[chan];
+        assign rtr_rdy_int[chan]  = txp_rdy_int[chan];
+      end
+  endgenerate
+  //---------------------------------------------------------------
+
+
+  //---------------------------------------------------------------
+  // process packets arriving from the Gigabit receiver
+  // steer to configuration block or peripheral output
+  //TODO: peripheral output not yet implemented
+  //---------------------------------------------------------------
+  // channel 0 receiver is the only one active
+  wire [PACKET_BITS - 1:0] rxp_data_int;
+  wire                     rxp_vld_int;
+  wire                     rxp_rdy_int; 
+
+  // processes packets received from the HSSL channel
+  pkt_receiver
+  #(
+      .NUM_CREGS          (NUM_CREGS)
+    )
+  prx (
+      .clk                (hi_clk_int)
+    , .reset              (hi_reset_int)
+
+      // incoming packets from transceiver
+    , .pkt_data_in        (rxp_data_int)
+    , .pkt_vld_in         (rxp_vld_int)
+    , .pkt_rdy_out        (rxp_rdy_int)
+
+    // packet counters
+    , .reg_ctr_in         (pkt_ctr_int)
+    , .reply_key_in       (pkt_reply_key_int)
+
+      // register bank interface
+    , .prx_addr_out       (prx_addr_int)
+    , .prx_wdata_out      (prx_wdata_int)
+    , .prx_en_out         (prx_en_int)
+
+    // diagnostic counter reply packet
+    , .dcp_data_out       (dcp_data_int)
+    , .dcp_vld_out        (dcp_vld_int)
+    , .dcp_rdy_in         (dcp_rdy_int)
+
+    // peripheral output packet
+    //NOTE: currently always ready to avoid backpressure!
+    //TODO: implement peripheral output packet processing
+    , .per_data_out       ()
+    , .per_vld_out        ()
+    , .per_rdy_in         (1'b1)
+
+      // packet counters
+    , .prx_cnt_out        (prx_cnt_int)
     );
   //---------------------------------------------------------------
 
@@ -367,15 +549,14 @@ module dvs_on_hssl_top
     , .reset                          (hi_reset_int)
 
       // routed packets to be sent to SpiNNaker
-    , .txpkt_data_in                  (txpkt_data_int)
-    , .txpkt_vld_in                   (txpkt_vld_int)
-    , .txpkt_rdy_out                  (txpkt_rdy_int)
+    , .txpkt_data_in                  (txp_data_int)
+    , .txpkt_vld_in                   (txp_vld_int)
+    , .txpkt_rdy_out                  (txp_rdy_int)
 
       // packets received from SpiNNaker
-      //NOTE: currently not in use!
-    , .rxpkt_data_out                 ()
-    , .rxpkt_vld_out                  ()
-    , .rxpkt_rdy_in                   (rxpkt_rdy_int)
+    , .rxpkt_data_out                 (rxp_data_int)
+    , .rxpkt_vld_out                  (rxp_vld_int)
+    , .rxpkt_rdy_in                   (rxp_rdy_int)
 
       // interface status and control
     , .loss_of_sync_state_out         (hi_loss_of_sync_int)
@@ -383,7 +564,7 @@ module dvs_on_hssl_top
     , .version_mismatch_out           (hi_version_mismatch_int)
 
     , .idsi_out                       (hi_idsi_int)
-    , .stop_in                        (reg_hi_int[0])
+    , .stop_in                        (hi_stop_int)
 
       // Gigabit transmitter
     , .tx_data_out                    (gt_tx_data_int)

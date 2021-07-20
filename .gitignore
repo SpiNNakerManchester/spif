@@ -4,7 +4,8 @@
 *.f
 *.swp
 *~
-check_files_*.sh
+check_files*.sh
+*.synctex.*
 
 # SpiNNaker executables
 **/build/

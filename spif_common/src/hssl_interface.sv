@@ -42,9 +42,9 @@ module hssl_interface
   input  wire                     txpkt_vld_in   [NUM_CHANNELS - 1:0],
   output wire                     txpkt_rdy_out  [NUM_CHANNELS - 1:0],
 
-  output wire [PACKET_BITS - 1:0] rxpkt_data_out [NUM_CHANNELS - 1:0],
-  output wire                     rxpkt_vld_out  [NUM_CHANNELS - 1:0],
-  input  wire                     rxpkt_rdy_in   [NUM_CHANNELS - 1:0],
+  output wire [PACKET_BITS - 1:0] rxpkt_data_out,
+  output wire                     rxpkt_vld_out,
+  input  wire                     rxpkt_rdy_in,
 
   output reg                [1:0] loss_of_sync_state_out,
   output wire                     handshake_complete_out,
@@ -163,37 +163,38 @@ module hssl_interface
       , .pkt_rdy7   (txpkt_rdy_out[7])
 
       // outgoing packet streams
-      , .opkt_data0 (rxpkt_data_out[0])
-      , .opkt_vld0  (rxpkt_vld_out[0])
-      , .opkt_rdy0  (rxpkt_rdy_in[0])
+      //NOTE: channel 0 is the only one active!
+      , .opkt_data0 (rxpkt_data_out)
+      , .opkt_vld0  (rxpkt_vld_out)
+      , .opkt_rdy0  (rxpkt_rdy_in)
 
-      , .opkt_data1 (rxpkt_data_out[1])
-      , .opkt_vld1  (rxpkt_vld_out[1])
-      , .opkt_rdy1  (rxpkt_rdy_in[1])
+      , .opkt_data1 ()
+      , .opkt_vld1  ()
+      , .opkt_rdy1  (1'b0)
 
-      , .opkt_data2 (rxpkt_data_out[2])
-      , .opkt_vld2  (rxpkt_vld_out[2])
-      , .opkt_rdy2  (rxpkt_rdy_in[2])
+      , .opkt_data2 ()
+      , .opkt_vld2  ()
+      , .opkt_rdy2  (1'b0)
 
-      , .opkt_data3 (rxpkt_data_out[3])
-      , .opkt_vld3  (rxpkt_vld_out[3])
-      , .opkt_rdy3  (rxpkt_rdy_in[3])
+      , .opkt_data3 ()
+      , .opkt_vld3  ()
+      , .opkt_rdy3  (1'b0)
 
-      , .opkt_data4 (rxpkt_data_out[4])
-      , .opkt_vld4  (rxpkt_vld_out[4])
-      , .opkt_rdy4  (rxpkt_rdy_in[4])
+      , .opkt_data4 ()
+      , .opkt_vld4  ()
+      , .opkt_rdy4  (1'b0)
 
-      , .opkt_data5 (rxpkt_data_out[5])
-      , .opkt_vld5  (rxpkt_vld_out[5])
-      , .opkt_rdy5  (rxpkt_rdy_in[5])
+      , .opkt_data5 ()
+      , .opkt_vld5  ()
+      , .opkt_rdy5  (1'b0)
 
-      , .opkt_data6 (rxpkt_data_out[6])
-      , .opkt_vld6  (rxpkt_vld_out[6])
-      , .opkt_rdy6  (rxpkt_rdy_in[6])
+      , .opkt_data6 ()
+      , .opkt_vld6  ()
+      , .opkt_rdy6  (1'b0)
 
-      , .opkt_data7 (rxpkt_data_out[7])
-      , .opkt_vld7  (rxpkt_vld_out[7])
-      , .opkt_rdy7  (rxpkt_rdy_in[7])
+      , .opkt_data7 ()
+      , .opkt_vld7  ()
+      , .opkt_rdy7  (1'b0)
     );
   //---------------------------------------------------------------
 

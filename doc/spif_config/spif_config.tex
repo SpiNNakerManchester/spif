@@ -1,0 +1,350 @@
+% ----------------------------------------------------------------------------
+% COPYRIGHT
+%  Copyright (c) The University of Manchester, 2021.
+%  SpiNNaker Project
+%  Advanced Processor Technologies Group
+%  School of Computer Science
+% ----------------------------------------------------------------------------
+% AUTHOR
+%  lap - luis.plana@manchester.ac.uk
+% ----------------------------------------------------------------------------
+% DETAILS
+%  Created on       : 21 Jun 2021
+%  Last modified on : Sat  3 Jul 16:39:12 BST 2021
+%  Last modified by : lap
+% ----------------------------------------------------------------------------
+
+
+% --------------------------------------------------------------------------
+% define useful variables
+% --------------------------------------------------------------------------
+\def\myversion{Version 1.0.0}
+\def\mydate{03 July 2021}
+
+\def\bcw{5mm}
+\def\ncw{45mm}
+\def\ocw{10mm}
+\def\rcw{10mm}
+\def\fcw{45mm}
+\def\tblc{green!15}
+% --------------------------------------------------------------------------
+
+
+\documentclass[11pt,a4paper,twoside]{article}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage[table]{xcolor}
+\usepackage[ruled]{algorithm}
+\usepackage[noend]{algpseudocode}
+\floatname{algorithm}{scheme}
+% --------------------------------------------------------------------------
+
+% --------------------------------------------------------------------------
+% adjust paper size and margins
+% --------------------------------------------------------------------------
+\textheight 246mm
+\textwidth 154mm
+\voffset -7.5mm
+\topmargin -8mm
+\oddsidemargin 2.7mm
+\evensidemargin 2.7mm
+\headheight 18.0pt
+\headsep 15mm
+\raggedbottom
+% --------------------------------------------------------------------------
+
+% --------------------------------------------------------------------------
+% command to simplify image handling
+% --------------------------------------------------------------------------
+\newcommand{\image}[5][]
+{
+\begin{figure}[#2]
+   \begin{center}
+      \includegraphics[#1]{#3}
+      \caption{#5}
+      \label{fig:#4}
+   \end{center}
+\end{figure}
+}
+% --------------------------------------------------------------------------
+
+\begin{document}
+
+\rule{\linewidth}{2pt}
+
+\begin{center}
+	\textbf{
+		\Large{SpiNNaker High-Speed Serial Peripheral Interface} \\
+		\vspace*{0.5cm}
+		\large {\myversion} \\
+		\large{\mydate}
+	}
+\end{center}
+
+\rule{\linewidth}{2pt}
+
+\vspace*{1.0cm}
+
+
+\section{Interface architecture}
+
+\image[width = \textwidth]{!h}{spin_per_if}{fig:spin_if}
+	{SpiNNaker peripheral interface.}
+
+
+\image[width = \textwidth]{!h}{spif_bd}{fig:spif_bd}
+{spif microarchitecture.}
+
+
+\clearpage
+\section{Interface configuration}
+
+\image[width = 0.9 \textwidth]{!h}{spif_cf}{fig:spif_cf}
+{SpiNNaker peripheral interface configuration registers.}
+
+
+\begin{center}
+	\begin{tabularx}{\textwidth}{| p{49mm} p{24mm} p{19mm} X |}
+		\hline
+		\textbf{configuration block}    & \textbf{routing key} & \textbf{default}      & \textbf{comment} \\%
+		\hline
+		\hline
+		\textbf{spif (remote)}          & rc\_key + offset     & \ttfamily{0xffffff00} & register offsets in Table~\ref{tab:spif_regs} \\%
+		\textbf{SpiNNaker FPGA (local)} & lc\_key + offset     & \ttfamily{0xfffffe00} & register offsets in Table~\ref{tab:spin_regs} \\%
+		\hline
+	\end{tabularx}
+\end{center}
+
+
+\begin{center}
+	\begin{tabularx}{\textwidth}{| p{44mm} p{20mm} p{20mm} X |}
+		\hline
+		\textbf{routing entry on (0, 0)} & \textbf{key}          & \textbf{mask}         & \textbf{route} \\%
+		\hline
+		\hline
+		\textbf{remote reads/writes}     & \ttfamily{0xffffff00} & \ttfamily{0xffffff00} & \ttfamily{32 (0x20)} \\%
+		\textbf{remote read replies}     & \ttfamily{0xfffffd00} & \ttfamily{0xffffff00} & \ttfamily{(route to receiving core)} \\%
+		\textbf{local writes}            & \ttfamily{0xfffffe00} & \ttfamily{0xffffff00} & \ttfamily{32 (0x20)} \\%
+		\hline
+	\end{tabularx}
+\end{center}
+
+
+\clearpage
+\subsection{spif Configuration}
+
+
+\subsubsection*{Register Summary}
+
+\begin{center}
+\begin{table}[!h]
+	\rowcolors {1}{}{ \tblc }
+%		\renewcommand{\arraystretch}{1.2}
+	\begin{tabularx}{\textwidth}{| p{34mm} p{13mm} p{21mm} p{7mm} X |}
+		\hline
+		\textbf{name} & \textbf{offset} & \textbf{offset} (hex) & \textbf{r/w} & \textbf{function} \\%
+		\hline
+		\hline
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}00      & \cellcolor{gray!25}(0x00)      & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{mp\_key}                     & 01                         & (0x01)                         & w                   & routing key for event mapping \\%
+		\textbf{reply\_key}                  & 02                         & (0x02)                         & w                   & routing key for read replies \\%
+		\textbf{in\_drop\_wait}              & 03                         & (0x03)                         & w                   & input wait-before-drop count \\%
+		\textbf{out\_drop\_wait}             & 04                         & (0x04)                         & w                   & output wait-before-drop count \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}05-15   & \cellcolor{gray!25}(0x05-0x0f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{ir\_key [15:0]}              & 16-31                      & (0x10-0x1f)                    & w                   & keys to route input packets \\%
+		\textbf{ir\_mask [15:0]}             & 32-47                      & (0x20-0x2f)                    & w                   & masks to route input packets \\%
+		\textbf{ir\_route [15:0]}            & 48-63                      & (0x30-0x3f)                    & w                   & routes to route input packets \\%
+		\textbf{out\_periph\_pkt\_cnt}       & 64                         & (0x40)                         & r/w                 & count periph output packets\\%
+		\textbf{config\_pkt\_cnt}            & 65                         & (0x41)                         & r/w                 & count config packets \\%
+		\textbf{in\_dropped\_pkt\_cnt}       & 66                         & (0x42)                         & r/w                 & count dropped input packets \\%
+		\textbf{in\_periph\_pkt\_cnt}        & 67                         & (0x43)                         & r/w                 & count periph input packets\\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}68-79   & \cellcolor{gray!25}(0x44-0x4f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{mp\_fld\_mask [3:0]}         & 80-83                      & (0x50-0x53)                    & w                   & field masks for event mapping \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}84-95   & \cellcolor{gray!25}(0x54-0x5f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{mp\_fld\_shift [3:0]}        & 96-99                      & (0x60-0x63)                    & w                   & field shifts for event mapping  \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}100-127 & \cellcolor{gray!25}(0x64-0x7f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\hline
+	\end{tabularx}
+	\caption{spif configuration registers}
+	\label{tab:spif_regs}
+\end{table}
+\end{center}
+
+
+\subsubsection*{Register Details}
+
+
+\begin{center}
+	\rowcolors {1}{}{ \tblc }
+	%		\renewcommand{\arraystretch}{1.2}
+	\begin{tabularx}{\textwidth}{| p{35mm} p{11mm} p{22mm} X |}
+		\hline
+		\textbf{name} & \textbf{width}  & \textbf{default} & \textbf{comment} \\%
+		\hline
+		\hline
+		\textbf{mp\_key}                     & \ttfamily{32b} & \ttfamily{0x00000000} & no adequate default value - requires setup \\%
+		\textbf{reply\_key}                  & \ttfamily{32b} & \ttfamily{0xfffffd00} & \\%
+		\textbf{in\_drop\_wait}              & \ttfamily{32b} & \ttfamily{32}         & 512 for no drops in worst-case traffic \\%
+		\textbf{out\_drop\_wait}             & \ttfamily{32b} & \ttfamily{32}         & \\%
+		\textbf{ir\_key [15:0]}              & \ttfamily{32b} & \ttfamily{0x00000000} & match all by default \\%
+		\textbf{ir\_mask [15:0]}             & \ttfamily{32b} & \ttfamily{0x00000000} & match all by default \\%
+		\textbf{ir\_route [15:0]}            & \ttfamily{~3b} & \ttfamily{0}          & route to (0, 0) by default \\%
+		\textbf{out\_periph\_pkt\_cnt}       & \ttfamily{32b} & \ttfamily{0x00000000} & write 0 to reset \\%
+		\textbf{config\_pkt\_cnt}            & \ttfamily{32b} & \ttfamily{0x00000000} & write 0 to reset \\%
+		\textbf{in\_dropped\_pkt\_cnt}       & \ttfamily{32b} & \ttfamily{0x00000000} & write 0 to reset \\%
+		\textbf{in\_periph\_pkt\_cnt}        & \ttfamily{32b} & \ttfamily{0x00000000} & write 0 to reset \\%
+		\textbf{mp\_fld\_mask [3:0]}         & \ttfamily{32b} & \ttfamily{0x00000000} & mapping off by default (mask = 0) \\%
+		\textbf{mp\_fld\_shift [3:0]}        & \ttfamily{~5b} & \ttfamily{0}          & limited to right shift only \\%
+		\hline
+	\end{tabularx}
+\end{center}
+
+
+\clearpage
+\subsection{SpiNNaker FPGA Configuration}
+
+
+\subsubsection*{Register Summary}
+
+
+\begin{center}
+\begin{table}[!h]
+	\rowcolors {1}{}{ \tblc }
+%		\renewcommand{\arraystretch}{1.2}
+	\begin{tabularx}{\textwidth}{| p{34mm} p{13mm} p{21mm} p{7mm} X |}
+		\hline
+		\textbf{name} & \textbf{offset} & \textbf{offset} (hex) & \textbf{r/w} & \textbf{function} \\%
+		\hline
+		\hline
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}00     & \cellcolor{gray!25}(0x00)       & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}01     & \cellcolor{gray!25}(0x01)       & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{p\_key}                      & 02                        & (0x02)                          & w                   & route packets to peripheral device             \\%
+		\textbf{p\_mask}                     & 03                        & (0x03)                          & w                   & route packets to peripheral device             \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}04-11  & \cellcolor{gray!25} (0x04-0x0b) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{lc\_key}                     & 12                        & (0x0c)                          & w                   & route packets to SpiNNaker FPGA  \\%
+		\textbf{lc\_mask}                    & 13                        & (0x0d)                          & w                   & route packets to SpiNNaker FPGA  \\%
+		\textbf{rc\_key}                     & 14                        & (0x0e)                          & w                   & route packets to spif configuration   \\%
+		\textbf{rc\_mask}                    & 15                        & (0x0f)                          & w                   & route packets to spif configuration   \\%
+		\textbf{stop}                        & 16                        & (0x10)                          & r/w                 & stop peripheral input packets         \\%
+		\textbf{start}                       & 17                        & (0x11)                          & r/w                 & allow peripheral input packets         \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}18-127 & \cellcolor{gray!25} (0x12-0x7f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\hline
+	\end{tabularx}
+	\caption{SpiNNaker FPGA configuration registers}
+	\label{tab:spin_regs}
+\end{table}
+\end{center}
+
+
+\subsubsection*{Register Details}
+
+
+\begin{center}
+	\rowcolors {1}{}{ \tblc }
+	%		\renewcommand{\arraystretch}{1.2}
+	\begin{tabularx}{\textwidth}{| p{35mm} p{11mm} p{22mm} X |}
+		\hline
+		\textbf{name} & \textbf{width}  & \textbf{default} & \textbf{comment} \\%
+		\hline
+		\hline
+		\textbf{p\_key}                      & \ttfamily{32b}  & \ttfamily{0xffffffff} &  no packets routed to periheral by default \\%
+		\textbf{p\_mask}                     & \ttfamily{32b}  & \ttfamily{0x00000000} &  no packets routed to periheral by default \\%
+		\textbf{lc\_key}                     & \ttfamily{32b}  & \ttfamily{0xfffffe00} &  lc\_key and lc\_mask updated atomically  \\%
+		\textbf{lc\_mask}                    & \ttfamily{32b}  & \ttfamily{0xffffff00} &  write lc\_mask first then lc\_key        \\%
+		\textbf{rc\_key}                     & \ttfamily{32b}  & \ttfamily{0xffffff00} &  \\%
+		\textbf{rc\_mask}                    & \ttfamily{32b}  & \ttfamily{0xffffff00} &  \\%
+		\textbf{stop}                        &                 & stop                  &  any (r/w) access stops input \\%
+		\textbf{start}                       &                 & stop                  &  any (r/w) access starts input \\%
+		\hline
+	\end{tabularx}
+\end{center}
+
+
+\begin{center}
+	\rowcolors {1}{ blue!25 }{ blue!25 }
+	\begin{tabularx}{\textwidth}{| l X |}
+		\hline
+		\textbf{notes:} & $\bullet$ a write to \textbf{lc\_mask} takes effect only after  a write to \textbf{lc\_key}. \\%
+		& $\bullet$ \textbf{stop} prevents all incoming traffic including diagnostic counter read replies. \\%
+		\hline
+	\end{tabularx}
+\end{center}
+
+
+\clearpage
+\section{Mapping peripheral inputs to SpiNNaker packets}
+
+
+\subsection{Mapping Scheme}
+
+
+\begin{figure}[!ht]
+	\centering
+	\begin{minipage}{0.85\columnwidth}
+		\begin{algorithm}[H]
+			\caption{event to SpiNNaker packet mapping pseudocode}
+			\begin{algorithmic}[1]
+				\For {i in [0 .. 3]}
+					\State field[i] = (event \textit{AND} mp\_fld\_mask[i]) \textit{RIGHT\_SHIFT} mp\_fld\_shift[i]
+				\EndFor
+				\State packet\_key = mp\_key \textit{OR} field[0] \textit{OR} field[1] \textit{OR} field[2] \textit{OR} field[3]
+			\end{algorithmic}
+			\label{alg:crd+cfc_fifo}
+		\end{algorithm}
+	\end{minipage}
+\end{figure}
+
+
+\subsection{Mapping Example}
+
+
+\image[width = 0.9 \textwidth]{!h}{mapper_ex}{fig:maper_fig}
+{DVS event to SpiNNaker packet mapping example.}
+
+
+\begin{table}[!ht]
+	\begin{center}
+		\begin{tabular}{| l l l l |}
+			\hline
+			\textbf{register} & \textbf{field} & \textbf{value} & \textbf{comment}  \\%
+			\hline
+			\hline
+			\textbf{mp\_key}           &                   & 0xeeee0000 & no mask / no shift  \\%
+			\textbf{mp\_fld\_mask[0]}  & y coord           & 0x0000007f &                     \\%
+			\textbf{mp\_fld\_mask[1]}  & x coord           & 0x007f0000 &                     \\%
+			\textbf{mp\_fld\_mask[2]}  & p (polarity)      & 0x00008000 &                     \\%
+			\textbf{mp\_fld\_mask[3]}  & \textit{not used} & 0x00000000 & must be 0           \\%
+			\textbf{mp\_fld\_shift[0]} & y coord           & 0          &                     \\%
+			\textbf{mp\_fld\_shift[1]} & x coord           & 9          &                     \\%
+			\textbf{mp\_fld\_shift[2]} & p (polarity)      & 1          &                     \\%
+			\textbf{mp\_fld\_shift[3]} & \textit{not used} & -          & ignored (mp\_fld\_mask[3] = 0) \\%
+			\hline
+		\end{tabular}
+		\caption{Register configuration for mapping example}
+	\end{center}
+	\label{tab:map_regs}
+\end{table}
+
+
+\clearpage
+\section{Interface test environment}
+
+
+\image[width = 0.8 \textwidth]{!h}{spif_test_env}{fig:spif_test}
+{SpiNNaker peripheral interface test environment.}
+
+
+\vspace*{1.0cm}
+\rule{\linewidth}{2pt}
+
+
+\subsection*{\itshape Change log:}
+
+
+\begin{itemize}
+	\item {\itshape 1.0.0 - 03jul21 - lap} - initial release - comments to
+	{\itshape luis.plana@manchester.ac.uk}
+\end{itemize}
+
+
+\end{document}
