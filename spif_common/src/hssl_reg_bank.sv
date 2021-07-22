@@ -74,7 +74,7 @@ module hssl_reg_bank
   // mapper interface
   output wire               [31:0] mp_key_out,
   output reg                [31:0] reg_mp_fmsk_out [NUM_MREGS - 1:0],
-  output reg                 [2:0] reg_mp_fsft_out [NUM_MREGS - 1:0]
+  output reg                 [4:0] reg_mp_fsft_out [NUM_MREGS - 1:0]
 );
 
   // general purpose registers

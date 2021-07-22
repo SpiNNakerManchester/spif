@@ -36,7 +36,7 @@ module pkt_assembler
   // event mapper configuration
   input  wire              [31:0] mp_key_in,
   input  wire              [31:0] field_msk_in  [NUM_MREGS - 1:0],
-  input  wire               [2:0] field_sft_in [NUM_MREGS - 1:0],
+  input  wire               [4:0] field_sft_in [NUM_MREGS - 1:0],
 
   // event inputs
   input  wire              [31:0] evt_data_in,
