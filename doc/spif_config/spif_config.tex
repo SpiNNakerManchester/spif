@@ -194,7 +194,7 @@
 		\textbf{in\_dropped\_pkt\_cnt}       & \ttfamily{32b} & \ttfamily{0x00000000} & write 0 to reset \\%
 		\textbf{in\_periph\_pkt\_cnt}        & \ttfamily{32b} & \ttfamily{0x00000000} & write 0 to reset \\%
 		\textbf{mp\_fld\_mask [3:0]}         & \ttfamily{32b} & \ttfamily{0x00000000} & mapping off by default (mask = 0) \\%
-		\textbf{mp\_fld\_shift [3:0]}        & \ttfamily{~5b} & \ttfamily{0}          & limited to right shift only \\%
+		\textbf{mp\_fld\_shift [3:0]}        & \ttfamily{~6b} & \ttfamily{0}          & negative value indicates left shift \\%
 		\hline
 	\end{tabularx}
 \end{center}
@@ -280,14 +280,18 @@
 
 \begin{figure}[!ht]
 	\centering
-	\begin{minipage}{0.85\columnwidth}
+	\begin{minipage}{0.95\columnwidth}
 		\begin{algorithm}[H]
 			\caption{event to SpiNNaker packet mapping pseudocode}
 			\begin{algorithmic}[1]
 				\For {i in [0 .. 3]}
-					\State field[i] = (event \textit{AND} mp\_fld\_mask[i]) \textit{RIGHT\_SHIFT} mp\_fld\_shift[i]
+				    \If {mp\_fld\_shift[i] $<$ 0}
+					    \State field[i] = (event \textbf{AND} mp\_fld\_mask[i]) \textbf{LEFT\_SHIFT} \textbf{-}mp\_fld\_shift[i]
+				    \Else
+					    \State field[i] = (event \textbf{AND} mp\_fld\_mask[i]) \textbf{RIGHT\_SHIFT} mp\_fld\_shift[i]
+					\EndIf
 				\EndFor
-				\State packet\_key = mp\_key \textit{OR} field[0] \textit{OR} field[1] \textit{OR} field[2] \textit{OR} field[3]
+				\State packet\_key = mp\_key \textbf{OR} field[0] \textbf{OR} field[1] \textbf{OR} field[2] \textbf{OR} field[3]
 			\end{algorithmic}
 			\label{alg:crd+cfc_fifo}
 		\end{algorithm}
@@ -309,15 +313,15 @@
 			\textbf{register} & \textbf{field} & \textbf{value} & \textbf{comment}  \\%
 			\hline
 			\hline
-			\textbf{mp\_key}           &                   & 0xeeee0000 & no mask / no shift  \\%
-			\textbf{mp\_fld\_mask[0]}  & y coord           & 0x0000007f &                     \\%
-			\textbf{mp\_fld\_mask[1]}  & x coord           & 0x007f0000 &                     \\%
-			\textbf{mp\_fld\_mask[2]}  & p (polarity)      & 0x00008000 &                     \\%
-			\textbf{mp\_fld\_mask[3]}  & \textit{not used} & 0x00000000 & must be 0           \\%
-			\textbf{mp\_fld\_shift[0]} & y coord           & 0          &                     \\%
-			\textbf{mp\_fld\_shift[1]} & x coord           & 9          &                     \\%
-			\textbf{mp\_fld\_shift[2]} & p (polarity)      & 1          &                     \\%
-			\textbf{mp\_fld\_shift[3]} & \textit{not used} & -          & ignored (mp\_fld\_mask[3] = 0) \\%
+			\textbf{mp\_key}           &                   & 0xeeee0000 & no mask / no shift              \\%
+			\textbf{mp\_fld\_mask[0]}  & x coord           & 0x007f0000 & select 7 least-significant bits \\%
+			\textbf{mp\_fld\_shift[0]} & x coord           & 16         &                                 \\%
+			\textbf{mp\_fld\_mask[1]}  & y coord           & 0x0000007f & select 7 least-significant bits \\%
+			\textbf{mp\_fld\_shift[1]} & y coord           & -7         & negative for left shift         \\%
+			\textbf{mp\_fld\_mask[2]}  & p (polarity)      & 0x00008000 & select single bit               \\%
+			\textbf{mp\_fld\_shift[2]} & p (polarity)      & 1          &                                 \\%
+			\textbf{mp\_fld\_mask[3]}  & \textit{not used} & 0x00000000 & must be 0                       \\%
+			\textbf{mp\_fld\_shift[3]} & \textit{not used} & -          & ignored (mp\_fld\_mask[3] = 0)  \\%
 			\hline
 		\end{tabular}
 		\caption{Register configuration for mapping example}
