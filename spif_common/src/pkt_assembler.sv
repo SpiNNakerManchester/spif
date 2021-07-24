@@ -35,8 +35,8 @@ module pkt_assembler
 
   // event mapper configuration
   input  wire              [31:0] mp_key_in,
-  input  wire              [31:0] field_msk_in  [NUM_MREGS - 1:0],
-  input  wire               [4:0] field_sft_in [NUM_MREGS - 1:0],
+  input  wire              [31:0] field_msk_in [NUM_MREGS - 1:0],
+  input  wire               [5:0] field_sft_in [NUM_MREGS - 1:0],
 
   // event inputs
   input  wire              [31:0] evt_data_in,
@@ -74,8 +74,15 @@ module pkt_assembler
   generate
     begin
       for (i = 0; i < NUM_MREGS; i = i + 1)
-        assign evt_field_int[i] =
-          (evt_data_in & field_msk_in[i]) >> field_sft_in[i];
+        begin
+          // compute shift register 2's complement
+          wire [4:0] left_shift = ~field_sft_in[i][4:0] + 1;
+
+          // use 2's complement if left shift (negative shift value)
+          assign evt_field_int[i] = field_sft_in[i][5] ?
+            (evt_data_in & field_msk_in[i]) << left_shift :
+            (evt_data_in & field_msk_in[i]) >> field_sft_in[i][4:0];
+        end
 
       //NOTE: field accumulator 0 is a special case - see below
       for (i = 1; i < NUM_MREGS; i = i + 1)

@@ -125,7 +125,7 @@ module dvs_on_hssl_top
   //  - event mapper registers
   wire [31:0] mp_key_int;
   wire [31:0] mp_fmsk_int [NUM_MREGS - 1:0];
-  wire  [4:0] mp_fsft_int [NUM_MREGS - 1:0];
+  wire  [5:0] mp_fsft_int [NUM_MREGS - 1:0];
 
   // - packet receiver interface
   wire  [7:0] prx_addr_int;

@@ -74,7 +74,7 @@ module hssl_reg_bank
   // mapper interface
   output wire               [31:0] mp_key_out,
   output reg                [31:0] reg_mp_fmsk_out [NUM_MREGS - 1:0],
-  output reg                 [4:0] reg_mp_fsft_out [NUM_MREGS - 1:0]
+  output reg                 [5:0] reg_mp_fsft_out [NUM_MREGS - 1:0]
 );
 
   // general purpose registers
@@ -215,7 +215,7 @@ module hssl_reg_bank
         RREGS:   apb_prdata_out <= reg_rt_route_out[apb_reg_num];
         CREGS:   apb_prdata_out <= reg_ctr_out[apb_reg_num];
         AREGS:   apb_prdata_out <= reg_mp_fmsk_out[apb_reg_num];
-        SREGS:   apb_prdata_out <= reg_mp_fsft_out[apb_reg_num];
+        SREGS:   apb_prdata_out <= $signed(reg_mp_fsft_out[apb_reg_num]);
         default: apb_prdata_out <= BAD_REG;
       endcase
   //---------------------------------------------------------------
