@@ -47,7 +47,7 @@ int main (int argc, char* argv[]) {
 
   // write to a register
   reg_bank[reg_addr] = reg_data;
-  printf ("reg[%u] = %u (0x%08x)\n", reg_addr, reg_data, reg_data);
+  printf ("reg[%u] = %d (0x%08x)\n", reg_addr, reg_data, reg_data);
 
   return 0;
 }

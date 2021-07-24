@@ -45,7 +45,7 @@ int main (int argc, char* argv[]) {
   uint reg_addr = atoi (argv[1]);
 
   // read a register
-  printf ("reg[%u] = %u (0x%08x)\n", reg_addr, reg_bank[reg_addr], reg_bank[reg_addr]);
+  printf ("reg[%u] = %d (0x%08x)\n", reg_addr, reg_bank[reg_addr], reg_bank[reg_addr]);
 
   return 0;
 }
