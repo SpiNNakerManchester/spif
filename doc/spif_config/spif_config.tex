@@ -142,7 +142,7 @@
 %		\renewcommand{\arraystretch}{1.2}
 	\begin{tabularx}{\textwidth}{| p{34mm} p{13mm} p{21mm} p{7mm} X |}
 		\hline
-		\textbf{name} & \textbf{offset} & \textbf{offset} (hex) & \textbf{r/w} & \textbf{function} \\%
+		\textbf{name}                        & \textbf{offset}            & \textbf{offset} (hex)          & \textbf{r/w}        & \textbf{function} \\%
 		\hline
 		\hline
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}00      & \cellcolor{gray!25}(0x00)      & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
@@ -179,7 +179,7 @@
 	%		\renewcommand{\arraystretch}{1.2}
 	\begin{tabularx}{\textwidth}{| p{35mm} p{11mm} p{22mm} X |}
 		\hline
-		\textbf{name} & \textbf{width}  & \textbf{default} & \textbf{comment} \\%
+		\textbf{name}                        & \textbf{width} & \textbf{default}      & \textbf{comment} \\%
 		\hline
 		\hline
 		\textbf{mp\_key}                     & \ttfamily{32b} & \ttfamily{0x00000000} & no adequate default value - requires setup \\%
@@ -213,7 +213,7 @@
 %		\renewcommand{\arraystretch}{1.2}
 	\begin{tabularx}{\textwidth}{| p{34mm} p{13mm} p{21mm} p{7mm} X |}
 		\hline
-		\textbf{name} & \textbf{offset} & \textbf{offset} (hex) & \textbf{r/w} & \textbf{function} \\%
+		\textbf{name}                        & \textbf{offset}           & \textbf{offset} (hex)           & \textbf{r/w}        & \textbf{function} \\%
 		\hline
 		\hline
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}00     & \cellcolor{gray!25}(0x00)       & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
@@ -244,17 +244,17 @@
 	%		\renewcommand{\arraystretch}{1.2}
 	\begin{tabularx}{\textwidth}{| p{35mm} p{11mm} p{22mm} X |}
 		\hline
-		\textbf{name} & \textbf{width}  & \textbf{default} & \textbf{comment} \\%
+		\textbf{name}      & \textbf{width}  & \textbf{default}      & \textbf{comment}                            \\%
 		\hline
 		\hline
-		\textbf{p\_key}                      & \ttfamily{32b}  & \ttfamily{0xffffffff} &  no packets routed to periheral by default \\%
-		\textbf{p\_mask}                     & \ttfamily{32b}  & \ttfamily{0x00000000} &  no packets routed to periheral by default \\%
-		\textbf{lc\_key}                     & \ttfamily{32b}  & \ttfamily{0xfffffe00} &  lc\_key and lc\_mask updated atomically  \\%
-		\textbf{lc\_mask}                    & \ttfamily{32b}  & \ttfamily{0xffffff00} &  write lc\_mask first then lc\_key        \\%
-		\textbf{rc\_key}                     & \ttfamily{32b}  & \ttfamily{0xffffff00} &  \\%
-		\textbf{rc\_mask}                    & \ttfamily{32b}  & \ttfamily{0xffffff00} &  \\%
-		\textbf{stop}                        &                 & stop                  &  any (r/w) access stops input \\%
-		\textbf{start}                       &                 & stop                  &  any (r/w) access starts input \\%
+		\textbf{p\_key}    & \ttfamily{32b}  & \ttfamily{0xffffffff} &  no packets routed to peripheral by default \\%
+		\textbf{p\_mask}   & \ttfamily{32b}  & \ttfamily{0x00000000} &  no packets routed to peripheral by default \\%
+		\textbf{lc\_key}   & \ttfamily{32b}  & \ttfamily{0xfffffe00} &  lc\_key and lc\_mask updated atomically    \\%
+		\textbf{lc\_mask}  & \ttfamily{32b}  & \ttfamily{0xffffff00} &  write lc\_mask first then lc\_key          \\%
+		\textbf{rc\_key}   & \ttfamily{32b}  & \ttfamily{0xffffff00} &                                             \\%
+		\textbf{rc\_mask}  & \ttfamily{32b}  & \ttfamily{0xffffff00} &                                             \\%
+		\textbf{stop}      &                 & stop                  &  any (r/w) access stops input               \\%
+		\textbf{start}     &                 & stop                  &  any (r/w) access starts input              \\%
 		\hline
 	\end{tabularx}
 \end{center}
@@ -310,18 +310,18 @@
 	\begin{center}
 		\begin{tabular}{| l c l l |}
 			\hline
-			\textbf{register} & \textbf{field} & \textbf{value} & \textbf{comment}  \\%
+			\textbf{register}          & \textbf{field}                    & \textbf{value} & \textbf{comment}                \\%
 			\hline
 			\hline
-			\textbf{mp\_key}           & \cellcolor{green!50}              & 0xeeee0000 & no mask / no shift              \\%
-			\textbf{mp\_fld\_mask[0]}  & \cellcolor{brown!85}x coord       & 0x007f0000 & select 7 least-significant bits \\%
-			\textbf{mp\_fld\_shift[0]} & \cellcolor{brown!85}x coord       & 16         &                                 \\%
-			\textbf{mp\_fld\_mask[1]}  & \cellcolor{violet!50}y coord      & 0x0000007f & select 7 least-significant bits \\%
-			\textbf{mp\_fld\_shift[1]} & \cellcolor{violet!50}y coord      & -7         & negative for left shift         \\%
-			\textbf{mp\_fld\_mask[2]}  & \cellcolor{yellow!50}p (polarity) & 0x00008000 & select single bit               \\%
-			\textbf{mp\_fld\_shift[2]} & \cellcolor{yellow!50}p (polarity) & 1          &                                 \\%
-			\textbf{mp\_fld\_mask[3]}  & \textit{not used}                 & 0x00000000 & must be 0                       \\%
-			\textbf{mp\_fld\_shift[3]} & \textit{not used}                 & -          & ignored (mp\_fld\_mask[3] = 0)  \\%
+			\textbf{mp\_key}           & \cellcolor{green!50}key           & 0xeeee0000     & every '1' copied / no shift     \\%
+			\textbf{mp\_fld\_mask[0]}  & \cellcolor{brown!85}x coord       & 0x007f0000     & select 7 least-significant bits \\%
+			\textbf{mp\_fld\_shift[0]} & \cellcolor{brown!85}x coord       & 16             &                                 \\%
+			\textbf{mp\_fld\_mask[1]}  & \cellcolor{violet!50}y coord      & 0x0000007f     & select 7 least-significant bits \\%
+			\textbf{mp\_fld\_shift[1]} & \cellcolor{violet!50}y coord      & -7             & negative for left shift         \\%
+			\textbf{mp\_fld\_mask[2]}  & \cellcolor{yellow!50}p (polarity) & 0x00008000     & select single bit               \\%
+			\textbf{mp\_fld\_shift[2]} & \cellcolor{yellow!50}p (polarity) & 1              &                                 \\%
+			\textbf{mp\_fld\_mask[3]}  & \textit{not used}                 & 0x00000000     & must be 0                       \\%
+			\textbf{mp\_fld\_shift[3]} & \textit{not used}                 & -              & ignored (mp\_fld\_mask[3] = 0)  \\%
 			\hline
 		\end{tabular}
 		\caption{Register configuration for mapping example}
