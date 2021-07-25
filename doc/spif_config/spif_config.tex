@@ -308,20 +308,20 @@
 
 \begin{table}[!ht]
 	\begin{center}
-		\begin{tabular}{| l l l l |}
+		\begin{tabular}{| l c l l |}
 			\hline
 			\textbf{register} & \textbf{field} & \textbf{value} & \textbf{comment}  \\%
 			\hline
 			\hline
-			\textbf{mp\_key}           &                   & 0xeeee0000 & no mask / no shift              \\%
-			\textbf{mp\_fld\_mask[0]}  & x coord           & 0x007f0000 & select 7 least-significant bits \\%
-			\textbf{mp\_fld\_shift[0]} & x coord           & 16         &                                 \\%
-			\textbf{mp\_fld\_mask[1]}  & y coord           & 0x0000007f & select 7 least-significant bits \\%
-			\textbf{mp\_fld\_shift[1]} & y coord           & -7         & negative for left shift         \\%
-			\textbf{mp\_fld\_mask[2]}  & p (polarity)      & 0x00008000 & select single bit               \\%
-			\textbf{mp\_fld\_shift[2]} & p (polarity)      & 1          &                                 \\%
-			\textbf{mp\_fld\_mask[3]}  & \textit{not used} & 0x00000000 & must be 0                       \\%
-			\textbf{mp\_fld\_shift[3]} & \textit{not used} & -          & ignored (mp\_fld\_mask[3] = 0)  \\%
+			\textbf{mp\_key}           & \cellcolor{green!50}              & 0xeeee0000 & no mask / no shift              \\%
+			\textbf{mp\_fld\_mask[0]}  & \cellcolor{brown!85}x coord       & 0x007f0000 & select 7 least-significant bits \\%
+			\textbf{mp\_fld\_shift[0]} & \cellcolor{brown!85}x coord       & 16         &                                 \\%
+			\textbf{mp\_fld\_mask[1]}  & \cellcolor{violet!50}y coord      & 0x0000007f & select 7 least-significant bits \\%
+			\textbf{mp\_fld\_shift[1]} & \cellcolor{violet!50}y coord      & -7         & negative for left shift         \\%
+			\textbf{mp\_fld\_mask[2]}  & \cellcolor{yellow!50}p (polarity) & 0x00008000 & select single bit               \\%
+			\textbf{mp\_fld\_shift[2]} & \cellcolor{yellow!50}p (polarity) & 1          &                                 \\%
+			\textbf{mp\_fld\_mask[3]}  & \textit{not used}                 & 0x00000000 & must be 0                       \\%
+			\textbf{mp\_fld\_shift[3]} & \textit{not used}                 & -          & ignored (mp\_fld\_mask[3] = 0)  \\%
 			\hline
 		\end{tabular}
 		\caption{Register configuration for mapping example}
