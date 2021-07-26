@@ -225,8 +225,8 @@
 		\textbf{lc\_mask}                    & 13                        & (0x0d)                          & w                   & route packets to SpiNNaker FPGA  \\%
 		\textbf{rc\_key}                     & 14                        & (0x0e)                          & w                   & route packets to spif configuration   \\%
 		\textbf{rc\_mask}                    & 15                        & (0x0f)                          & w                   & route packets to spif configuration   \\%
-		\textbf{stop}                        & 16                        & (0x10)                          & r/w                 & stop peripheral input packets         \\%
-		\textbf{start}                       & 17                        & (0x11)                          & r/w                 & allow peripheral input packets         \\%
+		\textbf{stop}                        & 16                        & (0x10)                          & w                   & stop peripheral input packets         \\%
+		\textbf{start}                       & 17                        & (0x11)                          & w                   & allow peripheral input packets         \\%
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}18-127 & \cellcolor{gray!25} (0x12-0x7f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\hline
 	\end{tabularx}
@@ -253,8 +253,8 @@
 		\textbf{lc\_mask}  & \ttfamily{32b}  & \ttfamily{0xffffff00} &  write lc\_mask first then lc\_key          \\%
 		\textbf{rc\_key}   & \ttfamily{32b}  & \ttfamily{0xffffff00} &                                             \\%
 		\textbf{rc\_mask}  & \ttfamily{32b}  & \ttfamily{0xffffff00} &                                             \\%
-		\textbf{stop}      &                 & stop                  &  any (r/w) access stops input               \\%
-		\textbf{start}     &                 & stop                  &  any (r/w) access starts input              \\%
+		\textbf{stop}      & \ttfamily{~1b}  & stop (0)              &  writing any value stops peripheral input   \\%
+		\textbf{start}     & \ttfamily{~1b}  & stop (0)              &  writing any value starts peripheral input  \\%
 		\hline
 	\end{tabularx}
 \end{center}
