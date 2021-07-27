@@ -29,7 +29,6 @@
 #define EVT_BATCH_SIZE    256
 
 #define EVT_NO_TS         0x80000000
-#define EVT_X_SHIFT       16
 
 #define NCHIPS            8
 #define NCORES            8

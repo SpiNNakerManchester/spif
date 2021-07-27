@@ -30,7 +30,7 @@
 #define EVT_BATCH_SIZE    256
 
 #define EVT_NO_TS         0x80000000
-#define EVT_X_SHIFT       16
+#define EVT_X_POS         16
 #define EVT_Y             0
 
 #define NCHIPS            8
@@ -111,7 +111,7 @@ int main (int argc, char * argv[])
     for (uint x = 0; x < NCORES; x++) {
       for (uint y = 0; y < NCHIPS; y++) {
 	// No timestamps
-        evt_data[item] = EVT_NO_TS | (x << EVT_X_SHIFT) | EVT_Y;
+        evt_data[item] = EVT_NO_TS | (x << EVT_X_POS) | EVT_Y;
 
 	item++;
 	if (item >= EVT_BATCH_SIZE) {

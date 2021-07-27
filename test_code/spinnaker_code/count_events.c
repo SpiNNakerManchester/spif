@@ -10,24 +10,24 @@
 #define RUN_TIME           60       // (in seconds)
 #define TIMEOUT            (RUN_TIME * 1000000 / TIMER_TICK_PERIOD)
 
-#define EAST               0
-#define NORTH_EAST         1
-#define NORTH              2
-#define WEST               3
-#define SOUTH_WEST         4
-#define SOUTH              5
-
-#define OUT_LINK           SOUTH
-
 //event to packet mapper parameters
-#define MPR_KEY            0xeeee0000
-#define MPF_MASK_0         0x0000ffff
+//NOTE: map event directly to key
+#define MPR_KEY            0xee000000
+#define MPF_MASK_0         0x00ffffff
+#define MPF_SHIFT_0        0
+#define MPF_MASK_1         0x00000000
+#define MPF_SHIFT_1        0
+#define MPF_MASK_2         0x00000000
+#define MPF_SHIFT_2        0
+#define MPF_MASK_3         0x00000000
+#define MPF_SHIFT_3        0
 
 // packet dropping parameters
 #define PKT_DROP_WAIT      512
 
-#define SPIF_SNT_CNT       0x1
-#define SPIF_DRP_CNT       0x2
+// spif counters
+#define SPIF_SNT_CNT       1
+#define SPIF_DRP_CNT       2
 
 
 // ------------------------------------------------------------------------
@@ -38,9 +38,9 @@
 
 
 //NOTE: this packet key checks lower 3 bits of the event x coordinate
-#define COORD_SHIFT        3
-#define PKT_KEY(p)         (MPR_KEY | ((p - 1) << COORD_SHIFT))
-#define PKT_MSK            (0xffff0000 | (0x07 << COORD_SHIFT))
+#define XCOORD_POS         16
+#define PKT_KEY(p)         (MPR_KEY | ((p - 1) << XCOORD_POS))
+#define PKT_MSK            (0xff000000 | (0x07 << XCOORD_POS))
 
 
 // ------------------------------------------------------------------------
@@ -74,10 +74,17 @@ void start_spif (uint a, uint b)
   }
 
   // configure peripheral input mapper
-  //NOTE: map event directly to key
   spif_set_mapper_key (MPR_KEY);
 
   spif_set_mapper_field_mask (0, MPF_MASK_0);
+  spif_set_mapper_field_mask (1, MPF_MASK_1);
+  spif_set_mapper_field_mask (2, MPF_MASK_2);
+  spif_set_mapper_field_mask (3, MPF_MASK_3);
+
+  spif_set_mapper_field_shift (0, MPF_SHIFT_0);
+  spif_set_mapper_field_shift (1, MPF_SHIFT_1);
+  spif_set_mapper_field_shift (2, MPF_SHIFT_2);
+  spif_set_mapper_field_shift (3, MPF_SHIFT_3);
 
   // ajust peripheral input wait-before-drop value
   spif_set_input_drop_wait (PKT_DROP_WAIT);
