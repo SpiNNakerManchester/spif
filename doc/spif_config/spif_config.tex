@@ -102,32 +102,40 @@
 \image[width = 0.9 \textwidth]{!h}{spif_cf}{fig:spif_cf}
 {SpiNNaker peripheral interface configuration registers.}
 
+\begin{table}[!ht]
+	\begin{center}
+		\begin{tabularx}{\textwidth}{| p{27mm} p{24mm} p{22mm} p{18mm} X |}
+			\hline
+			\textbf{configuration} & \textbf{routing key} & \textbf{default key} & \textbf{payload} & \textbf{comment}                              \\%
+			\hline
+			\hline
+			\textbf{spif (remote)} & rc\_key + offset     & \ttfamily{0xffffff00} & r/w data      & register offsets in Table~\ref{tab:spif_regs} \\%
+			\textbf{FPGA (local)}  & lc\_key + offset     & \ttfamily{0xfffffe00} & write data      & register offsets in Table~\ref{tab:spin_regs} \\%
+			\hline
+		\end{tabularx}
+		\caption{Configuration register access via multicast packets}
+	\end{center}
+	\label{tab:reg_prm}
+\end{table}
 
-\begin{center}
-	\begin{tabularx}{\textwidth}{| p{49mm} p{24mm} p{19mm} X |}
-		\hline
-		\textbf{configuration block}    & \textbf{routing key} & \textbf{default}      & \textbf{comment} \\%
-		\hline
-		\hline
-		\textbf{spif (remote)}          & rc\_key + offset     & \ttfamily{0xffffff00} & register offsets in Table~\ref{tab:spif_regs} \\%
-		\textbf{SpiNNaker FPGA (local)} & lc\_key + offset     & \ttfamily{0xfffffe00} & register offsets in Table~\ref{tab:spin_regs} \\%
-		\hline
-	\end{tabularx}
-\end{center}
 
+\begin{table}[!ht]
+	\begin{center}
+		\begin{tabularx}{\textwidth}{| p{44mm} p{20mm} p{20mm} X |}
+			\hline
+			\textbf{routing entry function}  & \textbf{key}          & \textbf{mask}         & \textbf{route}                       \\%
+			\hline
+			\hline
+			\textbf{remote reads/writes}     & \ttfamily{0xffffff00} & \ttfamily{0xffffff00} & \ttfamily{32 (0x20)} - SOUTH link    \\%
+			\textbf{remote read replies}     & \ttfamily{0xfffffd00} & \ttfamily{0xffffff00} & \ttfamily{(route to receiving core)} \\%
+			\textbf{local writes}            & \ttfamily{0xfffffe00} & \ttfamily{0xffffff00} & \ttfamily{32 (0x20)} - SOUTH link    \\%
+			\hline
+		\end{tabularx}
+		\caption{SpiNNaker router setup required on chip (0, 0)}
+	\end{center}
+	\label{tab:rtr_setup}
+\end{table}
 
-\begin{center}
-	\begin{tabularx}{\textwidth}{| p{44mm} p{20mm} p{20mm} X |}
-		\hline
-		\textbf{routing entry on (0, 0)} & \textbf{key}          & \textbf{mask}         & \textbf{route} \\%
-		\hline
-		\hline
-		\textbf{remote reads/writes}     & \ttfamily{0xffffff00} & \ttfamily{0xffffff00} & \ttfamily{32 (0x20)} \\%
-		\textbf{remote read replies}     & \ttfamily{0xfffffd00} & \ttfamily{0xffffff00} & \ttfamily{(route to receiving core)} \\%
-		\textbf{local writes}            & \ttfamily{0xfffffe00} & \ttfamily{0xffffff00} & \ttfamily{32 (0x20)} \\%
-		\hline
-	\end{tabularx}
-\end{center}
 
 
 \clearpage
