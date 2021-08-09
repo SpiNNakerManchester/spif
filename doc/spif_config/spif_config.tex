@@ -70,7 +70,7 @@
 
 \begin{document}
 
-\rule{\linewidth}{2pt}
+\par\noindent\rule{\linewidth}{2pt}
 
 \begin{center}
 	\textbf{
@@ -81,7 +81,7 @@
 	}
 \end{center}
 
-\rule{\linewidth}{2pt}
+\par\noindent\rule{\linewidth}{2pt}
 
 \vspace*{1.0cm}
 
@@ -273,7 +273,8 @@
 	\begin{tabularx}{\textwidth}{| l X |}
 		\hline
 		\textbf{notes:} & $\bullet$ a write to \textbf{lc\_mask} takes effect only after  a write to \textbf{lc\_key}. \\%
-		& $\bullet$ \textbf{stop} prevents all incoming traffic including diagnostic counter read replies. \\%
+		& $\bullet$ \textbf{stop} drops all incoming peripheral packets. \\%
+		& $\bullet$ \textbf{stop} lets through incoming diagnostic counter read replies. \\%
 		\hline
 	\end{tabularx}
 \end{center}
@@ -347,7 +348,7 @@
 
 
 \vspace*{1.0cm}
-\rule{\linewidth}{2pt}
+\par\noindent\rule{\linewidth}{2pt}
 
 
 \subsection*{\itshape Change log:}

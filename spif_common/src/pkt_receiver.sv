@@ -169,7 +169,8 @@ module pkt_receiver
   // basic counter read interface
   //NOTE: enable only when payload not present in configuration packet!
   // assemble reply packet with counter data
-  assign dcp_hdr = {7'b000_0001, dcp_pty};
+  //NOTE: use (ER bits == 2'b11) to indicate diagnostics packet!
+  assign dcp_hdr = {7'b001_1001, dcp_pty};
   assign dcp_key = reply_key_in | ctr_offset;
   assign dcp_pld = ctr_ok ? reg_ctr_in[ctr_num] : BAD_REG;
   assign dcp_pty = (^dcp_key ^ ^dcp_pld);
