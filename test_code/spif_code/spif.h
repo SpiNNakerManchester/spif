@@ -1,0 +1,223 @@
+//************************************************//
+//*                                              *//
+//* functions to interact with the spif          *//
+//*                                              *//
+//* lap - 03/08/2021                             *//
+//*                                              *//
+//************************************************//
+
+#ifndef __SPIF_IF_H__
+#define __SPIF_IF_H__
+
+#include <fcntl.h>
+#include <unistd.h>
+#include <string.h>
+#include <errno.h>
+
+#include <sys/mman.h>
+#include <sys/ioctl.h>
+
+
+//--------------------------------------------------------------------
+// spif support constants and functions
+//--------------------------------------------------------------------
+#define SPIF_BUF_MAX_SIZE 4096
+
+#define SPIF_MAPPER_NUM   4
+#define SPIF_ROUTER_NUM   16
+#define SPIF_COUNT_NUM    4
+
+#define SPIF_BUSY         1
+
+// ---------------------------------
+// spif registers
+// ---------------------------------
+#define SPIF_MAPPER_KEY    1
+#define SPIF_REPLY_KEY     2
+#define SPIF_IN_DROP_WAIT  3
+#define SPIF_OUT_DROP_WAIT 4
+#define SPIF_ROUTER_KEY    16
+#define SPIF_ROUTER_MASK   32
+#define SPIF_ROUTER_ROUTE  48
+#define SPIF_COUNT_OUT     64
+#define SPIF_COUNT_CONFIG  65
+#define SPIF_COUNT_IN_DROP 66
+#define SPIF_COUNT_IN      67
+#define SPIF_MAPPER_MASK   80
+#define SPIF_MAPPER_SHIFT  96
+// ---------------------------------
+
+
+// ---------------------------------
+// spif operations
+// ---------------------------------
+// driver ioctl unreserved magic number (seq 0xf0 - 0xff)
+#define SPIF_IOCTL_TYPE      'i'
+#define SPIF_IOCTL_SEQ       0xf0
+#define SPIF_NUM_REGS        128
+
+// spif ioctl operation fields
+//NOTE: size field used to encode spif register!
+#define SPIF_OP_TYPE         (SPIF_IOCTL_TYPE << _IOC_TYPESHIFT)
+#define SPIF_OP_REQ_MSK      (((1 << (_IOC_NRBITS + _IOC_TYPEBITS)) - 1) << _IOC_NRSHIFT)
+#define SPIF_OP_REQ_SHIFT    _IOC_NRSHIFT
+#define SPIF_OP_REG_MSK      ((SPIF_NUM_REGS - 1) << _IOC_SIZESHIFT)
+#define SPIF_OP_REG_SHIFT    _IOC_SIZESHIFT
+#define SPIF_OP_RD           (_IOC_READ  << _IOC_DIRSHIFT)
+#define SPIF_OP_WR           (_IOC_WRITE << _IOC_DIRSHIFT)
+#define SPIF_OP_CMD          (_IOC_NONE  << _IOC_DIRSHIFT)
+
+// spif operations
+#define SPIF_OP_REQ(r)       (SPIF_OP_CMD | ((SPIF_OP_TYPE | (SPIF_IOCTL_SEQ + r))  << _IOC_NRSHIFT))
+#define SPIF_REG_RD          SPIF_OP_REQ(0)
+#define SPIF_REG_WR          SPIF_OP_REQ(1)
+#define SPIF_STATUS_RD       SPIF_OP_REQ(2)
+#define SPIF_TRANSFER        SPIF_OP_REQ(3)
+// ---------------------------------
+
+
+// ---------------------------------
+// spif file descriptor associated with /dev/spif
+static int spif_fd;
+static int dummy;    // convenient place holder
+// ---------------------------------
+
+
+//--------------------------------------------------------------------
+// set up access to spif through /dev/spif
+//
+// returns -1 if error
+//--------------------------------------------------------------------
+void * spif_setup (int buffer_size)
+{
+  // check requested buffer size
+  if (buffer_size > SPIF_BUF_MAX_SIZE) {
+    printf ("spif error: buffer size exceeds maximum\n");
+    return (NULL);
+  }
+
+  // open spif device
+  spif_fd = open ("/dev/spif", O_RDWR | O_SYNC);
+  if (spif_fd == -1) {
+    switch (errno) {
+    case ENOENT:
+      printf ("spif error: no spif device\n");
+      break;
+    case EBUSY:
+      printf ("spif error: spif device busy\n");
+      break;
+    case ENODEV:
+      printf ("spif error: no connection to SpiNNaker\n");
+      break;
+    default:
+      printf ("spif error: [%s]\n", strerror (errno));
+    }
+    return (NULL);
+  }
+
+  // map spif memory into user-space buffer 
+  void * buffer = mmap (
+    NULL, buffer_size, PROT_READ | PROT_WRITE, MAP_SHARED,
+    spif_fd, 0
+    );
+
+  if (buffer == MAP_FAILED) {
+    printf ("spif error: unable to map spif buffer [%s]\n", strerror (errno));
+    close (spif_fd);
+    return (NULL);
+  }
+
+  return (buffer);
+}
+
+
+//--------------------------------------------------------------------
+// close up access to spif
+//
+// returns spif device file handle
+//--------------------------------------------------------------------
+void spif_close (void)
+{
+  close (spif_fd);
+}
+
+
+//--------------------------------------------------------------------
+// read spif register
+//
+// returns read value
+//--------------------------------------------------------------------
+int spif_read_reg (unsigned int reg)
+{
+  // encode spif read register request
+  unsigned int req = (reg << 16) | SPIF_REG_RD;
+
+  // send request to spif and convey result
+  //NOTE: ioctl never fails with this request
+  (void) ioctl (spif_fd, req, (void *) &dummy);
+
+  return dummy;
+}
+
+
+//--------------------------------------------------------------------
+// write spif register
+//--------------------------------------------------------------------
+void spif_write_reg (unsigned int reg, int val)
+{
+  // encode spif read register request
+  unsigned int req = (reg << 16) | SPIF_REG_WR;
+
+  // send request to spif
+  //NOTE: ioctl never fails with this request
+  (void) ioctl (spif_fd, req, (void *) (long) val);
+}
+// ---------------------------------
+
+
+//--------------------------------------------------------------------
+// read spif busy status
+//
+// returns 0 if spif idle (no ongoing transfer)
+//--------------------------------------------------------------------
+int spif_busy (void)
+{
+  // send request to spif and convey result
+  //NOTE: ioctl never fails with this request
+  (void) ioctl (spif_fd, SPIF_STATUS_RD, (void *) &dummy);
+
+  return dummy;
+}
+
+
+//--------------------------------------------------------------------
+// start a transfer to SpiNNaker
+//
+// returns 0 if transfer succeeds
+//--------------------------------------------------------------------
+int spif_transfer (int length)
+{
+  // send request to spif and convey result
+  return (ioctl (spif_fd, SPIF_TRANSFER, (void *) (long) length));
+}
+
+
+//--------------------------------------------------------------------
+// spif service request
+//
+// returns 0 if request succeeds
+//--------------------------------------------------------------------
+int spif_req (unsigned int req, int * val)
+{
+  // send request to spif and convey result
+  int rc = ioctl (spif_fd, req, (void *) val);
+  if (rc == -1) {
+    printf ("spif error: spif request %d failed [%s]\n", req, strerror (errno));
+    return (-1);
+  }
+
+  return (rc);
+}
+
+
+#endif /* __SPIF_IF_H__ */

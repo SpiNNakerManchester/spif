@@ -18,7 +18,7 @@
 #include <netinet/in.h>
 #include <sys/un.h>
 
-#include "dma_spif.h"
+#include "spif.h"
 
 
 #define NSEC_PER_SEC      1000000000
@@ -30,8 +30,6 @@
 
 //NOTE: made global to avoid unnecessary passing
 //      around as function parameters
-volatile uint * dma_registers;
-
 int srv_sckt;
 
 
@@ -106,11 +104,10 @@ int main (int argc, char * argv[])
     exit (-1);
   }
 
-  // get pointer to DMA buffer
+  // get pointer to spif buffer
   size_t const batch_size = DATA_BATCH_SIZE * sizeof (uint);
-  uint * dma_buffer = (uint *) dma_setup (batch_size);
-  if (dma_buffer == NULL) {
-    printf ("error: failed to setup DMA controller\n");
+  uint * spif_buffer = (uint *) spif_setup (batch_size);
+  if (spif_buffer == NULL) {
     exit (-1);
   }
 
@@ -130,7 +127,7 @@ int main (int argc, char * argv[])
   struct timespec proc_cur;
 
   // wait for initial data batch to start time measurement
-  int rcv_bytes = udp_get_data_batch (dma_buffer, batch_size);
+  int rcv_bytes = udp_get_data_batch (spif_buffer, batch_size);
 
   // get initial processing timer value as reference
   clock_gettime(CLOCK_MONOTONIC, &proc_first);
@@ -142,16 +139,17 @@ int main (int argc, char * argv[])
       break;
     }
 
-    // trigger a DMA transfer with the length of data batch (in bytes!)
-    dma_trigger (rcv_bytes);
+    // trigger a transfer to SpiNNaker
+    //NOTE: length of data batch (in bytes!)
+    spif_transfer (rcv_bytes);
 
     // stats: total data items received
     total_items += rcv_bytes / sizeof (uint);
 
-    // wait until DMA controller finishes the current transfer
+    // wait until spif finishes the current transfer
     //NOTE: make sure not to wait forever!
     int wc = 0;
-    while (!dma_idle ()) {
+    while (spif_busy ()) {
       wc++;
       if (wc < 0) {
         printf ("error: wait cycles exceeded limit\n");
@@ -163,7 +161,7 @@ int main (int argc, char * argv[])
     wait_cycles += wc;
 
     // get next data batch
-    rcv_bytes = udp_get_data_batch (dma_buffer, batch_size);
+    rcv_bytes = udp_get_data_batch (spif_buffer, batch_size);
   }
 
   // compute processing time
