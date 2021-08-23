@@ -153,23 +153,25 @@
 		\textbf{name}                        & \textbf{offset}            & \textbf{offset} (hex)          & \textbf{r/w}        & \textbf{function} \\%
 		\hline
 		\hline
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}00      & \cellcolor{gray!25}(0x00)      & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\textbf{mp\_key}                     & 01                         & (0x01)                         & w                   & routing key for event mapping \\%
-		\textbf{reply\_key}                  & 02                         & (0x02)                         & w                   & routing key for read replies \\%
-		\textbf{in\_drop\_wait}              & 03                         & (0x03)                         & w                   & input wait-before-drop count \\%
-		\textbf{out\_drop\_wait}             & 04                         & (0x04)                         & w                   & output wait-before-drop count \\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}05-15   & \cellcolor{gray!25}(0x05-0x0f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\textbf{ir\_key [15:0]}              & 16-31                      & (0x10-0x1f)                    & w                   & keys to route input packets \\%
-		\textbf{ir\_mask [15:0]}             & 32-47                      & (0x20-0x2f)                    & w                   & masks to route input packets \\%
-		\textbf{ir\_route [15:0]}            & 48-63                      & (0x30-0x3f)                    & w                   & routes to route input packets \\%
+		\textbf{control}                     & 00                         & (0x00)                         & r/w                 & HSSL interface control \\%
+		\textbf{mp\_key}                     & 01                         & (0x01)                         & r/w                 & routing key for event mapping \\%
+		\textbf{reply\_key}                  & 02                         & (0x02)                         & r/w                 & routing key for read replies \\%
+		\textbf{in\_drop\_wait}              & 03                         & (0x03)                         & r/w                 & input wait-before-drop count \\%
+		\textbf{out\_drop\_wait}             & 04                         & (0x04)                         & r/w                 & output wait-before-drop count \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}05-13   & \cellcolor{gray!25}(0x05-0x0d) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{status}                      & 14                         & (0x0e)                         & r                   & HSSL interface status \\%
+		\textbf{version}                     & 15                         & (0x0f)                         & r                   & spif hardware version number \\%
+		\textbf{ir\_key [15:0]}              & 16-31                      & (0x10-0x1f)                    & r/w                 & keys to route input packets \\%
+		\textbf{ir\_mask [15:0]}             & 32-47                      & (0x20-0x2f)                    & r/w                 & masks to route input packets \\%
+		\textbf{ir\_route [15:0]}            & 48-63                      & (0x30-0x3f)                    & r/w                 & routes to route input packets \\%
 		\textbf{out\_periph\_pkt\_cnt}       & 64                         & (0x40)                         & r/w                 & count periph output packets\\%
 		\textbf{config\_pkt\_cnt}            & 65                         & (0x41)                         & r/w                 & count config packets \\%
 		\textbf{in\_dropped\_pkt\_cnt}       & 66                         & (0x42)                         & r/w                 & count dropped input packets \\%
 		\textbf{in\_periph\_pkt\_cnt}        & 67                         & (0x43)                         & r/w                 & count periph input packets\\%
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}68-79   & \cellcolor{gray!25}(0x44-0x4f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\textbf{mp\_fld\_mask [3:0]}         & 80-83                      & (0x50-0x53)                    & w                   & field masks for event mapping \\%
+		\textbf{mp\_fld\_mask [3:0]}         & 80-83                      & (0x50-0x53)                    & r/w                 & field masks for event mapping \\%
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}84-95   & \cellcolor{gray!25}(0x54-0x5f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\textbf{mp\_fld\_shift [3:0]}        & 96-99                      & (0x60-0x63)                    & w                   & field shifts for event mapping  \\%
+		\textbf{mp\_fld\_shift [3:0]}        & 96-99                      & (0x60-0x63)                    & r/w                 & field shifts for event mapping  \\%
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}100-127 & \cellcolor{gray!25}(0x64-0x7f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\hline
 	\end{tabularx}
@@ -179,6 +181,8 @@
 \end{center}
 
 
+\vspace{-5mm}
+    
 \subsubsection*{Register Details}
 
 
@@ -190,10 +194,13 @@
 		\textbf{name}                        & \textbf{width} & \textbf{default}      & \textbf{comment} \\%
 		\hline
 		\hline
+		\textbf{control}                     & \ttfamily{~1b} & \ttfamily{0}          & [0] stop events into SpiNNaker \\%
 		\textbf{mp\_key}                     & \ttfamily{32b} & \ttfamily{0x00000000} & no adequate default value - requires setup \\%
 		\textbf{reply\_key}                  & \ttfamily{32b} & \ttfamily{0xfffffd00} & \\%
 		\textbf{in\_drop\_wait}              & \ttfamily{32b} & \ttfamily{32}         & 512 for no drops in worst-case traffic \\%
 		\textbf{out\_drop\_wait}             & \ttfamily{32b} & \ttfamily{32}         & \\%
+		\textbf{status}                      & \ttfamily{32b} & \ttfamily{0x5ec0ffff} & {\small [19:18] FPGA/[17:16] handshake/[15:0] IDSI}\\%
+		\textbf{version}                     & \ttfamily{28b} & \ttfamily{no default} & {\small [27:24] number of event pipes/[23:0] version}\\%
 		\textbf{ir\_key [15:0]}              & \ttfamily{32b} & \ttfamily{0x00000000} & match all by default \\%
 		\textbf{ir\_mask [15:0]}             & \ttfamily{32b} & \ttfamily{0x00000000} & match all by default \\%
 		\textbf{ir\_route [15:0]}            & \ttfamily{~3b} & \ttfamily{0}          & route to (0, 0) by default \\%
@@ -203,6 +210,16 @@
 		\textbf{in\_periph\_pkt\_cnt}        & \ttfamily{32b} & \ttfamily{0x00000000} & write 0 to reset \\%
 		\textbf{mp\_fld\_mask [3:0]}         & \ttfamily{32b} & \ttfamily{0x00000000} & mapping off by default (mask = 0) \\%
 		\textbf{mp\_fld\_shift [3:0]}        & \ttfamily{~6b} & \ttfamily{0}          & negative value indicates left shift \\%
+		\hline
+	\end{tabularx}
+
+	\rowcolors {1}{ blue!25 }{ blue!25 }
+	\begin{tabularx}{\textwidth}{| l X |}
+		\hline
+		\textbf{notes:} & $\bullet$ \textbf{status}[31:20] reads 0x5ec when interface is up. \\%
+		                & $\bullet$ \textbf{FPGA} 00 = unknown / 01 = XC7Z015 / 10 = XCZU9EG. \\%
+		                & $\bullet$ \textbf{handshake} 00 = unconnected / 01 = connected / 10 = mismatch. \\%
+		                & $\bullet$ \textbf{version} [23:16] major / [15:8] minor / [7:0] patch. \\%
 		\hline
 	\end{tabularx}
 \end{center}
@@ -265,16 +282,13 @@
 		\textbf{start}     & \ttfamily{~1b}  & stop (0)              &  writing any value starts peripheral input  \\%
 		\hline
 	\end{tabularx}
-\end{center}
 
-
-\begin{center}
 	\rowcolors {1}{ blue!25 }{ blue!25 }
 	\begin{tabularx}{\textwidth}{| l X |}
 		\hline
 		\textbf{notes:} & $\bullet$ a write to \textbf{lc\_mask} takes effect only after  a write to \textbf{lc\_key}. \\%
-		& $\bullet$ \textbf{stop} drops all incoming peripheral packets. \\%
-		& $\bullet$ \textbf{stop} lets through incoming diagnostic counter read replies. \\%
+		                & $\bullet$ \textbf{stop} drops all incoming peripheral packets. \\%
+		                & $\bullet$ \textbf{stop} lets through incoming diagnostic counter read replies. \\%
 		\hline
 	\end{tabularx}
 \end{center}

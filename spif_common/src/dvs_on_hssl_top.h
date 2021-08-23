@@ -24,6 +24,18 @@
 `define DVS_ON_HSSL_TOP_H
 
 //---------------------------------------------------------------
+// hardware version
+// semantic versioning [MM = major, mm = minor, pp = patch]
+//---------------------------------------------------------------
+`define SPIF_VER_STR      "0.0.1"
+`define SPIF_VER_NUM      24'h000001  // 32'hMMmmpp
+
+//---------------------------------------------------------------
+// number of parallel event-processing pipelines
+//---------------------------------------------------------------
+`define SPIF_NUM_PIPES    1
+
+//---------------------------------------------------------------
 // FPGA selection
 //NOTE: un-comment the required FPGA `define
 //---------------------------------------------------------------

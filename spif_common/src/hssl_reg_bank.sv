@@ -55,6 +55,14 @@ module hssl_reg_bank
   // packet counter enables interface
   input  wire    [NUM_CREGS - 1:0] ctr_cnt_in,
 
+  // status signals
+  input  wire               [23:0] hw_version_in,
+  input  wire                [3:0] hw_pipe_num_in,
+  input  wire                [1:0] fpga_model_in,
+  input  wire                      hs_complete_in,
+  input  wire                      hs_mismatch_in,
+  input  wire               [15:0] idsi_in,
+
   // hssl interface
   output wire                      hssl_stop_out,
 
@@ -83,6 +91,10 @@ module hssl_reg_bank
   localparam REPLY_KEY_REG = 2;
   localparam IN_WAIT_REG   = 3;
   localparam OUT_WAIT_REG  = 4;
+
+  // not real registers - collect signals
+  localparam STATUS_REG    = 14;
+  localparam HW_VER_REG    = 15;
 
   // register default values
   localparam HSSL_STOP_DEF = 1'b0;
@@ -209,7 +221,15 @@ module hssl_reg_bank
   always @ (posedge clk)
     if (apb_read)
       case (apb_reg_sec)
-        HREGS:   apb_prdata_out <= reg_hssl_out[apb_reg_num];
+        HREGS: if (apb_reg_num < NUM_HREGS)
+                 apb_prdata_out <= reg_hssl_out[apb_reg_num];
+               else if (apb_reg_num == STATUS_REG)
+                 apb_prdata_out <= {12'h5ec, fpga_model_in,
+                   hs_mismatch_in, hs_complete_in, idsi_in};
+               else if (apb_reg_num == HW_VER_REG)
+                 apb_prdata_out <= {4'h0, hw_pipe_num_in, hw_version_in};
+               else
+                 apb_prdata_out <= BAD_REG;
         KREGS:   apb_prdata_out <= reg_rt_key_out[apb_reg_num];
         MREGS:   apb_prdata_out <= reg_rt_mask_out[apb_reg_num];
         RREGS:   apb_prdata_out <= reg_rt_route_out[apb_reg_num];

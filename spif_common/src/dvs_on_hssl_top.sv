@@ -32,6 +32,8 @@
 `timescale 1ps/1ps
 module dvs_on_hssl_top
 #(
+  parameter HW_VERSION   = `SPIF_VER_NUM,
+  parameter HW_PIPE_NUM  = `SPIF_NUM_PIPES,
   parameter TARGET_FPGA  = `FPGA_MODEL,
 
   parameter PACKET_BITS  = `PKT_BITS,
@@ -248,6 +250,10 @@ module dvs_on_hssl_top
   // implements an AXI4-stream interface to the HSSL and
   // provides the free-running clock and the reset signal
   //---------------------------------------------------------------
+  wire [31:0] axi_evt_data_int;
+  wire        axi_evt_vld_int;
+  wire        axi_evt_rdy_int;
+
   proc_sys ps (
       .peripheral_reset_0       (ps_peripheral_reset_0_int)
     , .pl_clk0_0                (ps_pl_clk0_int)
@@ -267,10 +273,10 @@ module dvs_on_hssl_top
     , .APB_M_0_pwrite           (apb_pwrite_int)
 
       // AXI stream interface to HSSL multiplexer
-    , .AXI_STR_TXD_0_tdata      (evt_data_int)
+    , .AXI_STR_TXD_0_tdata      (axi_evt_data_int)
     , .AXI_STR_TXD_0_tlast      ()
-    , .AXI_STR_TXD_0_tvalid     (evt_vld_int)
-    , .AXI_STR_TXD_0_tready     (evt_rdy_int)
+    , .AXI_STR_TXD_0_tvalid     (axi_evt_vld_int)
+    , .AXI_STR_TXD_0_tready     (axi_evt_rdy_int)
     , .mm2s_prmry_reset_out_n_0 ()
 
 `ifdef TARGET_XC7Z015
@@ -298,6 +304,11 @@ module dvs_on_hssl_top
     , .FIXED_IO_ps_srstb        (FIXED_IO_ps_srstb)
 `endif
     );
+
+  // drop incoming events if HSSL interface not ready
+  assign evt_data_int = axi_evt_data_int;
+  assign evt_vld_int  = axi_evt_vld_int && hi_handshake_complete_int;
+  assign axi_evt_rdy_int = evt_rdy_int || !hi_handshake_complete_int;
   //---------------------------------------------------------------
 
 
@@ -339,6 +350,14 @@ module dvs_on_hssl_top
     , .prx_en_in        (prx_en_int)
 
     , .ctr_cnt_in       (ctr_cnt_int)
+
+      // status signals
+    , .hw_version_in    (HW_VERSION)
+    , .hw_pipe_num_in   (HW_PIPE_NUM)
+    , .fpga_model_in    (TARGET_FPGA)
+    , .hs_complete_in   (hi_handshake_complete_int)
+    , .hs_mismatch_in   (hi_version_mismatch_int)
+    , .idsi_in          (hi_idsi_int)
 
       // hssl
     , .hssl_stop_out    (hi_stop_int)
