@@ -92,7 +92,7 @@ int main (int argc, char * argv[])
 {
   // check that required arguments were provided
   if (argc < 3) {
-    printf ("usage: %s <udp_port> <num_data_items_to_receive>\n", argv[0]);
+    printf ("usage: %s <udp_port> <num_data_items_to_receive/0 = unlimited>\n", argv[0]);
     exit (-1);
   }
 
@@ -115,7 +115,11 @@ int main (int argc, char * argv[])
   }
 
   // announce task
-  printf ("receiving %lu data items on UDP port %d\n", expected_items, udp_port);
+  if (expected_items) {
+    printf ("receiving %lu data items on UDP port %d\n", expected_items, udp_port);
+  } else {
+    printf ("receiving unlimited data items on UDP port %d\n", udp_port);
+  }
 
   // statistics counters
   ulong total_items = 0;
@@ -132,7 +136,7 @@ int main (int argc, char * argv[])
   clock_gettime(CLOCK_MONOTONIC, &proc_first);
 
   // iterate to receive data from Ethernet
-  while (total_items < expected_items) {
+  while (!expected_items || (total_items < expected_items)) {
     // finish if no data received
     if (rcv_bytes <= 0) {
       break;
