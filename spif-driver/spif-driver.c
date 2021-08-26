@@ -58,7 +58,8 @@ MODULE_DEVICE_TABLE (of, spif_driver_of_match);
 // -------------------------------------------------------------------------
 // spif constants
 // -------------------------------------------------------------------------
-#define SPIF_VERSION         "0.0.1"
+#define SPIF_DRV_VERSION     "0.0.1"
+#define SPIF_DRV_NAME        "spif-driver"
 
 // driver ioctl unreserved magic number (seq 0xf0 - 0xff)
 #define SPIF_IOCTL_TYPE      'i'
@@ -144,9 +145,7 @@ struct spif_driver_prv {
 static int spif_open (struct inode * ino, struct file * fp)
 {
   struct spif_driver_prv * prv;
-         int *             apb_regs;
          int *             dma_regs;
-	 int               data;
 
   // associate driver private data with device file
   fp->private_data = container_of (ino->i_cdev, struct spif_driver_prv, dev_cdev);
@@ -157,13 +156,6 @@ static int spif_open (struct inode * ino, struct file * fp)
   // allow only one file handle to spif - disallow concurrent accesses
   if (prv->dev_open) {
     return -EBUSY;
-  }
-
-  // check if connected to SpiNNaker board
-  apb_regs = (int *) prv->apbr_va;
-  data = ioread32 ((void *) &apb_regs[SPIF_STATUS_REG]);
-  if (!(data & SPIF_HS_MSK)) {
-    return -ENODEV;
   }
 
   // start the DMA controller - enable interrupts
@@ -239,8 +231,8 @@ static long spif_ioctl (struct file * fp, unsigned int req , unsigned long arg)
     loc_reg  = (req & SPIF_OP_REG_MSK) >> SPIF_OP_REG_SHIFT;
     apb_regs = (int *) prv->apbr_va;
 
-    // arg is write value
-    iowrite32 ((int) arg, (void *) &apb_regs[loc_reg]);
+    // arg is the data to write to register
+    iowrite32 ((uint) arg, (void *) &apb_regs[loc_reg]);
 
     return 0;
 
@@ -259,20 +251,19 @@ static long spif_ioctl (struct file * fp, unsigned int req , unsigned long arg)
     return 0;
 
   case SPIF_TRANSFER:  // transfer spif buffer content to SpiNNaker
-    dma_regs = (int *) prv->dmar_va;
-
     // check dma status
     //NOTE: the DMA controller is *not* idle before the first transfer!
+    dma_regs = (int *) prv->dmar_va;
     if (prv->dma_busy && !(ioread32 ((void *) &dma_regs[SPIF_DMAC_SR]) & SPIF_DMAC_IDLE)) {
       return -EBUSY;
     }
 
+    // arg is transfer length in bytes
+    // write length to DMA controller length regiter to trigger transfer
+    iowrite32 ((uint) arg, (void *) &dma_regs[SPIF_DMAC_LEN]);
+
     // mark DMA controller as busy
     prv->dma_busy = 1;
-
-    // arg is write value
-    // write length to DMA controller length regiter to trigger transfer
-    iowrite32 ((int) arg, (void *) &dma_regs[SPIF_DMAC_LEN]);
 
     return 0;
 
@@ -358,13 +349,13 @@ static int spif_rsvd_init (struct device_node * pn, struct spif_driver_prv * prv
   // try to find the reserved memory device tree node
   rn = of_parse_phandle (pn, "memory-region", 0);
   if (rn == NULL) {
-    printk (KERN_WARNING "spif: cannot find reserved memory\n");
+    printk (KERN_WARNING "%s: cannot find reserved memory\n", SPIF_DRV_NAME);
     return -ENOMEM;
   }
 
   // try to find memory reserved for spif
   if (of_address_to_resource (rn, 0, &rsvd)) {
-    printk (KERN_WARNING "spif: no memory reserved for device\n");
+    printk (KERN_WARNING "%s: no memory reserved for device\n", SPIF_DRV_NAME);
     return -ENOMEM;
   }
 
@@ -386,20 +377,20 @@ static int spif_apbr_init (struct device_node * pn, struct spif_driver_prv * prv
   // try to find APB device tree node
   an = of_parse_phandle (pn, "apb", 0);
   if (an == NULL) {
-    printk (KERN_WARNING "spif: cannot find APB node\n");
+    printk (KERN_WARNING "%s: cannot find APB node\n", SPIF_DRV_NAME);
     return -ENODEV;
   }
 
   // try to find the address of the APB registers
   if (of_address_to_resource (an, 0, &apbr)) {
-    printk (KERN_WARNING "spif: no APB address assigned\n");
+    printk (KERN_WARNING "%s: no APB address assigned\n", SPIF_DRV_NAME);
     return -ENODEV;
   }
 
   // map APB registers into virtual memory
   prv->apbr_va = ioremap (apbr.start, resource_size (&apbr));
   if (prv->apbr_va == NULL) {
-    printk (KERN_WARNING "spif: cannot remap APB registers\n");
+    printk (KERN_WARNING "%s: cannot remap APB registers\n", SPIF_DRV_NAME);
     return -ENOMEM;
   }
 
@@ -407,14 +398,15 @@ static int spif_apbr_init (struct device_node * pn, struct spif_driver_prv * prv
   apb_regs = (int *) prv->apbr_va;
   data = ioread32 ((void *) &apb_regs[SPIF_STATUS_REG]);
   if ((data & SPIF_SEC_MSK) != SPIF_SEC_CODE) {
-    printk (KERN_WARNING "spif: interface board not found\n");
+    printk (KERN_WARNING "%s: interface board not found\n", SPIF_DRV_NAME);
     return -ENODEV;
   }
 
   // report hardware version number and number of event pipes
   data = ioread32 ((void *) &apb_regs[SPIF_VERSION_REG]);
   printk (KERN_INFO
-	  "spif: spif board found [hw version %d.%d.%d - event pipes: %d]\n",
+	  "%s: spif board found [hw version %d.%d.%d - event pipes: %d]\n",
+          SPIF_DRV_NAME,
 	  (data & SPIF_MAJ_VER_MSK) >> SPIF_MAJ_VER_SHIFT,
 	  (data & SPIF_MIN_VER_MSK) >> SPIF_MIN_VER_SHIFT,
 	  (data & SPIF_PAT_VER_MSK) >> SPIF_PAT_VER_SHIFT,
@@ -438,7 +430,7 @@ static int spif_dmac_init (struct device_node * pn, struct spif_driver_prv * prv
   // try to find DMA controller device tree node
   dn = of_parse_phandle (pn, "dma", 0);
   if (dn == NULL) {
-    printk (KERN_WARNING "spif: cannot find DMA controller\n");
+    printk (KERN_WARNING "%s: cannot find DMA controller\n", SPIF_DRV_NAME);
     rc = -EIO;
     goto error0;
   }
@@ -447,22 +439,22 @@ static int spif_dmac_init (struct device_node * pn, struct spif_driver_prv * prv
   //NOTE: returns 0 on failure!
   prv->dma_irq = of_irq_to_resource (dn, 0, &dmai);
   if (prv->dma_irq == 0) {
-    printk (KERN_WARNING "spif: no DMAC interrupt found\n");
+    printk (KERN_WARNING "%s: no DMAC interrupt found\n", SPIF_DRV_NAME);
     rc = -EIO;
     goto error0;
   }
 
   // try to get control of the interrupt
-  rc = request_irq (prv->dma_irq, &spif_irq, SPIF_IRQ_FLAGS_MODE, KBUILD_MODNAME, prv);
+  rc = request_irq (prv->dma_irq, &spif_irq, SPIF_IRQ_FLAGS_MODE, SPIF_DRV_NAME, prv);
   if (rc) {
-    printk (KERN_WARNING "spif: DMAC interrupt request failed\n");
+    printk (KERN_WARNING "%s: DMAC interrupt request failed\n", SPIF_DRV_NAME);
     rc = -EIO;
     goto error0;
   }
 
   // try to find the address of the DMA controller registers
   if (of_address_to_resource (dn, 0, &dmar)) {
-    printk (KERN_WARNING "spif: no DMAC address assigned\n");
+    printk (KERN_WARNING "%s: no DMAC address assigned\n", SPIF_DRV_NAME);
     rc = -EIO;
     goto error1;
   }
@@ -470,7 +462,7 @@ static int spif_dmac_init (struct device_node * pn, struct spif_driver_prv * prv
   // map DMAC registers into virtual memory
   prv->dmar_va = ioremap (dmar.start, resource_size (&dmar));
   if (prv->dmar_va == NULL) {
-    printk (KERN_WARNING "spif: cannot remap DMAC registers\n");
+    printk (KERN_WARNING "%s: cannot remap DMAC registers\n", SPIF_DRV_NAME);
     rc = -ENOMEM;
     goto error1;
   }
@@ -509,7 +501,7 @@ static int spif_cdev_init (struct spif_driver_prv * prv)
   // allocate major/minor numbers for spif device
   rc = alloc_chrdev_region (&spif_num, 0, 1, "spif");
   if (rc < 0) {
-    printk (KERN_WARNING "spif: cannot allocate device major/minor\n");
+    printk (KERN_WARNING "%s: cannot allocate device major/minor\n", SPIF_DRV_NAME);
     goto error0;
   }
 
@@ -519,7 +511,7 @@ static int spif_cdev_init (struct spif_driver_prv * prv)
   // create device class
   spif_class = class_create (THIS_MODULE , "spif");
   if (spif_class == NULL) {
-    printk (KERN_WARNING "spif: cannot create device class\n");
+    printk (KERN_WARNING "%s: cannot create device class\n", SPIF_DRV_NAME);
     rc = -ENODEV;
     goto error1;
   }
@@ -533,7 +525,7 @@ static int spif_cdev_init (struct spif_driver_prv * prv)
   // create device
   spif_dev = device_create (spif_class, NULL, spif_num, NULL, "spif");
   if (spif_dev == NULL) {
-    printk (KERN_WARNING "spif: cannot create device\n");
+    printk (KERN_WARNING "%s: cannot create device\n", SPIF_DRV_NAME);
     rc = -ENODEV;
     goto error2;
   }
@@ -545,7 +537,7 @@ static int spif_cdev_init (struct spif_driver_prv * prv)
   // make character device available for use
   rc = cdev_add (&prv->dev_cdev, spif_num, 1);
   if (rc < 0) {
-    printk (KERN_WARNING "spif: cannot add character device\n");
+    printk (KERN_WARNING "%s: cannot add character device\n", SPIF_DRV_NAME);
     goto error3;
   }
 
@@ -580,7 +572,7 @@ static int spif_driver_probe (struct platform_device * pdev)
   // allocate memory for persistent driver private data
   prv = (struct spif_driver_prv *) kmalloc (sizeof (struct spif_driver_prv), GFP_KERNEL);
   if (prv == NULL) {
-    printk (KERN_WARNING "spif: cannot allocate private struct\n");
+    printk (KERN_WARNING "%s: cannot allocate private struct\n", SPIF_DRV_NAME);
     rc = -ENOMEM;
     goto error0;
   }
@@ -591,28 +583,28 @@ static int spif_driver_probe (struct platform_device * pdev)
   // initialise access to reserved memory
   rc = spif_rsvd_init (pdev_dev->of_node, prv);
   if (rc) {
-    printk (KERN_WARNING "spif: reserved memory initialisation failed\n");
+    printk (KERN_WARNING "%s: reserved memory initialisation failed\n", SPIF_DRV_NAME);
     goto error1;
   }
 
   // initialise access to spif APB registers
   rc = spif_apbr_init (pdev_dev->of_node, prv);
   if (rc) {
-    printk (KERN_WARNING "spif: APB register initialisation failed\n");
+    printk (KERN_WARNING "%s: APB register initialisation failed\n", SPIF_DRV_NAME);
     goto error1;
   }
 
   // initialise spif DMA controller
   rc = spif_dmac_init (pdev_dev->of_node, prv);
   if (rc) {
-    printk (KERN_WARNING "spif: DMAC initialisation failed\n");
+    printk (KERN_WARNING "%s: DMAC initialisation failed\n", SPIF_DRV_NAME);
     goto error2;
   }
 
   // create and initialise character device
   rc = spif_cdev_init (prv);
   if (rc) {
-    printk (KERN_WARNING "spif: character device initialisation failed\n");
+    printk (KERN_WARNING "%s: character device initialisation failed\n", SPIF_DRV_NAME);
     goto error2;
   }
 
@@ -663,7 +655,7 @@ static int spif_driver_remove (struct platform_device *pdev)
 
 static struct platform_driver spif_driver = {
   .driver = {
-    .name           = KBUILD_MODNAME,
+    .name           = SPIF_DRV_NAME,
     .owner          = THIS_MODULE,
     .of_match_table = spif_driver_of_match,
   },
@@ -679,8 +671,8 @@ static struct platform_driver spif_driver = {
 static int __init spif_driver_init (void)
 {
   printk (KERN_INFO
-	  "spif: SpiNNaker peripheral interface driver [version %s]\n",
-	  SPIF_VERSION);
+	  "%s: SpiNNaker peripheral interface driver [version %s]\n",
+	  SPIF_DRV_NAME, SPIF_DRV_VERSION);
 
   return platform_driver_probe (&spif_driver, &spif_driver_probe);
 }
@@ -694,7 +686,7 @@ static void __exit spif_driver_exit (void)
 {
   platform_driver_unregister (&spif_driver);
 
-  printk (KERN_INFO "spif: removed\n");
+  printk (KERN_INFO "%s: removed\n", SPIF_DRV_NAME);
 }
 // -------------------------------------------------------------------------
 

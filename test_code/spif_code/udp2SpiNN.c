@@ -115,7 +115,7 @@ int main (int argc, char * argv[])
   if (expected_items) {
     printf ("receiving %lu data items on UDP port %d\n", expected_items, udp_port);
   } else {
-    printf ("receiving unlimited data items on UDP port %d\n", udp_port);
+    printf ("receiving unlimited data items on UDP port %d <ctrl-c to exit>\n", udp_port);
   }
 
   // statistics counters

@@ -241,7 +241,7 @@ module dvs_on_hssl_top
 
   assign hi_reset_int = !gt_tx_reset_done_int || !gt_tx_usrclk_active_int;
 
-  assign axi_resetn_int = gt_tx_reset_done_int && gt_tx_usrclk_active_int;
+  assign axi_resetn_int = gt_tx_usrclk_active_int;
   //---------------------------------------------------------------
 
 

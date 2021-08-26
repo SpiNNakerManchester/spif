@@ -139,11 +139,13 @@ module hssl_transceiver
           wire gtp_rx_soft_reset_int;
           wire gtp_tx_reset_int;
           wire gtp_rx_reset_int;
+          wire gtp_tx_hs_reset_int;
 
-          assign gtp_tx_soft_reset_int = tx_reset_datapath_in || hsr_reset_int;
+          assign gtp_tx_soft_reset_int = tx_reset_datapath_in;
           assign gtp_rx_soft_reset_int = rx_reset_datapath_in || hsr_reset_int;
           assign gtp_tx_reset_int      = reset_all_in;
           assign gtp_rx_reset_int      = reset_all_in;
+          assign gtp_tx_hs_reset_int   = tx_reset_datapath_in || hsr_reset_int;
           //---------------------------------------------------------------
 
 
@@ -195,15 +197,15 @@ module hssl_transceiver
 
             , .gt0_rxoutclkfabric_out         ()
 
+            , .gt0_rxuserrdy_in               (tx_usrclk_active_out)
+
             , .gt0_gtrxreset_in               (gtp_rx_reset_int)
             , .gt0_rxlpmreset_in              (1'b0)
-
+            , .gt0_rxpcsreset_in              (1'b0)
+            , .gt0_rxpmareset_in              (1'b0)
             , .gt0_rxresetdone_out            (rx_reset_done_out)
 
             , .gt0_rxpolarity_in              (1'b0)
-
-            , .gt0_gttxreset_in               (gtp_tx_reset_int)
-            , .gt0_txuserrdy_in               (1'b1)
 
             , .gt0_txdata_in                  (tx_data_in)
 
@@ -217,13 +219,16 @@ module hssl_transceiver
             , .gt0_txoutclkfabric_out         ()
             , .gt0_txoutclkpcs_out            ()
 
+            , .gt0_txuserrdy_in               (tx_usrclk_active_out)
+
+            , .gt0_gttxreset_in               (gtp_tx_reset_int)
+            , .gt0_txpcsreset_in              (1'b0)
+            , .gt0_txpmareset_in              (gtp_tx_hs_reset_int)
             , .gt0_txresetdone_out            (tx_reset_done_out)
 
             , .gt0_txpolarity_in              (1'b0)
 
             , .gt0_eyescanreset_in            (1'b0)
-            , .gt0_rxuserrdy_in               (1'b1)
-
             , .gt0_eyescandataerror_out       ()
             , .gt0_eyescantrigger_in          (1'b0)
 
