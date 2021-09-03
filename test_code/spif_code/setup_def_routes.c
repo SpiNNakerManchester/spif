@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <libgen.h>
 
 #include "spif.h"
 
@@ -35,9 +36,13 @@ uint const DEF_ROUTES[] = {0, 1, 2, 3, 4, 5, 6, 7};
 //--------------------------------------------------------------------
 int main (int argc, char* argv[])
 {
+  char * cname = basename (argv[0]);
+
   // setup access to spif
   //NOTE: size is not important as spif buffer will not be used
-  if (spif_setup (SPIF_SIZE_DEF) == NULL) {
+  //NOTE: pipe is not important as it will not be used
+  if (spif_setup (0, SPIF_SIZE_DEF) == NULL) {
+    printf ("%s: unable to access spif\n", cname);
     exit (-1);
   }
 
