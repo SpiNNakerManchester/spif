@@ -148,13 +148,13 @@
 \begin{table}[!h]
 	\rowcolors {1}{}{ \tblc }
 %		\renewcommand{\arraystretch}{1.2}
-	\begin{tabularx}{\textwidth}{| p{34mm} p{13mm} p{21mm} p{7mm} X |}
+	\begin{tabularx}{\textwidth}{| p{36mm} p{13mm} p{21mm} p{7mm} X |}
 		\hline
 		\textbf{name}                        & \textbf{offset}            & \textbf{offset} (hex)          & \textbf{r/w}        & \textbf{function} \\%
 		\hline
 		\hline
 		\textbf{control}                     & 00                         & (0x00)                         & r/w                 & HSSL interface control \\%
-		\textbf{mp\_key}                     & 01                         & (0x01)                         & r/w                 & routing key for event mapping \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}01      & \cellcolor{gray!25}(0x01) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\textbf{reply\_key}                  & 02                         & (0x02)                         & r/w                 & routing key for read replies \\%
 		\textbf{in\_drop\_wait}              & 03                         & (0x03)                         & r/w                 & input wait-before-drop count \\%
 		\textbf{out\_drop\_wait}             & 04                         & (0x04)                         & r/w                 & output wait-before-drop count \\%
@@ -169,10 +169,19 @@
 		\textbf{in\_dropped\_pkt\_cnt}       & 66                         & (0x42)                         & r/w                 & count dropped input packets \\%
 		\textbf{in\_periph\_pkt\_cnt}        & 67                         & (0x43)                         & r/w                 & count periph input packets\\%
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}68-79   & \cellcolor{gray!25}(0x44-0x4f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\textbf{mp\_fld\_mask [3:0]}         & 80-83                      & (0x50-0x53)                    & r/w                 & field masks for event mapping \\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}84-95   & \cellcolor{gray!25}(0x54-0x5f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\textbf{mp\_fld\_shift [3:0]}        & 96-99                      & (0x60-0x63)                    & r/w                 & field shifts for event mapping  \\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}100-127 & \cellcolor{gray!25}(0x64-0x7f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{mp0\_key}                    & 81                         & (0x50)                         & r/w                 & routing key for event mapper0 \\%
+		\textbf{mp1\_key}                    & 81                         & (0x51)                         & r/w                 & mapper1 - used if event pipes$>$1 \\%
+		\textbf{mp2\_key}                    & 82                         & (0x52)                         & r/w                 & mapper2 - used if event pipes$>$2 \\%
+		\textbf{mp3\_key}                    & 83                         & (0x53)                         & r/w                 & mapper3 - used if event pipes$>$3 \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}83-95   & \cellcolor{gray!25}(0x54-0x5f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{mp0\_fld\_mask [3:0]}        & 96-99                      & (0x60-0x63)                    & r/w                 & field masks for event mapper0 \\%
+		\textbf{mp1\_fld\_mask [3:0]}        & 100-103                    & (0x64-0x67)                    & r/w                 & mapper1 - used if event pipes$>$1 \\%
+		\textbf{mp2\_fld\_mask [3:0]}        & 104-107                    & (0x68-0x6b)                    & r/w                 & mapper2 - used if event pipes$>$2 \\%
+		\textbf{mp3\_fld\_mask [3:0]}        & 108-111                    & (0x6c-0x6f)                    & r/w                 & mapper3 - used if event pipes$>$3 \\%
+		\textbf{mp0\_fld\_shift [3:0]}       & 112-115                    & (0x70-0x73)                    & r/w                 & field shifts for event mapper0  \\%
+		\textbf{mp1\_fld\_shift [3:0]}       & 116-119                    & (0x74-0x77)                    & r/w                 & mapper1 - used if event pipes$>$1  \\%
+		\textbf{mp2\_fld\_shift [3:0]}       & 120-123                    & (0x78-0x7b)                    & r/w                 & mapper2 - used if event pipes$>$2  \\%
+		\textbf{mp3\_fld\_shift [3:0]}       & 124-127                    & (0x7c-0x7f)                    & r/w                 & mapper3 - used if event pipes$>$3  \\%
 		\hline
 	\end{tabularx}
 	\caption{spif configuration registers}
