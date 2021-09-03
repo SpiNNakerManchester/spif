@@ -24,8 +24,9 @@
 
 // remote configuration commands
 //NOTE: in most cases payload carries the value
+#define NUM_MPR_REG        4
 #define NUM_RMT_CNT        4
-#define RWR_MPK_CMD        1
+
 #define RWR_RYK_CMD        2
 #define RWR_IDW_CMD        3
 #define RWR_ODW_CMD        4
@@ -36,8 +37,9 @@
 #define RWR_CCP_CMD        65
 #define RWR_CDP_CMD        66
 #define RWR_CIP_CMD        67
-#define RWR_MPM_CMD        80
-#define RWR_MPS_CMD        96
+#define RWR_MPK_CMD        80
+#define RWR_MPM_CMD        96
+#define RWR_MPS_CMD        112
 
 // spif is always connected to the SOUTH link of chip (0, 0)
 #define SPIF_ROUTE         (1 << 5)
@@ -103,7 +105,7 @@ void spif_set_peripheral_mask (uint mask)
 void spif_set_routing_key (uint entry, uint key)
 {
   while (!spin1_send_mc_packet (
-          RCMD_KEY | RWR_KEY_CMD + entry,
+          RCMD_KEY | (RWR_KEY_CMD + entry),
           key,
           WITH_PAYLOAD)
         );
@@ -113,7 +115,7 @@ void spif_set_routing_key (uint entry, uint key)
 void spif_set_routing_mask (uint entry, uint mask)
 {
   while (!spin1_send_mc_packet (
-          RCMD_KEY | RWR_MSK_CMD + entry,
+          RCMD_KEY | (RWR_MSK_CMD + entry),
           mask,
           WITH_PAYLOAD)
         );
@@ -123,7 +125,7 @@ void spif_set_routing_mask (uint entry, uint mask)
 void spif_set_routing_route (uint entry, uint route)
 {
   while (!spin1_send_mc_packet (
-          RCMD_KEY | RWR_RTE_CMD + entry,
+          RCMD_KEY | (RWR_RTE_CMD + entry),
           route,
           WITH_PAYLOAD)
         );
@@ -140,30 +142,30 @@ void spif_set_input_drop_wait (uint wait)
 }
 
 
-void spif_set_mapper_key (uint key)
+void spif_set_mapper_key (uint map, uint key)
 {
   while (!spin1_send_mc_packet (
-          RCMD_KEY | RWR_MPK_CMD,
+          RCMD_KEY | (RWR_MPK_CMD + map),
           key,
           WITH_PAYLOAD)
         );
 }
 
 
-void spif_set_mapper_field_mask (uint field, uint mask)
+void spif_set_mapper_field_mask (uint map, uint field, uint mask)
 {
   while (!spin1_send_mc_packet (
-          RCMD_KEY | RWR_MPM_CMD + field,
+          RCMD_KEY | (RWR_MPM_CMD + (NUM_MPR_REG * map) + field),
           mask,
           WITH_PAYLOAD)
         );
 }
 
 
-void spif_set_mapper_field_shift (uint field, uint shift)
+void spif_set_mapper_field_shift (uint map, uint field, uint shift)
 {
   while (!spin1_send_mc_packet (
-          RCMD_KEY | RWR_MPS_CMD + field,
+          RCMD_KEY | (RWR_MPS_CMD + (NUM_MPR_REG * map) + field),
           shift,
           WITH_PAYLOAD)
         );

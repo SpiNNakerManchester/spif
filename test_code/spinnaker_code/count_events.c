@@ -38,9 +38,10 @@
 
 
 //NOTE: this packet key checks lower 3 bits of the event x coordinate
+// and 1 bit of the event-processing pipe
 #define XCOORD_POS         16
 #define PKT_KEY(p)         (MPR_KEY | ((p - 1) << XCOORD_POS))
-#define PKT_MSK            (0xff000000 | (0x07 << XCOORD_POS))
+#define PKT_MSK            (0xff000000 | (0x0f << XCOORD_POS))
 
 
 // ------------------------------------------------------------------------
@@ -73,18 +74,31 @@ void start_spif (uint a, uint b)
     spif_set_routing_route (i, i);
   }
 
-  // configure peripheral input mapper
-  spif_set_mapper_key (MPR_KEY);
+  // configure peripheral input mapper0
+  spif_set_mapper_key (0, MPR_KEY);
 
-  spif_set_mapper_field_mask (0, MPF_MASK_0);
-  spif_set_mapper_field_mask (1, MPF_MASK_1);
-  spif_set_mapper_field_mask (2, MPF_MASK_2);
-  spif_set_mapper_field_mask (3, MPF_MASK_3);
+  spif_set_mapper_field_mask (0, 0, MPF_MASK_0);
+  spif_set_mapper_field_mask (0, 1, MPF_MASK_1);
+  spif_set_mapper_field_mask (0, 2, MPF_MASK_2);
+  spif_set_mapper_field_mask (0, 3, MPF_MASK_3);
 
-  spif_set_mapper_field_shift (0, MPF_SHIFT_0);
-  spif_set_mapper_field_shift (1, MPF_SHIFT_1);
-  spif_set_mapper_field_shift (2, MPF_SHIFT_2);
-  spif_set_mapper_field_shift (3, MPF_SHIFT_3);
+  spif_set_mapper_field_shift (0, 0, MPF_SHIFT_0);
+  spif_set_mapper_field_shift (0, 1, MPF_SHIFT_1);
+  spif_set_mapper_field_shift (0, 2, MPF_SHIFT_2);
+  spif_set_mapper_field_shift (0, 3, MPF_SHIFT_3);
+
+  // configure peripheral input mapper1
+  spif_set_mapper_key (1, MPR_KEY);
+
+  spif_set_mapper_field_mask (1, 0, MPF_MASK_0);
+  spif_set_mapper_field_mask (1, 1, MPF_MASK_1);
+  spif_set_mapper_field_mask (1, 2, MPF_MASK_2);
+  spif_set_mapper_field_mask (1, 3, MPF_MASK_3);
+
+  spif_set_mapper_field_shift (1, 0, MPF_SHIFT_0);
+  spif_set_mapper_field_shift (1, 1, MPF_SHIFT_1);
+  spif_set_mapper_field_shift (1, 2, MPF_SHIFT_2);
+  spif_set_mapper_field_shift (1, 3, MPF_SHIFT_3);
 
   // ajust peripheral input wait-before-drop value
   spif_set_input_drop_wait (PKT_DROP_WAIT);
