@@ -22,21 +22,20 @@
 //  * everything
 // -------------------------------------------------------------------------
 
+`include "spio_hss_multiplexer_common.h"
+`include "hssl_reg_bank.h"
+
 
 `timescale 1ps/1ps
 module pkt_assembler
-#(
-  parameter PACKET_BITS = 72,
-  parameter NUM_MREGS   = 4
-)
 (
   input  wire                     clk,
   input  wire                     reset,
 
   // event mapper configuration
   input  wire              [31:0] mp_key_in,
-  input  wire              [31:0] field_msk_in [NUM_MREGS - 1:0],
-  input  wire               [5:0] field_sft_in [NUM_MREGS - 1:0],
+  input  wire              [31:0] field_msk_in [NUM_REGS - 1:0],
+  input  wire               [5:0] field_sft_in [NUM_REGS - 1:0],
 
   // event inputs
   input  wire              [31:0] evt_data_in,
@@ -49,7 +48,12 @@ module pkt_assembler
   input  wire                     pkt_rdy_in
 );
 
-  genvar i;
+  
+  // use local parameters for consistent definitions
+  localparam PACKET_BITS = `PKT_BITS;
+
+  localparam NUM_REGS    = `NUM_MREGS_PIPE;
+  
 
   //---------------------------------------------------------------
   // internal signals
@@ -66,14 +70,15 @@ module pkt_assembler
   reg  [31:0] parked_data_int;
 
   // map input event data to output packet key
-  wire [31:0] evt_field_int [NUM_MREGS - 1:0];
-  wire [31:0] field_acc_int [NUM_MREGS - 1:0];
+  wire [31:0] evt_field_int [NUM_REGS - 1:0];
+  wire [31:0] field_acc_int [NUM_REGS - 1:0];
 
   // extract, shift and OR together event fields
   //NOTE: could use an OR tree instead!
+  genvar i;
   generate
     begin
-      for (i = 0; i < NUM_MREGS; i = i + 1)
+      for (i = 0; i < NUM_REGS; i = i + 1)
         begin
           // compute shift register 2's complement
           wire [4:0] left_shift = ~field_sft_in[i][4:0] + 1;
@@ -85,14 +90,14 @@ module pkt_assembler
         end
 
       //NOTE: field accumulator 0 is a special case - see below
-      for (i = 1; i < NUM_MREGS; i = i + 1)
+      for (i = 1; i < NUM_REGS; i = i + 1)
         assign field_acc_int[i] = field_acc_int[i - 1] | evt_field_int[i];
     end
   endgenerate
 
   // use the mapper routing key as the mapping base
   assign field_acc_int[0] = mp_key_in | evt_field_int[0];
-  assign mapped_data_int  = field_acc_int[NUM_MREGS - 1];
+  assign mapped_data_int  = field_acc_int[NUM_REGS - 1];
 
   // park mapped data when output is busy
   always @ (posedge clk or posedge reset)

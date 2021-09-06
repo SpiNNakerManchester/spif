@@ -23,17 +23,12 @@
 //  * everything
 // -------------------------------------------------------------------------
 
+`include "spio_hss_multiplexer_common.h"
+`include "hssl_reg_bank.h"
+
 
 `timescale 1ps/1ps
 module hssl_interface
-#(
-  parameter PACKET_BITS           = 72,
-  parameter NUM_CHANNELS          = 8,
-
-  parameter NUM_CLKC_FOR_SYNC     = 4,
-  parameter NUM_VLD_PER_INV       = 4,
-  parameter NUM_INV_FOR_LOSS      = 8
-)
 (
   input  wire                     clk,
   input  wire                     reset,
@@ -50,7 +45,7 @@ module hssl_interface
   output wire                     handshake_complete_out,
   output wire                     version_mismatch_out,
 
-  output wire              [15:0] idsi_out,
+  output wire [HW_SNTL_BITS -1:0] idsi_out,
   input  wire                     stop_in,
 
   output wire              [31:0] tx_data_out,
@@ -64,6 +59,19 @@ module hssl_interface
   input  wire               [3:0] rx_encerr_in
 );
 
+
+  // use local parameters for consistent definitions
+  localparam HW_SNTL_BITS      = `HW_SNTL_BITS;
+
+  localparam PACKET_BITS       = `PKT_BITS;
+
+  localparam NUM_CHANNELS      = `NUM_CHANS;
+
+  localparam NUM_CLKC_FOR_SYNC = 4;
+  localparam NUM_VLD_PER_INV   = 4;
+  localparam NUM_INV_FOR_LOSS  = 8;
+
+  
   //---------------------------------------------------------------
   // internal signals
   //---------------------------------------------------------------

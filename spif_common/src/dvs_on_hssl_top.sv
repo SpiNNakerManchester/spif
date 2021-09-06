@@ -25,24 +25,13 @@
 //  * everything
 // -------------------------------------------------------------------------
 
-`include "dvs_on_hssl_top.h"
 `include "spio_hss_multiplexer_common.h"
+`include "dvs_on_hssl_top.h"
+`include "hssl_reg_bank.h"
 
 
 `timescale 1ps/1ps
 module dvs_on_hssl_top
-#(
-  parameter HW_VERSION   = `SPIF_VER_NUM,
-  parameter HW_PIPE_NUM  = `SPIF_NUM_PIPES,
-  parameter TARGET_FPGA  = `FPGA_MODEL,
-
-  parameter PACKET_BITS  = `PKT_BITS,
-  parameter NUM_CHANNELS = 8,
-  parameter NUM_HREGS    = 5,
-  parameter NUM_RREGS    = 16,
-  parameter NUM_CREGS    = 4,
-  parameter NUM_MREGS    = 4
-)
 (
   // differential reference clock inputs
   input  wire gt_refclk_p,
@@ -80,6 +69,27 @@ module dvs_on_hssl_top
   output wire gt_txp_out
 );
 
+  
+  // use local parameters for consistent definitions
+  localparam HW_VERSION     = `SPIF_VER_NUM;
+  localparam HW_NUM_PIPES   = `SPIF_NUM_PIPES;
+  localparam TARGET_FPGA    = `FPGA_MODEL;
+  localparam HW_SNTL_BITS   = `HW_SNTL_BITS;
+
+  localparam PACKET_BITS    = `PKT_BITS;
+  localparam NUM_CHANNELS   = `NUM_CHANS;
+
+  localparam RADDR_BITS     = `RADDR_BITS;
+  localparam NUM_HREGS      = `NUM_HREGS;
+  localparam NUM_RREGS      = `NUM_RREGS;
+  localparam NUM_CREGS      = `NUM_CREGS;
+  localparam NUM_MREGS_PIPE = `NUM_MREGS_PIPE;
+  localparam NUM_MREGS      = `NUM_MREGS;
+
+  localparam MSFT_BITS      = `MSFT_BITS;
+  localparam RRTE_BITS      = `RRTE_BITS;
+
+
   //---------------------------------------------------------------
   // internal signals
   //---------------------------------------------------------------
@@ -103,9 +113,9 @@ module dvs_on_hssl_top
   wire [31:0] apb_pwdata_int;
   wire        apb_pwrite_int;
 
-  wire [31:0] evt_data_int;
-  wire        evt_vld_int;
-  wire        evt_rdy_int;
+  wire [31:0] evt_data_int [HW_NUM_PIPES - 1:0];
+  wire        evt_vld_int  [HW_NUM_PIPES - 1:0];
+  wire        evt_rdy_int  [HW_NUM_PIPES - 1:0];
 
   // register bank signals
   //  - HSSL interface control
@@ -120,19 +130,19 @@ module dvs_on_hssl_top
   wire [31:0] prx_drop_wait_int;
 
   //  - packet routing table
-  wire [31:0] rt_key_int   [NUM_RREGS - 1:0];
-  wire [31:0] rt_mask_int  [NUM_RREGS - 1:0];
-  wire  [2:0] rt_route_int [NUM_RREGS - 1:0];
+  wire             [31:0] rt_key_int   [NUM_RREGS - 1:0];
+  wire             [31:0] rt_mask_int  [NUM_RREGS - 1:0];
+  wire  [RRTE_BITS - 1:0] rt_route_int [NUM_RREGS - 1:0];
 
   //  - event mapper registers
-  wire [31:0] mp_key_int;
-  wire [31:0] mp_fmsk_int [NUM_MREGS - 1:0];
-  wire  [5:0] mp_fsft_int [NUM_MREGS - 1:0];
+  wire             [31:0] mp_key_int  [HW_NUM_PIPES - 1:0];
+  wire             [31:0] mp_fmsk_int [NUM_MREGS - 1:0];
+  wire  [MSFT_BITS - 1:0] mp_fsft_int [NUM_MREGS - 1:0];
 
   // - packet receiver interface
-  wire  [7:0] prx_addr_int;
-  wire [31:0] prx_wdata_int;
-  wire        prx_en_int;
+  wire  [RADDR_BITS - 1:0] prx_addr_int;
+  wire              [31:0] prx_wdata_int;
+  wire                     prx_en_int;
 
   //  - diagnostic counter signals
   wire [NUM_CREGS - 1:0] ctr_cnt_int;
@@ -140,12 +150,12 @@ module dvs_on_hssl_top
   wire             [1:0] rt_cnt_int;
 
   // HSSL interface signals
-  wire        hi_clk_int;
-  wire        hi_reset_int;
-  wire  [1:0] hi_loss_of_sync_int;
-  wire        hi_handshake_complete_int;
-  wire        hi_version_mismatch_int;
-  wire [15:0] hi_idsi_int;
+  wire                      hi_clk_int;
+  wire                      hi_reset_int;
+  wire                [1:0] hi_loss_of_sync_int;
+  wire                      hi_handshake_complete_int;
+  wire                      hi_version_mismatch_int;
+  wire [HW_SNTL_BITS - 1:0] hi_idsi_int;
 
   // Gigabit transceiver signals
   wire        gt_freerun_clk_int;
@@ -250,9 +260,9 @@ module dvs_on_hssl_top
   // implements an AXI4-stream interface to the HSSL and
   // provides the free-running clock and the reset signal
   //---------------------------------------------------------------
-  wire [31:0] axi_evt_data_int;
-  wire        axi_evt_vld_int;
-  wire        axi_evt_rdy_int;
+  wire [31:0] axi_evt_data_int [HW_NUM_PIPES - 1:0];
+  wire        axi_evt_vld_int  [HW_NUM_PIPES - 1:0];
+  wire        axi_evt_rdy_int  [HW_NUM_PIPES - 1:0];
 
   proc_sys ps (
       .peripheral_reset_0       (ps_peripheral_reset_0_int)
@@ -272,12 +282,43 @@ module dvs_on_hssl_top
     , .APB_M_0_pwdata           (apb_pwdata_int)
     , .APB_M_0_pwrite           (apb_pwrite_int)
 
-      // AXI stream interface to HSSL multiplexer
-    , .AXI_STR_TXD_0_tdata      (axi_evt_data_int)
+      // AXI stream interface to first event processing pipe
+    , .AXI_STR_TXD_0_tdata      (axi_evt_data_int[0])
+    , .AXI_STR_TXD_0_tkeep      ()
     , .AXI_STR_TXD_0_tlast      ()
-    , .AXI_STR_TXD_0_tvalid     (axi_evt_vld_int)
-    , .AXI_STR_TXD_0_tready     (axi_evt_rdy_int)
+    , .AXI_STR_TXD_0_tvalid     (axi_evt_vld_int[0])
+    , .AXI_STR_TXD_0_tready     (axi_evt_rdy_int[0])
     , .mm2s_prmry_reset_out_n_0 ()
+
+`ifdef PIPE1
+      // AXI stream interface to second event processing pipe
+    , .AXI_STR_TXD_1_tdata      (axi_evt_data_int[1])
+    , .AXI_STR_TXD_1_tkeep      ()
+    , .AXI_STR_TXD_1_tlast      ()
+    , .AXI_STR_TXD_1_tvalid     (axi_evt_vld_int[1])
+    , .AXI_STR_TXD_1_tready     (axi_evt_rdy_int[1])
+    , .mm2s_prmry_reset_out_n_1 ()
+`endif
+
+`ifdef PIPE2
+      // AXI stream interface to third event processing pipe
+    , .AXI_STR_TXD_2_tdata      (axi_evt_data_int[2])
+    , .AXI_STR_TXD_2_tkeep      ()
+    , .AXI_STR_TXD_2_tlast      ()
+    , .AXI_STR_TXD_2_tvalid     (axi_evt_vld_int[2])
+    , .AXI_STR_TXD_2_tready     (axi_evt_rdy_int[2])
+    , .mm2s_prmry_reset_out_n_2 ()
+`endif
+
+`ifdef PIPE3
+      // AXI stream interface to fourth event processing pipe
+    , .AXI_STR_TXD_3_tdata      (axi_evt_data_int[3])
+    , .AXI_STR_TXD_3_tkeep      ()
+    , .AXI_STR_TXD_3_tlast      ()
+    , .AXI_STR_TXD_3_tvalid     (axi_evt_vld_int[3])
+    , .AXI_STR_TXD_3_tready     (axi_evt_rdy_int[3])
+    , .mm2s_prmry_reset_out_n_3 ()
+`endif
 
 `ifdef TARGET_XC7Z015
     // unused exported ports on 7z015
@@ -305,10 +346,18 @@ module dvs_on_hssl_top
 `endif
     );
 
-  // drop incoming events if HSSL interface not ready
-  assign evt_data_int = axi_evt_data_int;
-  assign evt_vld_int  = axi_evt_vld_int && hi_handshake_complete_int;
-  assign axi_evt_rdy_int = evt_rdy_int || !hi_handshake_complete_int;
+  // avoid AXI deadlock - drop incoming events if HSSL interface not ready
+  genvar pipe;
+  generate
+    begin
+      for (pipe = 0; pipe < HW_NUM_PIPES; pipe = pipe + 1)
+        begin
+          assign evt_data_int[pipe]    = axi_evt_data_int[pipe];
+          assign evt_vld_int[pipe]     = axi_evt_vld_int[pipe] && hi_handshake_complete_int;
+          assign axi_evt_rdy_int[pipe] = evt_rdy_int[pipe] || !hi_handshake_complete_int;
+        end
+    end
+  endgenerate
   //---------------------------------------------------------------
 
 
@@ -323,10 +372,7 @@ module dvs_on_hssl_top
 
   hssl_reg_bank
   #(
-      .NUM_HREGS       (NUM_HREGS)
-    , .NUM_RREGS       (NUM_RREGS)
-    , .NUM_CREGS       (NUM_CREGS)
-    , .NUM_MREGS       (NUM_MREGS)
+      .HW_NUM_PIPES    (HW_NUM_PIPES)
     )
   rb (
       .clk              (axi_clk_int)
@@ -353,7 +399,7 @@ module dvs_on_hssl_top
 
       // status signals
     , .hw_version_in    (HW_VERSION)
-    , .hw_pipe_num_in   (HW_PIPE_NUM)
+    , .hw_pipe_num_in   (HW_NUM_PIPES)
     , .fpga_model_in    (TARGET_FPGA)
     , .hs_complete_in   (hi_handshake_complete_int)
     , .hs_mismatch_in   (hi_version_mismatch_int)
@@ -375,7 +421,7 @@ module dvs_on_hssl_top
     , .reg_rt_route_out (rt_route_int)
 
       // event mapper
-    , .mp_key_out       (mp_key_int)
+    , .reg_mp_key_out   (mp_key_int)
     , .reg_mp_fmsk_out  (mp_fmsk_int)
     , .reg_mp_fsft_out  (mp_fsft_int)
     );
@@ -383,62 +429,95 @@ module dvs_on_hssl_top
 
 
   //---------------------------------------------------------------
-  // generate packets from events and drive the Gigabit transmitter
+  // event pipes map incoming events into SpiNNaker packets
   //---------------------------------------------------------------
+  wire [PACKET_BITS - 1:0] pipe_data_int [HW_NUM_PIPES - 1:0];
+  wire                     pipe_vld_int  [HW_NUM_PIPES - 1:0];
+  wire                     pipe_rdy_int  [HW_NUM_PIPES - 1:0];
+
   wire [PACKET_BITS - 1:0] pkt_data_int;
   wire                     pkt_vld_int;
   wire                     pkt_rdy_int;
 
-  wire [PACKET_BITS - 1:0] rtr_data_int [NUM_CHANNELS - 1:0];
-  wire                     rtr_vld_int  [NUM_CHANNELS - 1:0];
-  wire                     rtr_rdy_int  [NUM_CHANNELS - 1:0];
+  generate
+    begin
+      for (pipe = 0; pipe < HW_NUM_PIPES; pipe = pipe + 1)
+        begin : evt_pipe
+          pkt_assembler pa (
+              .clk                (hi_clk_int)
+            , .reset              (hi_reset_int)
 
-  wire [PACKET_BITS - 1:0] dcp_data_int;
-  wire                     dcp_vld_int;
-  wire                     dcp_rdy_int; 
+              // event mapper registers
+            , .mp_key_in          (mp_key_int[pipe])
+            , .field_msk_in       (mp_fmsk_int[(NUM_MREGS_PIPE * pipe) +: NUM_MREGS_PIPE])
+            , .field_sft_in       (mp_fsft_int[(NUM_MREGS_PIPE * pipe) +: NUM_MREGS_PIPE])
 
-  wire [PACKET_BITS - 1:0] txp_data_int [NUM_CHANNELS - 1:0];
-  wire                     txp_vld_int  [NUM_CHANNELS - 1:0];
-  wire                     txp_rdy_int  [NUM_CHANNELS - 1:0];
+              // incoming event
+            , .evt_data_in        (evt_data_int[pipe])
+            , .evt_vld_in         (evt_vld_int[pipe])
+            , .evt_rdy_out        (evt_rdy_int[pipe])
 
+              // assembled packet to be routed
+            , .pkt_data_out       (pipe_data_int[pipe])
+            , .pkt_vld_out        (pipe_vld_int[pipe])
+            , .pkt_rdy_in         (pipe_rdy_int[pipe])
+            );
+        end
 
-  //---------------------------------------------------------------
-  // assemble packets using events sent by processor subsystem
-  //---------------------------------------------------------------
-  pkt_assembler
-  #(
-      .NUM_MREGS          (NUM_MREGS)
-    )
-  pa (
-      .clk                (hi_clk_int)
-    , .reset              (hi_reset_int)
+        if (HW_NUM_PIPES == 1)
+          begin
+            // connect pipe0 output directly to router
+            assign pkt_data_int    = pipe_data_int[0];
+            assign pkt_vld_int     = pipe_vld_int[0];
+            assign pipe_rdy_int[0] = pkt_rdy_int;
 
-       // event mapper registers
-    , .mp_key_in          (mp_key_int)
-    , .field_msk_in       (mp_fmsk_int)
-    , .field_sft_in       (mp_fsft_int)
+            // avoid deadlock on all other AXI streams
+            //NOTE: drop all events that arrive on those interfaces
+            for (pipe = 1; pipe < HW_NUM_PIPES; pipe = pipe + 1)
+              begin
+                assign evt_rdy_int[pipe] = 1'b1;
+              end
+          end
+        else
+          begin
+            // arbitrate between pipe outputs
+            spio_rr_arbiter
+            #(
+                .PKT_BITS (PACKET_BITS)
+              )
+            arb (
+                .CLK_IN    (hi_clk_int)
+              , .RESET_IN  (hi_reset_int)
 
-      // incoming event
-    , .evt_data_in        (evt_data_int)
-    , .evt_vld_in         (evt_vld_int)
-    , .evt_rdy_out        (evt_rdy_int)
+                // pipe0 packets
+              , .DATA0_IN  (pipe_data_int[0])
+              , .VLD0_IN   (pipe_vld_int[0])
+              , .RDY0_OUT  (pipe_rdy_int[0])
 
-      // assembled packet to be routed
-    , .pkt_data_out       (pkt_data_int)
-    , .pkt_vld_out        (pkt_vld_int)
-    , .pkt_rdy_in         (pkt_rdy_int)
-    );
+                // pipe1 packets
+              , .DATA1_IN  (pipe_data_int[1])
+              , .VLD1_IN   (pipe_vld_int[1])
+              , .RDY1_OUT  (pipe_rdy_int[1])
+
+                // packets to router
+              , .DATA_OUT  (pkt_data_int)
+              , .VLD_OUT   (pkt_vld_int)
+              , .RDY_IN    (pkt_rdy_int)
+              );
+          end
+    end
+  endgenerate   
   //---------------------------------------------------------------
 
 
   //---------------------------------------------------------------
   // route packets to HSSL channels
   //---------------------------------------------------------------
-  pkt_router
-  #(
-      .NUM_RREGS          (NUM_RREGS)
-    )
-  pr (
+  wire [PACKET_BITS - 1:0] rtr_data_int [NUM_CHANNELS - 1:0];
+  wire                     rtr_vld_int  [NUM_CHANNELS - 1:0];
+  wire                     rtr_rdy_int  [NUM_CHANNELS - 1:0];
+
+  pkt_router pr (
       .clk                (hi_clk_int)
     , .reset              (hi_reset_int)
 
@@ -467,10 +546,17 @@ module dvs_on_hssl_top
 
 
   //---------------------------------------------------------------
-  // merge diagnostics read replies with channel 0 routed packets
+  // merge diagnostics read replies with channel0 routed packets
   //---------------------------------------------------------------
-  // channel 0:
-  // need to arbitrate between routed and diagnostics packets
+  wire [PACKET_BITS - 1:0] dcp_data_int;
+  wire                     dcp_vld_int;
+  wire                     dcp_rdy_int; 
+
+  wire [PACKET_BITS - 1:0] txp_data_int [NUM_CHANNELS - 1:0];
+  wire                     txp_vld_int  [NUM_CHANNELS - 1:0];
+  wire                     txp_rdy_int  [NUM_CHANNELS - 1:0];
+
+  // channel0 needs to arbitrate between routed and diagnostics packets
   spio_rr_arbiter
   #(
         .PKT_BITS (PACKET_BITS)
@@ -520,11 +606,7 @@ module dvs_on_hssl_top
   wire                     rxp_rdy_int; 
 
   // processes packets received from the HSSL channel
-  pkt_receiver
-  #(
-      .NUM_CREGS          (NUM_CREGS)
-    )
-  prx (
+  pkt_receiver prx (
       .clk                (hi_clk_int)
     , .reset              (hi_reset_int)
 
@@ -603,7 +685,8 @@ module dvs_on_hssl_top
   //---------------------------------------------------------------
   // Gigabit transceiver and tx/rx clock modules
   //---------------------------------------------------------------
-  hssl_transceiver # (
+  hssl_transceiver
+  # (
       .TARGET_FPGA                  (TARGET_FPGA)
     )
   gt (

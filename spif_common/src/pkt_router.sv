@@ -23,15 +23,12 @@
 //  * everything
 // -------------------------------------------------------------------------
 
+`include "spio_hss_multiplexer_common.h"
+`include "hssl_reg_bank.h"
+
 
 `timescale 1ps/1ps
 module pkt_router
-#(
-  parameter PACKET_BITS  = 72,
-  parameter NUM_RREGS    = 16,
-  parameter KEY_LSB      = 8,
-  parameter NUM_CHANNELS = 8
-)
 (
   input  wire                     clk,
   input  wire                     reset,
@@ -58,6 +55,14 @@ module pkt_router
   output wire               [1:0] rt_cnt_out
 );
 
+
+  // use local parameters for consistent definitions
+  localparam PACKET_BITS  = `PKT_BITS;
+
+  localparam NUM_CHANNELS = `NUM_CHANS;
+  localparam NUM_RREGS    = `NUM_RREGS;
+
+
   //---------------------------------------------------------------
   // internal signals
   //---------------------------------------------------------------
@@ -75,7 +80,7 @@ module pkt_router
   // routing stage
   //---------------------------------------------------------------
   // route input packet
-  assign packet_key = pkt_in_data_in[KEY_LSB +: 32];
+  assign packet_key = pkt_in_data_in[`PKT_KEY_RNG];
 
   // ternary CAM-like routing table
   genvar te;

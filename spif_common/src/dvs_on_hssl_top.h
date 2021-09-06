@@ -32,8 +32,14 @@
 
 //---------------------------------------------------------------
 // number of parallel event-processing pipelines
+//NOTE: define or undef pipes appropriately
+//NOTE: PIPE0 should be defined always!
 //---------------------------------------------------------------
-`define SPIF_NUM_PIPES    1
+`define SPIF_NUM_PIPES    2
+`define PIPE1
+`undef  PIPE2
+`undef  PIPE3
+//---------------------------------------------------------------
 
 //---------------------------------------------------------------
 // FPGA selection

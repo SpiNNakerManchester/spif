@@ -22,14 +22,13 @@
 //  * everything
 // -------------------------------------------------------------------------
 
+`include "hssl_reg_bank.h"
+
 
 `timescale 1ps/1ps
 module hssl_reg_bank
 #(
-    parameter NUM_HREGS = 5,
-    parameter NUM_RREGS = 16,
-    parameter NUM_CREGS = 4,
-    parameter NUM_MREGS = 4
+    parameter HW_NUM_PIPES = 1
 )
 (
   input  wire                      clk,
@@ -48,7 +47,7 @@ module hssl_reg_bank
   output wire                [0:0] apb_pslverr_out,
 
   // packet receiver interface
-  input  wire                [7:0] prx_addr_in,
+  input  wire   [RADDR_BITS - 1:0] prx_addr_in,
   input  wire               [31:0] prx_wdata_in,
   input  wire                      prx_en_in,
 
@@ -56,12 +55,12 @@ module hssl_reg_bank
   input  wire    [NUM_CREGS - 1:0] ctr_cnt_in,
 
   // status signals
-  input  wire               [23:0] hw_version_in,
-  input  wire                [3:0] hw_pipe_num_in,
-  input  wire                [1:0] fpga_model_in,
+  input  wire  [HW_VER_BITS - 1:0] hw_version_in,
+  input  wire [HW_PIPE_BITS - 1:0] hw_pipe_num_in,
+  input  wire [HW_FPGA_BITS - 1:0] fpga_model_in,
   input  wire                      hs_complete_in,
   input  wire                      hs_mismatch_in,
-  input  wire               [15:0] idsi_in,
+  input  wire [HW_SNTL_BITS - 1:0] idsi_in,
 
   // hssl interface
   output wire                      hssl_stop_out,
@@ -77,73 +76,93 @@ module hssl_reg_bank
   // input router interface
   output reg                [31:0] reg_rt_key_out   [NUM_RREGS - 1:0],
   output reg                [31:0] reg_rt_mask_out  [NUM_RREGS - 1:0],
-  output reg                 [2:0] reg_rt_route_out [NUM_RREGS - 1:0],
+  output reg     [RRTE_BITS - 1:0] reg_rt_route_out [NUM_RREGS - 1:0],
 
   // mapper interface
-  output wire               [31:0] mp_key_out,
+  output reg                [31:0] reg_mp_key_out  [HW_NUM_PIPES - 1:0],
   output reg                [31:0] reg_mp_fmsk_out [NUM_MREGS - 1:0],
-  output reg                 [5:0] reg_mp_fsft_out [NUM_MREGS - 1:0]
+  output reg     [MSFT_BITS - 1:0] reg_mp_fsft_out [NUM_MREGS - 1:0]
 );
 
-  // general purpose registers
-  localparam HSSL_STOP_REG = 0;
-  localparam MP_KEY_REG    = 1;
-  localparam REPLY_KEY_REG = 2;
-  localparam IN_WAIT_REG   = 3;
-  localparam OUT_WAIT_REG  = 4;
 
-  // not real registers - collect signals
-  localparam STATUS_REG    = 14;
-  localparam HW_VER_REG    = 15;
+  // use local parameters for consistent definitions
+  localparam HW_VER_BITS    = `HW_VER_BITS;
+  localparam HW_PIPE_BITS   = `HW_PIPE_BITS;
+  localparam HW_FPGA_BITS   = `HW_FPGA_BITS;
+  localparam HW_SNTL_BITS   = `HW_SNTL_BITS;
 
-  // register default values
-  localparam HSSL_STOP_DEF = 1'b0;
-  localparam REPLY_KEY_DEF = 32'hffff_fd00;  // remote reply routing key
-  localparam IN_WAIT_DEF   = 32;
-  localparam OUT_WAIT_DEF  = 32;
+  localparam NUM_HREGS      = `NUM_HREGS;
+  localparam NUM_RREGS      = `NUM_RREGS;
+  localparam NUM_CREGS      = `NUM_CREGS;
+  localparam NUM_MREGS_PIPE = `NUM_MREGS_PIPE;
+  localparam NUM_MREGS      = `NUM_MREGS;
 
-  localparam BAD_REG = 32'hdead_beef;
+  // registers are associated by type in sections of 16 registers
+  localparam SEC_BITS       = `SEC_BITS;
+  localparam REG_BITS       = `REG_BITS;
 
-  localparam HREGS = 3'd0;
-  localparam KREGS = 3'd1;
-  localparam MREGS = 3'd2;
-  localparam RREGS = 3'd3;
-  localparam CREGS = 3'd4;
-  localparam AREGS = 3'd5;
-  localparam SREGS = 3'd6;
+  // addresses are "word" addresses
+  localparam SEC_LSB        = `SEC_LSB;
+  localparam REG_LSB        = `REG_LSB;
+  localparam RADDR_BITS     = `RADDR_BITS;
 
-  localparam SEC_BITS = 3;
-  localparam REG_BITS = 4;
+  // register type / section
+  localparam HREGS_SEC      = `HREGS_SEC;  // interface control & status
+  localparam KREGS_SEC      = `KREGS_SEC;  // input router keys
+  localparam MREGS_SEC      = `MREGS_SEC;  // input router masks
+  localparam RREGS_SEC      = `RREGS_SEC;  // input router routes
+  localparam CREGS_SEC      = `CREGS_SEC;  // diagnostic counters
+  localparam PREGS_SEC      = `PREGS_SEC;  // mapper keys
+  localparam AREGS_SEC      = `AREGS_SEC;  // mapper field masks
+  localparam SREGS_SEC      = `SREGS_SEC;  // mapper field shifts
+
+  localparam BAD_REG        = `BAD_REG;
+
+  localparam MSFT_BITS      = `MSFT_BITS;
+  localparam RRTE_BITS      = `RRTE_BITS;
 
   //NOTE: APB addresses are "byte" addresses - turn to "word"!
-  localparam APB_SEC_LSB = 6;
-  localparam APB_NUM_LSB = 2;
+  localparam APB_SEC_LSB    = SEC_LSB + 2;
+  localparam APB_REG_LSB    = REG_LSB + 2;
 
-  //NOTE: packet addresses are already "word" addresses
-  localparam PRX_SEC_LSB = 4;
-  localparam PRX_NUM_LSB = 0;
+  // general purpose registers
+  localparam HSSL_STOP_REG  = 0;
+  localparam REPLY_KEY_REG  = 2;
+  localparam IN_WAIT_REG    = 3;
+  localparam OUT_WAIT_REG   = 4;
+
+  // not real registers - collect signals
+  localparam STATUS_REG     = 14;
+  localparam HW_VER_REG     = 15;
+
+  // register default values
+  localparam HSSL_STOP_DEF  = 1'b0;
+  localparam REPLY_KEY_DEF  = 32'hffff_fd00;  // remote reply routing key
+  localparam IN_WAIT_DEF    = 32;
+  localparam OUT_WAIT_DEF   = 32;
+
 
   //---------------------------------------------------------------
   // internal signals
   //---------------------------------------------------------------
-  reg [31:0] reg_hssl_out [NUM_HREGS - 1:0];
+  reg [31:0] reg_hssl_int [NUM_HREGS - 1:0];
 
-  assign hssl_stop_out   = reg_hssl_out[HSSL_STOP_REG][0];
-  assign mp_key_out      = reg_hssl_out[MP_KEY_REG];
-  assign reply_key_out   = reg_hssl_out[REPLY_KEY_REG];
-  assign input_wait_out  = reg_hssl_out[IN_WAIT_REG];
-  assign output_wait_out = reg_hssl_out[OUT_WAIT_REG];
+  // drive output signals
+  assign hssl_stop_out   = reg_hssl_int[HSSL_STOP_REG][0];
+  assign reply_key_out   = reg_hssl_int[REPLY_KEY_REG];
+  assign input_wait_out  = reg_hssl_int[IN_WAIT_REG];
+  assign output_wait_out = reg_hssl_int[OUT_WAIT_REG];
 
   // APB register access
-  wire       apb_read    = apb_psel_in && !apb_pwrite_in;
-  wire       apb_write   = apb_psel_in &&  apb_pwrite_in;
-  wire [2:0] apb_reg_sec = apb_paddr_in[APB_SEC_LSB +: SEC_BITS];
-  wire [3:0] apb_reg_num = apb_paddr_in[APB_NUM_LSB +: REG_BITS];
+  wire                  apb_read    = apb_psel_in && !apb_pwrite_in;
+  wire                  apb_write   = apb_psel_in &&  apb_pwrite_in;
+  wire [SEC_BITS - 1:0] apb_sec = apb_paddr_in[APB_SEC_LSB +: SEC_BITS];
+  wire [REG_BITS - 1:0] apb_reg = apb_paddr_in[APB_REG_LSB +: REG_BITS];
 
   // packet register access
-  wire       prx_write   = prx_en_in;
-  wire [2:0] prx_reg_sec = prx_addr_in[PRX_SEC_LSB +: SEC_BITS];
-  wire [3:0] prx_reg_num = prx_addr_in[PRX_NUM_LSB +: REG_BITS];
+  wire                  prx_write   = prx_en_in;
+  wire [SEC_BITS - 1:0] prx_sec = prx_addr_in[SEC_LSB +: SEC_BITS];
+  wire [REG_BITS - 1:0] prx_reg = prx_addr_in[REG_LSB +: REG_BITS];
 
   // detect simultaneous APB and packet writes
   wire reg_wr_cflt = apb_read && prx_write;
@@ -165,8 +184,8 @@ module hssl_reg_bank
     begin
       for (i = 0; i < NUM_CREGS; i = i + 1)
         begin
-          wire apb_ctr_wr = apb_write && (apb_reg_sec == CREGS) && (apb_reg_num == i);
-          wire prx_ctr_wr = prx_write && (prx_reg_sec == CREGS) && (prx_reg_num == i);
+          wire apb_ctr_wr = apb_write && (apb_sec == CREGS_SEC) && (apb_reg == i);
+          wire prx_ctr_wr = prx_write && (prx_sec == CREGS_SEC) && (prx_reg == i);
 
           always @ (posedge clk or negedge resetn)
             if (resetn == 0)
@@ -178,11 +197,6 @@ module hssl_reg_bank
                 3'b001: reg_ctr_out[i] <= reg_ctr_out[i] + 1;
               endcase
         end
-
-      for (i = NUM_CREGS; i < 16; i = i + 1)
-        always @ (negedge resetn)
-          if (resetn == 0)
-            reg_ctr_out[i] <= BAD_REG;
     end
   endgenerate
 
@@ -191,51 +205,82 @@ module hssl_reg_bank
   always @ (posedge clk or negedge resetn)
     if (resetn == 0)
       begin
-        reg_hssl_out[HSSL_STOP_REG] <= HSSL_STOP_DEF;
-        reg_hssl_out[REPLY_KEY_REG] <= REPLY_KEY_DEF;
-        reg_hssl_out[IN_WAIT_REG]   <= IN_WAIT_DEF;
-        reg_hssl_out[OUT_WAIT_REG]  <= OUT_WAIT_DEF;
+        reg_hssl_int[HSSL_STOP_REG] <= HSSL_STOP_DEF;
+        reg_hssl_int[REPLY_KEY_REG] <= REPLY_KEY_DEF;
+        reg_hssl_int[IN_WAIT_REG]   <= IN_WAIT_DEF;
+        reg_hssl_int[OUT_WAIT_REG]  <= OUT_WAIT_DEF;
       end
     else
       if (prx_write)
-        case (prx_reg_sec)
-          HREGS: reg_hssl_out[prx_reg_num]     <= prx_wdata_in;
-          KREGS: reg_rt_key_out[prx_reg_num]   <= prx_wdata_in;
-          MREGS: reg_rt_mask_out[prx_reg_num]  <= prx_wdata_in;
-          RREGS: reg_rt_route_out[prx_reg_num] <= prx_wdata_in;
-          AREGS: reg_mp_fmsk_out[prx_reg_num]  <= prx_wdata_in;
-          SREGS: reg_mp_fsft_out[prx_reg_num]  <= prx_wdata_in;
+        case (prx_sec)
+          HREGS_SEC: reg_hssl_int[prx_reg]     <= prx_wdata_in;
+          KREGS_SEC: reg_rt_key_out[prx_reg]   <= prx_wdata_in;
+          MREGS_SEC: reg_rt_mask_out[prx_reg]  <= prx_wdata_in;
+          RREGS_SEC: reg_rt_route_out[prx_reg] <= prx_wdata_in;
+          PREGS_SEC: reg_mp_key_out[prx_reg]   <= prx_wdata_in;
+          AREGS_SEC: reg_mp_fmsk_out[prx_reg]  <= prx_wdata_in;
+          SREGS_SEC: reg_mp_fsft_out[prx_reg]  <= prx_wdata_in;
         endcase
       else if (apb_write)
-        case (apb_reg_sec)
-          HREGS: reg_hssl_out[apb_reg_num]     <= apb_pwdata_in;
-          KREGS: reg_rt_key_out[apb_reg_num]   <= apb_pwdata_in;
-          MREGS: reg_rt_mask_out[apb_reg_num]  <= apb_pwdata_in;
-          RREGS: reg_rt_route_out[apb_reg_num] <= apb_pwdata_in;
-          AREGS: reg_mp_fmsk_out[apb_reg_num]  <= apb_pwdata_in;
-          SREGS: reg_mp_fsft_out[apb_reg_num]  <= apb_pwdata_in;
+        case (apb_sec)
+          HREGS_SEC: reg_hssl_int[apb_reg]     <= apb_pwdata_in;
+          KREGS_SEC: reg_rt_key_out[apb_reg]   <= apb_pwdata_in;
+          MREGS_SEC: reg_rt_mask_out[apb_reg]  <= apb_pwdata_in;
+          RREGS_SEC: reg_rt_route_out[apb_reg] <= apb_pwdata_in;
+          PREGS_SEC: reg_mp_key_out[apb_reg]   <= apb_pwdata_in;
+          AREGS_SEC: reg_mp_fmsk_out[apb_reg]  <= apb_pwdata_in;
+          SREGS_SEC: reg_mp_fsft_out[apb_reg]  <= apb_pwdata_in;
         endcase
 
   // APB register reads
   //NOTE: packet reads not yet supported
   always @ (posedge clk)
     if (apb_read)
-      case (apb_reg_sec)
-        HREGS: if (apb_reg_num < NUM_HREGS)
-                 apb_prdata_out <= reg_hssl_out[apb_reg_num];
-               else if (apb_reg_num == STATUS_REG)
-                 apb_prdata_out <= {12'h5ec, fpga_model_in,
-                   hs_mismatch_in, hs_complete_in, idsi_in};
-               else if (apb_reg_num == HW_VER_REG)
-                 apb_prdata_out <= {4'h0, hw_pipe_num_in, hw_version_in};
-               else
-                 apb_prdata_out <= BAD_REG;
-        KREGS:   apb_prdata_out <= reg_rt_key_out[apb_reg_num];
-        MREGS:   apb_prdata_out <= reg_rt_mask_out[apb_reg_num];
-        RREGS:   apb_prdata_out <= reg_rt_route_out[apb_reg_num];
-        CREGS:   apb_prdata_out <= reg_ctr_out[apb_reg_num];
-        AREGS:   apb_prdata_out <= reg_mp_fmsk_out[apb_reg_num];
-        SREGS:   apb_prdata_out <= $signed(reg_mp_fsft_out[apb_reg_num]);
+      case (apb_sec)
+        HREGS_SEC: if (apb_reg < NUM_HREGS)
+                     apb_prdata_out <= reg_hssl_int[apb_reg];
+                   else if (apb_reg == STATUS_REG)
+                     apb_prdata_out <= {12'h5ec, fpga_model_in, hs_mismatch_in, hs_complete_in, idsi_in};
+                   else if (apb_reg == HW_VER_REG)
+                     apb_prdata_out <= {4'h0, hw_pipe_num_in, hw_version_in};
+                   else
+                     apb_prdata_out <= BAD_REG;
+
+        KREGS_SEC: if (apb_reg < NUM_RREGS)
+                     apb_prdata_out <= reg_rt_key_out[apb_reg];
+                   else
+                     apb_prdata_out <= BAD_REG;
+
+        MREGS_SEC: if (apb_reg < NUM_RREGS)
+                     apb_prdata_out <= reg_rt_mask_out[apb_reg];
+                   else
+                     apb_prdata_out <= BAD_REG;
+
+        RREGS_SEC: if (apb_reg < NUM_RREGS)
+                     apb_prdata_out <= reg_rt_route_out[apb_reg];
+                   else
+                     apb_prdata_out <= BAD_REG;
+
+        CREGS_SEC: if (apb_reg < NUM_CREGS)
+                     apb_prdata_out <= reg_ctr_out[apb_reg];
+                   else
+                     apb_prdata_out <= BAD_REG;
+
+        PREGS_SEC: if (apb_reg < HW_NUM_PIPES)
+                     apb_prdata_out <= reg_mp_key_out[apb_reg];
+                   else
+                     apb_prdata_out <= BAD_REG;
+
+        AREGS_SEC: if (apb_reg < NUM_MREGS)
+                     apb_prdata_out <= reg_mp_fmsk_out[apb_reg];
+                   else
+                     apb_prdata_out <= BAD_REG;
+
+        SREGS_SEC: if (apb_reg < NUM_MREGS)
+                     apb_prdata_out <= $signed(reg_mp_fsft_out[apb_reg]);
+                   else
+                     apb_prdata_out <= BAD_REG;
+
         default: apb_prdata_out <= BAD_REG;
       endcase
   //---------------------------------------------------------------
