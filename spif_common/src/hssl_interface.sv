@@ -30,42 +30,35 @@
 `timescale 1ps/1ps
 module hssl_interface
 (
-  input  wire                     clk,
-  input  wire                     reset,
+  input  wire                      clk,
+  input  wire                      reset,
 
-  input  wire [PACKET_BITS - 1:0] txpkt_data_in  [NUM_CHANNELS - 1:0],
-  input  wire                     txpkt_vld_in   [NUM_CHANNELS - 1:0],
-  output wire                     txpkt_rdy_out  [NUM_CHANNELS - 1:0],
+  input  wire    [`PKT_BITS - 1:0] txpkt_data_in  [`NUM_CHANS - 1:0],
+  input  wire                      txpkt_vld_in   [`NUM_CHANS - 1:0],
+  output wire                      txpkt_rdy_out  [`NUM_CHANS - 1:0],
 
-  output wire [PACKET_BITS - 1:0] rxpkt_data_out,
-  output wire                     rxpkt_vld_out,
-  input  wire                     rxpkt_rdy_in,
+  output wire    [`PKT_BITS - 1:0] rxpkt_data_out,
+  output wire                      rxpkt_vld_out,
+  input  wire                      rxpkt_rdy_in,
 
-  output reg                [1:0] loss_of_sync_state_out,
-  output wire                     handshake_complete_out,
-  output wire                     version_mismatch_out,
+  output reg                 [1:0] loss_of_sync_state_out,
+  output wire                      handshake_complete_out,
+  output wire                      version_mismatch_out,
 
-  output wire [HW_SNTL_BITS -1:0] idsi_out,
-  input  wire                     stop_in,
+  output wire [`HW_SNTL_BITS -1:0] idsi_out,
+  input  wire                      stop_in,
 
-  output wire              [31:0] tx_data_out,
-  output wire               [7:0] tx_charisk_out,
+  output wire               [31:0] tx_data_out,
+  output wire                [3:0] tx_charisk_out,
 
-  input  wire              [31:0] rx_data_in,
-  input  wire                     rx_commadet_in,
-  input  wire               [3:0] rx_chariscomma_in,
-  input  wire               [3:0] rx_charisk_in,
-  input  wire               [3:0] rx_disperr_in,
-  input  wire               [3:0] rx_encerr_in
+  input  wire               [31:0] rx_data_in,
+  input  wire                      rx_commadet_in,
+  input  wire                [3:0] rx_chariscomma_in,
+  input  wire                [3:0] rx_charisk_in,
+  input  wire                [3:0] rx_disperr_in,
+  input  wire                [3:0] rx_encerr_in
 );
 
-
-  // use local parameters for consistent definitions
-  localparam HW_SNTL_BITS      = `HW_SNTL_BITS;
-
-  localparam PACKET_BITS       = `PKT_BITS;
-
-  localparam NUM_CHANNELS      = `NUM_CHANS;
 
   localparam NUM_CLKC_FOR_SYNC = 4;
   localparam NUM_VLD_PER_INV   = 4;

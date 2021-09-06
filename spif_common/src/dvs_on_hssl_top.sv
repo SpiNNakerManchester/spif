@@ -75,6 +75,7 @@ module dvs_on_hssl_top
   localparam HW_NUM_PIPES   = `SPIF_NUM_PIPES;
   localparam TARGET_FPGA    = `FPGA_MODEL;
   localparam HW_SNTL_BITS   = `HW_SNTL_BITS;
+  localparam APB_ADR_BITS   = `APB_ADR_BITS;
 
   localparam PACKET_BITS    = `PKT_BITS;
   localparam NUM_CHANNELS   = `NUM_CHANS;
@@ -91,6 +92,19 @@ module dvs_on_hssl_top
 
 
   //---------------------------------------------------------------
+  // check that a valid FPGA is selected
+  //---------------------------------------------------------------
+  initial
+    begin
+      if ((TARGET_FPGA != `FPGA_XC7Z015) && (TARGET_FPGA != `FPGA_XCZU9EG))
+        begin
+          $fatal (1, "unsupported FPGA - aborting");
+        end
+    end
+  //---------------------------------------------------------------
+
+  
+  //---------------------------------------------------------------
   // internal signals
   //---------------------------------------------------------------
   // clocks and resets
@@ -104,14 +118,14 @@ module dvs_on_hssl_top
   wire        axi_clk_int;
   wire        axi_resetn_int;
 
-  wire [39:0] apb_paddr_int;
-  wire        apb_penable_int;
-  wire [31:0] apb_prdata_int;
-  wire        apb_pready_int;
-  wire        apb_psel_int;
-  wire        apb_pslverr_int;
-  wire [31:0] apb_pwdata_int;
-  wire        apb_pwrite_int;
+  wire [APB_ADR_BITS - 1:0] apb_paddr_int;
+  wire                      apb_penable_int;
+  wire               [31:0] apb_prdata_int;
+  wire                      apb_pready_int;
+  wire                      apb_psel_int;
+  wire                      apb_pslverr_int;
+  wire               [31:0] apb_pwdata_int;
+  wire                      apb_pwrite_int;
 
   wire [31:0] evt_data_int [HW_NUM_PIPES - 1:0];
   wire        evt_vld_int  [HW_NUM_PIPES - 1:0];
@@ -181,7 +195,7 @@ module dvs_on_hssl_top
   wire  [3:0] gt_rx_disperr_int;
   wire  [3:0] gt_rx_chariscomma_int;
   wire  [3:0] gt_rx_encerr_int;
-  wire        gt_rx_bufstatus_int;
+  wire  [2:0] gt_rx_bufstatus_int;
 
   // Virtual I/O signals
   wire        vio_freerun_clk_int;
@@ -233,15 +247,8 @@ module dvs_on_hssl_top
   //---------------------------------------------------------------
   // generate/buffer reset signals
   //---------------------------------------------------------------
-  // buffer ps_peripheral_reset_0_int
-  wire peripheral_reset_0_buf_int;
-  IBUF ps_peripheral_reset_0_int_buffer (
-        .I (ps_peripheral_reset_0_int)
-      , .O (peripheral_reset_0_buf_int)
-    );
-
   // global and function-specific resets
-  assign tl_reset_all_int = peripheral_reset_0_buf_int || vio_reset_all_int;
+  assign tl_reset_all_int = ps_peripheral_reset_0_int || vio_reset_all_int;
 
   assign gt_reset_all_int = tl_reset_all_int;
 

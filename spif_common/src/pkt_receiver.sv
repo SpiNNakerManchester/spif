@@ -34,26 +34,26 @@ module pkt_receiver
   input  wire                     reset,
 
   // incoming packets from transceiver
-  input  wire [PACKET_BITS - 1:0] pkt_data_in,
+  input  wire   [`PKT_BITS - 1:0] pkt_data_in,
   input  wire                     pkt_vld_in,
   output reg                      pkt_rdy_out,
 
   // packet counters
-  input  wire              [31:0] reg_ctr_in [NUM_CREGS - 1:0],
+  input  wire              [31:0] reg_ctr_in [`NUM_CREGS - 1:0],
   input  wire              [31:0] reply_key_in,
 
   // register bank interface
-  output wire  [RADDR_BITS - 1:0] prx_addr_out,
+  output wire [`RADDR_BITS - 1:0] prx_addr_out,
   output wire              [31:0] prx_wdata_out,
   output wire                     prx_en_out,
 
   // diagnostic counter packet
-  output wire [PACKET_BITS - 1:0] dcp_data_out,
+  output wire   [`PKT_BITS - 1:0] dcp_data_out,
   output wire                     dcp_vld_out,
   input  wire                     dcp_rdy_in,
 
   // peripheral packet
-  output reg  [PACKET_BITS - 1:0] per_data_out,
+  output reg    [`PKT_BITS - 1:0] per_data_out,
   output reg                      per_vld_out,
   input  wire                     per_rdy_in,
 
@@ -63,10 +63,10 @@ module pkt_receiver
 
 
   // use local parameters for consistent definitions
-  localparam PKT_KEY_SZ = 32;
-  localparam PKT_PLD_SZ = 32;
-
   localparam PACKET_BITS = `PKT_BITS;
+
+  localparam PKT_KEY_SZ  = 32;
+  localparam PKT_PLD_SZ  = 32;
   localparam PKT_LNG_BIT = 1;
   localparam PKT_CFG_BIT = 4;
   localparam PKT_KEY_BIT = 8;

@@ -33,6 +33,7 @@ set_property CLOCK_DELAY_GROUP hb_clocks [get_nets pl_clk0_buf_int]
 set_property CLOCK_DELAY_GROUP hb_clocks [get_nets tl_freerun_clk_int]
 
 # False path constraints
+#NOTE: these are required to achieve timing closure!
 set_false_path -from [get_clocks tl_freerun_clk_int] -to [get_clocks clkout0]
 set_false_path -from [get_clocks clkout0] -to [get_clocks tl_freerun_clk_int]
 

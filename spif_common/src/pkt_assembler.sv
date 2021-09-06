@@ -29,30 +29,28 @@
 `timescale 1ps/1ps
 module pkt_assembler
 (
-  input  wire                     clk,
-  input  wire                     reset,
+  input  wire                   clk,
+  input  wire                   reset,
 
   // event mapper configuration
-  input  wire              [31:0] mp_key_in,
-  input  wire              [31:0] field_msk_in [NUM_REGS - 1:0],
-  input  wire               [5:0] field_sft_in [NUM_REGS - 1:0],
+  input  wire            [31:0] mp_key_in,
+  input  wire            [31:0] field_msk_in [`NUM_MREGS_PIPE - 1:0],
+  input  wire             [5:0] field_sft_in [`NUM_MREGS_PIPE - 1:0],
 
   // event inputs
-  input  wire              [31:0] evt_data_in,
-  input  wire                     evt_vld_in,
-  output reg                      evt_rdy_out,
+  input  wire            [31:0] evt_data_in,
+  input  wire                   evt_vld_in,
+  output reg                    evt_rdy_out,
 
   // packet outputs
-  output reg  [PACKET_BITS - 1:0] pkt_data_out,
-  output reg                      pkt_vld_out,
-  input  wire                     pkt_rdy_in
+  output reg  [`PKT_BITS - 1:0] pkt_data_out,
+  output reg                     pkt_vld_out,
+  input  wire                    pkt_rdy_in
 );
 
   
   // use local parameters for consistent definitions
-  localparam PACKET_BITS = `PKT_BITS;
-
-  localparam NUM_REGS    = `NUM_MREGS_PIPE;
+  localparam NUM_REGS = `NUM_MREGS_PIPE;
   
 
   //---------------------------------------------------------------

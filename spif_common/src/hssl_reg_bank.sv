@@ -22,6 +22,7 @@
 //  * everything
 // -------------------------------------------------------------------------
 
+`include "dvs_on_hssl_top.h"
 `include "hssl_reg_bank.h"
 
 
@@ -31,66 +32,61 @@ module hssl_reg_bank
     parameter HW_NUM_PIPES = 1
 )
 (
-  input  wire                      clk,
-  input  wire                      resetn,
+  input  wire                       clk,
+  input  wire                       resetn,
 
   // APB interface
-  input  wire                [0:0] apb_psel_in,
-  input  wire                      apb_penable_in,
-  input  wire                      apb_pwrite_in,
+  input  wire                 [0:0] apb_psel_in,
+  input  wire                       apb_penable_in,
+  input  wire                       apb_pwrite_in,
 
-  input  wire               [39:0] apb_paddr_in,
-  input  wire               [31:0] apb_pwdata_in,
-  output reg                [31:0] apb_prdata_out,
+  input  wire [`APB_ADR_BITS - 1:0] apb_paddr_in,
+  input  wire                [31:0] apb_pwdata_in,
+  output reg                 [31:0] apb_prdata_out,
 
-  output reg                 [0:0] apb_pready_out,
-  output wire                [0:0] apb_pslverr_out,
+  output reg                  [0:0] apb_pready_out,
+  output wire                 [0:0] apb_pslverr_out,
 
   // packet receiver interface
-  input  wire   [RADDR_BITS - 1:0] prx_addr_in,
-  input  wire               [31:0] prx_wdata_in,
-  input  wire                      prx_en_in,
+  input  wire   [`RADDR_BITS - 1:0] prx_addr_in,
+  input  wire                [31:0] prx_wdata_in,
+  input  wire                       prx_en_in,
 
   // packet counter enables interface
-  input  wire    [NUM_CREGS - 1:0] ctr_cnt_in,
+  input  wire    [`NUM_CREGS - 1:0] ctr_cnt_in,
 
   // status signals
-  input  wire  [HW_VER_BITS - 1:0] hw_version_in,
-  input  wire [HW_PIPE_BITS - 1:0] hw_pipe_num_in,
-  input  wire [HW_FPGA_BITS - 1:0] fpga_model_in,
-  input  wire                      hs_complete_in,
-  input  wire                      hs_mismatch_in,
-  input  wire [HW_SNTL_BITS - 1:0] idsi_in,
+  input  wire  [`HW_VER_BITS - 1:0] hw_version_in,
+  input  wire [`HW_PIPE_BITS - 1:0] hw_pipe_num_in,
+  input  wire [`HW_FPGA_BITS - 1:0] fpga_model_in,
+  input  wire                       hs_complete_in,
+  input  wire                       hs_mismatch_in,
+  input  wire [`HW_SNTL_BITS - 1:0] idsi_in,
 
   // hssl interface
-  output wire                      hssl_stop_out,
+  output wire                       hssl_stop_out,
 
   // packet counter interface
-  output reg                [31:0] reg_ctr_out [NUM_CREGS - 1:0],
-  output wire               [31:0] reply_key_out,
+  output reg                 [31:0] reg_ctr_out [`NUM_CREGS - 1:0],
+  output wire                [31:0] reply_key_out,
 
   // wait values for packet dropping
-  output wire               [31:0] input_wait_out,
-  output wire               [31:0] output_wait_out,
+  output wire                [31:0] input_wait_out,
+  output wire                [31:0] output_wait_out,
 
   // input router interface
-  output reg                [31:0] reg_rt_key_out   [NUM_RREGS - 1:0],
-  output reg                [31:0] reg_rt_mask_out  [NUM_RREGS - 1:0],
-  output reg     [RRTE_BITS - 1:0] reg_rt_route_out [NUM_RREGS - 1:0],
+  output reg                 [31:0] reg_rt_key_out   [`NUM_RREGS - 1:0],
+  output reg                 [31:0] reg_rt_mask_out  [`NUM_RREGS - 1:0],
+  output reg     [`RRTE_BITS - 1:0] reg_rt_route_out [`NUM_RREGS - 1:0],
 
   // mapper interface
-  output reg                [31:0] reg_mp_key_out  [HW_NUM_PIPES - 1:0],
-  output reg                [31:0] reg_mp_fmsk_out [NUM_MREGS - 1:0],
-  output reg     [MSFT_BITS - 1:0] reg_mp_fsft_out [NUM_MREGS - 1:0]
+  output reg                 [31:0] reg_mp_key_out  [HW_NUM_PIPES - 1:0],
+  output reg                 [31:0] reg_mp_fmsk_out [`NUM_MREGS - 1:0],
+  output reg     [`MSFT_BITS - 1:0] reg_mp_fsft_out [`NUM_MREGS - 1:0]
 );
 
 
   // use local parameters for consistent definitions
-  localparam HW_VER_BITS    = `HW_VER_BITS;
-  localparam HW_PIPE_BITS   = `HW_PIPE_BITS;
-  localparam HW_FPGA_BITS   = `HW_FPGA_BITS;
-  localparam HW_SNTL_BITS   = `HW_SNTL_BITS;
-
   localparam NUM_HREGS      = `NUM_HREGS;
   localparam NUM_RREGS      = `NUM_RREGS;
   localparam NUM_CREGS      = `NUM_CREGS;
@@ -127,6 +123,7 @@ module hssl_reg_bank
 
   // general purpose registers
   localparam HSSL_STOP_REG  = 0;
+  localparam RESERVED_REG   = 1;
   localparam REPLY_KEY_REG  = 2;
   localparam IN_WAIT_REG    = 3;
   localparam OUT_WAIT_REG   = 4;
@@ -137,10 +134,18 @@ module hssl_reg_bank
 
   // register default values
   localparam HSSL_STOP_DEF  = 1'b0;
+  localparam RESERVED_DEF   = BAD_REG;
   localparam REPLY_KEY_DEF  = 32'hffff_fd00;  // remote reply routing key
   localparam IN_WAIT_DEF    = 32;
   localparam OUT_WAIT_DEF   = 32;
 
+  localparam RT_KEY_DEF     = 32'hffff_ffff;  // force a miss
+  localparam RT_MSK_DEF     = 32'h0000_0000;
+  localparam RT_RTE_DEF     =  3'd0;
+
+  localparam MP_KEY_DEF     = 32'h0000_0000;
+  localparam MP_MSK_DEF     = 32'h0000_0000;
+  localparam MP_SFT_DEF     =  6'd0;
 
   //---------------------------------------------------------------
   // internal signals
@@ -154,15 +159,15 @@ module hssl_reg_bank
   assign output_wait_out = reg_hssl_int[OUT_WAIT_REG];
 
   // APB register access
-  wire                  apb_read    = apb_psel_in && !apb_pwrite_in;
-  wire                  apb_write   = apb_psel_in &&  apb_pwrite_in;
-  wire [SEC_BITS - 1:0] apb_sec = apb_paddr_in[APB_SEC_LSB +: SEC_BITS];
-  wire [REG_BITS - 1:0] apb_reg = apb_paddr_in[APB_REG_LSB +: REG_BITS];
+  wire                  apb_read  = apb_psel_in && !apb_pwrite_in;
+  wire                  apb_write = apb_psel_in &&  apb_pwrite_in;
+  wire [SEC_BITS - 1:0] apb_sec   = apb_paddr_in[APB_SEC_LSB +: SEC_BITS];
+  wire [REG_BITS - 1:0] apb_reg   = apb_paddr_in[APB_REG_LSB +: REG_BITS];
 
   // packet register access
-  wire                  prx_write   = prx_en_in;
-  wire [SEC_BITS - 1:0] prx_sec = prx_addr_in[SEC_LSB +: SEC_BITS];
-  wire [REG_BITS - 1:0] prx_reg = prx_addr_in[REG_LSB +: REG_BITS];
+  wire                  prx_write = prx_en_in;
+  wire [SEC_BITS - 1:0] prx_sec   = prx_addr_in[SEC_LSB +: SEC_BITS];
+  wire [REG_BITS - 1:0] prx_reg   = prx_addr_in[REG_LSB +: REG_BITS];
 
   // detect simultaneous APB and packet writes
   wire reg_wr_cflt = apb_read && prx_write;
@@ -206,9 +211,16 @@ module hssl_reg_bank
     if (resetn == 0)
       begin
         reg_hssl_int[HSSL_STOP_REG] <= HSSL_STOP_DEF;
+        reg_hssl_int[RESERVED_REG]  <= RESERVED_DEF;
         reg_hssl_int[REPLY_KEY_REG] <= REPLY_KEY_DEF;
         reg_hssl_int[IN_WAIT_REG]   <= IN_WAIT_DEF;
         reg_hssl_int[OUT_WAIT_REG]  <= OUT_WAIT_DEF;
+        reg_rt_key_out              <= '{NUM_RREGS {RT_KEY_DEF}};
+        reg_rt_mask_out             <= '{NUM_RREGS {RT_MSK_DEF}};
+        reg_rt_route_out            <= '{NUM_RREGS {RT_RTE_DEF}};
+        reg_mp_key_out              <= '{HW_NUM_PIPES {MP_KEY_DEF}};
+        reg_mp_fmsk_out             <= '{NUM_MREGS {MP_MSK_DEF}};
+        reg_mp_fsft_out             <= '{NUM_MREGS {MP_SFT_DEF}};
       end
     else
       if (prx_write)

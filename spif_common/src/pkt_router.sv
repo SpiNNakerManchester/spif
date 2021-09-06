@@ -30,29 +30,29 @@
 `timescale 1ps/1ps
 module pkt_router
 (
-  input  wire                     clk,
-  input  wire                     reset,
+  input  wire                   clk,
+  input  wire                   reset,
 
   // wait value for packet dropping
-  input  wire              [31:0] drop_wait_in,
+  input  wire            [31:0] drop_wait_in,
 
   // routing table components
-  input  wire              [31:0] reg_key_in   [NUM_RREGS - 1:0],
-  input  wire              [31:0] reg_mask_in  [NUM_RREGS - 1:0],
-  input  wire               [2:0] reg_route_in [NUM_RREGS - 1:0],
+  input  wire            [31:0] reg_key_in   [`NUM_RREGS - 1:0],
+  input  wire            [31:0] reg_mask_in  [`NUM_RREGS - 1:0],
+  input  wire             [2:0] reg_route_in [`NUM_RREGS - 1:0],
 
   // incoming packet
-  input  wire [PACKET_BITS - 1:0] pkt_in_data_in,
-  input  wire                     pkt_in_vld_in,
-  output reg                      pkt_in_rdy_out,
+  input  wire [`PKT_BITS - 1:0] pkt_in_data_in,
+  input  wire                   pkt_in_vld_in,
+  output reg                    pkt_in_rdy_out,
 
   // outgoing packet channels
-  output reg  [PACKET_BITS - 1:0] pkt_out_data_out [NUM_CHANNELS - 1:0],
-  output reg                      pkt_out_vld_out  [NUM_CHANNELS - 1:0],
-  input  wire                     pkt_out_rdy_in   [NUM_CHANNELS - 1:0],
+  output reg  [`PKT_BITS - 1:0] pkt_out_data_out [`NUM_CHANS - 1:0],
+  output reg                    pkt_out_vld_out  [`NUM_CHANS - 1:0],
+  input  wire                   pkt_out_rdy_in   [`NUM_CHANS - 1:0],
 
   // packet counter
-  output wire               [1:0] rt_cnt_out
+  output wire             [1:0] rt_cnt_out
 );
 
 
