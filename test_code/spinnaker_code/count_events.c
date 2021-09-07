@@ -245,7 +245,7 @@ void c_main()
     spin1_callback_on (MCPL_PACKET_RECEIVED, count_packets, 0);
 
     // go
-    spin1_start (SYNC_NOWAIT);
+    spin1_start (SYNC_WAIT);
 
     // report results
     sark.vcpu->user1 = rec_pkts;
