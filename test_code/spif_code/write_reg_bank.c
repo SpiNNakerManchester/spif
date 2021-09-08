@@ -15,9 +15,9 @@
 #include <unistd.h>
 #include <libgen.h>
 
-#include "spif.h"
+#include "spif_local.h"
 
-#define SPIF_SIZE_DEF   0x1000
+#define BUF_SIZE_DEF   0x1000
 
 
 //--------------------------------------------------------------------
@@ -42,7 +42,7 @@ int main (int argc, char* argv[])
   // setup access to spif
   //NOTE: size is not important as spif buffer will not be used
   //NOTE: pipe is not important as it will not be used
-  if (spif_setup (0, SPIF_SIZE_DEF) == NULL) {
+  if (spif_setup (0, BUF_SIZE_DEF) == NULL) {
     printf ("%s: unable to access spif\n", cname);
     exit (-1);
   }

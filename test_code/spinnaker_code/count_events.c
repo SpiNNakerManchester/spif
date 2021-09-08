@@ -1,6 +1,6 @@
 // SpiNNaker API
 #include "spin1_api.h"
-#include "spif_config.h"
+#include "spif_remote.h"
 
 
 // ------------------------------------------------------------------------
@@ -25,9 +25,9 @@
 // packet dropping parameters
 #define PKT_DROP_WAIT      512
 
-// spif counters
-#define SPIF_SNT_CNT       1
-#define SPIF_DRP_CNT       2
+// keep track of spif counters read
+#define SENT_CTR           1
+#define DROP_CTR           2
 
 
 // ------------------------------------------------------------------------
@@ -157,17 +157,17 @@ void rcv_replies (uint key, uint payload)
 {
   // check key for counter ID
   if ((key & RPLY_MSK) == RPLY_KEY) {
-    if ((key & ~RPLY_MSK) == RWR_CIP_CMD) {
+    if ((key & ~RPLY_MSK) == SPIF_COUNT_IN) {
       spif_cnt_pkts = payload;
       sark.vcpu->user2 = payload;
-      spif_cnt |= SPIF_SNT_CNT;
+      spif_cnt |= SENT_CTR;
       return;
     }
 
-    if ((key & ~RPLY_MSK) == RWR_CDP_CMD) {
+    if ((key & ~RPLY_MSK) == SPIF_COUNT_IN_DROP) {
       spif_cnt_drop = payload;
       sark.vcpu->user3 = payload;
-      spif_cnt |= SPIF_DRP_CNT;
+      spif_cnt |= DROP_CTR;
       return;
     }
   }
@@ -203,8 +203,8 @@ void test_control (uint ticks, uint null)
       spin1_callback_on (MCPL_PACKET_RECEIVED, rcv_replies, 0);
 
       // send counter read requests
-      spif_read_counter (RWR_CIP_CMD);
-      spif_read_counter (RWR_CDP_CMD);
+      spif_read_counter (SPIF_COUNT_IN);
+      spif_read_counter (SPIF_COUNT_IN_DROP);
     }
 
     // stop peripheral input
@@ -252,13 +252,13 @@ void c_main()
     io_printf (IO_BUF, "received %u packets\n", rec_pkts);
 
     if (lead_0_0) {
-      if (spif_cnt & SPIF_SNT_CNT) {
+      if (spif_cnt & SENT_CTR) {
         io_printf (IO_BUF, "spif reports %d packets sent\n", spif_cnt_pkts);
       } else {
         io_printf (IO_BUF, "spif sent packet read failed\n", spif_cnt_pkts);
       }
 
-      if (spif_cnt & SPIF_DRP_CNT) {
+      if (spif_cnt & DROP_CTR) {
         io_printf (IO_BUF, "spif reports %d packets dropped\n", spif_cnt_drop);
       } else {
         io_printf (IO_BUF, "spif dropped packet read failed\n", spif_cnt_pkts);

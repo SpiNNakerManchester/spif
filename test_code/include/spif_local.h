@@ -1,122 +1,29 @@
 //************************************************//
 //*                                              *//
 //* functions to interact with spif              *//
+//* from the spif board processor                *//
 //*                                              *//
-//* lap - 21/06/2021                             *//
+//* lap - 08/09/2021                             *//
 //*                                              *//
 //************************************************//
 
-#ifndef __SPIF_IF_H__
-#define __SPIF_IF_H__
+#ifndef __SPIF_LOCAL_H__
+#define __SPIF_LOCAL_H__
 
 #include <sys/mman.h>
 #include <fcntl.h>
 
-
-//---------------------------------------------------------------
-// FPGA selection
-//NOTE: un-comment the required FPGA #define
-//---------------------------------------------------------------
-#define TARGET_XC7Z015   // Zynq7 on TE0715 board
-//#define TARGET_XCZU9EG   // Zynq Ultrascale+ on zcu102 board
-//---------------------------------------------------------------
-
-#define HW_NUM_PIPES      2
-
-
-// addresses of memory-mapped FPGA interfaces 
-
-#ifdef TARGET_XC7Z015
-
-// ---------------------------------
-// AXI_HP0 PL -> DDR interface
-
-// reserved DDR range for DMA buffers 
-#define DDR_RES_MEM_ADDR  0x3fffc000
-#define DDR_RES_MEM_SIZE  0x4000
-#define PIPE_MEM_SIZE     (DDR_RES_MEM_SIZE / 4)
-// ---------------------------------
-
-// ---------------------------------
-// AXI_GP0 PS -> PL interface
-
-// spif configuration registers
-#define APB_REGS_ADDR     0x43c20000
-#define APB_REGS_SIZE     0x10000
-
-// DMA controller configuration
-#define DMA_REGS_ADDR     0x40400000
-#define DMA_REGS_SIZE     0x10000
-// ---------------------------------
-
-#endif /* TARGET_XC7Z015 */
-
-#ifdef TARGET_XCZU9EG
-
-// ---------------------------------
-// AXI_HP0_FPD PL -> DDR interface
-
-// reserved DDR range for DMA buffers 
-#define DDR_RES_MEM_ADDR  0x7feff000
-#define DDR_RES_MEM_SIZE  0x1000
-// ---------------------------------
-
-// ---------------------------------
-// AXI_HPM0_FPD PS -> PL interface
-
-// DMA controller configuration
-#define DMA_REGS_ADDR     0xa0000000
-#define DMA_REGS_SIZE     0x10000
-// ---------------------------------
-
-#endif /* TARGET_XCZU9EG */
-
-// ---------------------------------
-// DMA controller registers
-#define DMACR             0   // control
-#define DMASR             1   // status
-#define DMASA             6   // source 
-#define DMALEN            10  // length
-
-// DMA controller commands/status
-#define DMA_RESET         0x04
-#define DMA_RUN           0x01
-#define DMA_IDLE_MSK      0x02
-// ---------------------------------
+#include "spif_fpga.h"
+#include "spif.h"
 
 
 //--------------------------------------------------------------------
-// spif support constants and functions
+// spif registers are static globals for performance
+//NOTE: they are "constant" addresses once initialised
 //--------------------------------------------------------------------
-#define SPIF_BUF_MAX_SIZE 4096
-
-#define SPIF_MAPPER_NUM   4
-#define SPIF_ROUTER_NUM   16
-#define SPIF_COUNT_NUM    4
-
-#define SPIF_BUSY         1
-
-// ---------------------------------
-// spif registers
-// ---------------------------------
-#define SPIF_MAPPER_KEY    1
-#define SPIF_REPLY_KEY     2
-#define SPIF_IN_DROP_WAIT  3
-#define SPIF_OUT_DROP_WAIT 4
-#define SPIF_ROUTER_KEY    16
-#define SPIF_ROUTER_MASK   32
-#define SPIF_ROUTER_ROUTE  48
-#define SPIF_COUNT_OUT     64
-#define SPIF_COUNT_CONFIG  65
-#define SPIF_COUNT_IN_DROP 66
-#define SPIF_COUNT_IN      67
-#define SPIF_MAPPER_MASK   80
-#define SPIF_MAPPER_SHIFT  96
-// ---------------------------------
-
-
 static volatile uint * dma_registers;
 static volatile uint * apb_registers;
+//--------------------------------------------------------------------
 
 
 //--------------------------------------------------------------------
@@ -126,13 +33,13 @@ static volatile uint * apb_registers;
 //--------------------------------------------------------------------
 void * spif_setup (uint pipe, size_t buf_size) {
   // check that requested pipe exists
-  if (pipe >= HW_NUM_PIPES) {
+  if (pipe >= SPIF_HW_PIPES_NUM) {
     printf ("error: requested event pipe does not exist\n");
     return (NULL);
   }
 
   // check that requested size fits in the reserved memory space
-  if (buf_size > PIPE_MEM_SIZE) {
+  if (buf_size > SPIF_BUF_MAX_SIZE) {
     printf ("error: requested buffer size exceeds limit\n");
     return (NULL);
   }
@@ -209,7 +116,7 @@ void * spif_setup (uint pipe, size_t buf_size) {
 //--------------------------------------------------------------------
 // close up access to spif
 //
-// returns spif device file handle
+//NOTE: exists only for compatibility with the spif kernel driver
 //--------------------------------------------------------------------
 void spif_close (void)
 {
@@ -259,4 +166,4 @@ void spif_transfer (uint size) {
 //--------------------------------------------------------------------
 
 
-#endif /* __SPIF_IF_H__ */
+#endif /* __SPIF_LOCAL_H__ */
