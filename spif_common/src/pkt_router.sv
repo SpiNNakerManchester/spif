@@ -10,7 +10,7 @@
 // -------------------------------------------------------------------------
 // DETAILS
 //  Created on       : 21 Oct 2020
-//  Last modified on : Thu 15 Jul 18:56:59 BST 2021
+//  Last modified on : Tue  7 Sep 17:35:31 BST 2021
 //  Last modified by : lap
 // -------------------------------------------------------------------------
 // COPYRIGHT
@@ -37,9 +37,9 @@ module pkt_router
   input  wire            [31:0] drop_wait_in,
 
   // routing table components
-  input  wire            [31:0] reg_key_in   [`NUM_RREGS - 1:0],
-  input  wire            [31:0] reg_mask_in  [`NUM_RREGS - 1:0],
-  input  wire             [2:0] reg_route_in [`NUM_RREGS - 1:0],
+  input  wire            [31:0] reg_key_in   [`NUM_RTREGS - 1:0],
+  input  wire            [31:0] reg_mask_in  [`NUM_RTREGS - 1:0],
+  input  wire             [2:0] reg_route_in [`NUM_RTREGS - 1:0],
 
   // incoming packet
   input  wire [`PKT_BITS - 1:0] pkt_in_data_in,
@@ -58,16 +58,16 @@ module pkt_router
 
   // use local parameters for consistent definitions
   localparam PACKET_BITS  = `PKT_BITS;
-
   localparam NUM_CHANNELS = `NUM_CHANS;
-  localparam NUM_RREGS    = `NUM_RREGS;
+
+  localparam NUM_RTREGS   = `NUM_RTREGS;
 
 
   //---------------------------------------------------------------
   // internal signals
   //---------------------------------------------------------------
   wire               [31:0] packet_key;
-  wire    [NUM_RREGS - 1:0] hit;
+  wire   [NUM_RTREGS - 1:0] hit;
   wire                      routing;
   reg                 [2:0] route;
   wire                      dropped;
@@ -85,7 +85,7 @@ module pkt_router
   // ternary CAM-like routing table
   genvar te;
   generate
-    for (te = 0; te < NUM_RREGS; te = te + 1)
+    for (te = 0; te < NUM_RTREGS; te = te + 1)
       begin : routing_table
         //NOTE: bit-wise and - it is a mask!
         assign hit[te] = ((packet_key & reg_mask_in[te]) == reg_key_in[te]);

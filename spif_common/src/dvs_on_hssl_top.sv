@@ -12,7 +12,7 @@
 // -------------------------------------------------------------------------
 // DETAILS
 //  Created on       : 21 Oct 2020
-//  Last modified on : Thu 15 Jul 18:56:59 BST 2021
+//  Last modified on : Tue  7 Sep 17:35:31 BST 2021
 //  Last modified by : lap
 // -------------------------------------------------------------------------
 // COPYRIGHT
@@ -71,24 +71,26 @@ module dvs_on_hssl_top
 
   
   // use local parameters for consistent definitions
-  localparam HW_VERSION     = `SPIF_VER_NUM;
-  localparam HW_NUM_PIPES   = `SPIF_NUM_PIPES;
-  localparam TARGET_FPGA    = `FPGA_MODEL;
-  localparam HW_SNTL_BITS   = `HW_SNTL_BITS;
-  localparam APB_ADR_BITS   = `APB_ADR_BITS;
+  localparam HW_VERSION      = `SPIF_VER_NUM;
+  localparam HW_NUM_PIPES    = `SPIF_NUM_PIPES;
+  localparam TARGET_FPGA     = `FPGA_MODEL;
+  localparam HW_SNTL_BITS    = `HW_SNTL_BITS;
 
-  localparam PACKET_BITS    = `PKT_BITS;
-  localparam NUM_CHANNELS   = `NUM_CHANS;
+  localparam APB_ADR_BITS    = `APB_ADR_BITS;
+  localparam REG_ADR_BITS    = `REG_ADR_BITS;
 
-  localparam RADDR_BITS     = `RADDR_BITS;
-  localparam NUM_HREGS      = `NUM_HREGS;
-  localparam NUM_RREGS      = `NUM_RREGS;
-  localparam NUM_CREGS      = `NUM_CREGS;
-  localparam NUM_MREGS_PIPE = `NUM_MREGS_PIPE;
-  localparam NUM_MREGS      = `NUM_MREGS;
+  localparam PACKET_BITS     = `PKT_BITS;
+  localparam NUM_CHANNELS    = `NUM_CHANS;
 
-  localparam MSFT_BITS      = `MSFT_BITS;
-  localparam RRTE_BITS      = `RRTE_BITS;
+  localparam NUM_RTREGS      = `NUM_RTREGS;
+  localparam NUM_DCREGS      = `NUM_DCREGS;
+  localparam NUM_MPREGS_PIPE = `NUM_MPREGS_PIPE;
+  localparam NUM_MPREGS      = `NUM_MPREGS;
+  localparam NUM_FLREGS_PIPE = `NUM_FLREGS_PIPE;
+  localparam NUM_FLREGS      = `NUM_FLREGS;
+
+  localparam MPSFT_BITS      = `MPSFT_BITS;
+  localparam RTRTE_BITS      = `RTRTE_BITS;
 
 
   //---------------------------------------------------------------
@@ -136,7 +138,7 @@ module dvs_on_hssl_top
   wire        hi_stop_int;
 
   // - packet counters
-  wire [31:0] pkt_ctr_int [NUM_CREGS - 1:0];
+  wire [31:0] pkt_ctr_int [NUM_DCREGS - 1:0];
   wire [31:0] pkt_reply_key_int;
 
   //  - wait values for packet dropping
@@ -144,24 +146,29 @@ module dvs_on_hssl_top
   wire [31:0] prx_drop_wait_int;
 
   //  - packet routing table
-  wire             [31:0] rt_key_int   [NUM_RREGS - 1:0];
-  wire             [31:0] rt_mask_int  [NUM_RREGS - 1:0];
-  wire  [RRTE_BITS - 1:0] rt_route_int [NUM_RREGS - 1:0];
+  wire               [31:0] rt_key_int   [NUM_RTREGS - 1:0];
+  wire               [31:0] rt_mask_int  [NUM_RTREGS - 1:0];
+  wire   [RTRTE_BITS - 1:0] rt_route_int [NUM_RTREGS - 1:0];
 
   //  - event mapper registers
-  wire             [31:0] mp_key_int  [HW_NUM_PIPES - 1:0];
-  wire             [31:0] mp_fmsk_int [NUM_MREGS - 1:0];
-  wire  [MSFT_BITS - 1:0] mp_fsft_int [NUM_MREGS - 1:0];
+  wire               [31:0] mp_key_int  [HW_NUM_PIPES - 1:0];
+  wire               [31:0] mp_fmsk_int [NUM_MPREGS - 1:0];
+  wire   [MPSFT_BITS - 1:0] mp_fsft_int [NUM_MPREGS - 1:0];
+  wire               [31:0] mp_flmt_int [NUM_MPREGS - 1:0];
+
+  //  - event filter registers
+  wire               [31:0] fl_val_int [NUM_FLREGS - 1:0];
+  wire               [31:0] fl_msk_int [NUM_FLREGS - 1:0];
 
   // - packet receiver interface
-  wire  [RADDR_BITS - 1:0] prx_addr_int;
-  wire              [31:0] prx_wdata_int;
-  wire                     prx_en_int;
+  wire [REG_ADR_BITS - 1:0] prx_addr_int;
+  wire               [31:0] prx_wdata_int;
+  wire                      prx_en_int;
 
   //  - diagnostic counter signals
-  wire [NUM_CREGS - 1:0] ctr_cnt_int;
-  wire             [1:0] prx_cnt_int;
-  wire             [1:0] rt_cnt_int;
+  wire   [NUM_DCREGS - 1:0] ctr_cnt_int;
+  wire                [1:0] prx_cnt_int;
+  wire                [1:0] rt_cnt_int;
 
   // HSSL interface signals
   wire                      hi_clk_int;
@@ -431,6 +438,11 @@ module dvs_on_hssl_top
     , .reg_mp_key_out   (mp_key_int)
     , .reg_mp_fmsk_out  (mp_fmsk_int)
     , .reg_mp_fsft_out  (mp_fsft_int)
+    , .reg_mp_flmt_out  (mp_flmt_int)
+
+    // event filter
+    , .reg_fl_val_out   (fl_val_int)
+    , .reg_fl_msk_out   (fl_msk_int)
     );
   //---------------------------------------------------------------
 
@@ -454,10 +466,15 @@ module dvs_on_hssl_top
               .clk                (hi_clk_int)
             , .reset              (hi_reset_int)
 
+              // event filter register
+            , .fl_val_in          (fl_val_int[(NUM_FLREGS_PIPE * pipe) +: NUM_FLREGS_PIPE])
+            , .fl_msk_in          (fl_msk_int[(NUM_FLREGS_PIPE * pipe) +: NUM_FLREGS_PIPE])
+            
               // event mapper registers
             , .mp_key_in          (mp_key_int[pipe])
-            , .field_msk_in       (mp_fmsk_int[(NUM_MREGS_PIPE * pipe) +: NUM_MREGS_PIPE])
-            , .field_sft_in       (mp_fsft_int[(NUM_MREGS_PIPE * pipe) +: NUM_MREGS_PIPE])
+            , .mp_fld_msk_in      (mp_fmsk_int[(NUM_MPREGS_PIPE * pipe) +: NUM_MPREGS_PIPE])
+            , .mp_fld_sft_in      (mp_fsft_int[(NUM_MPREGS_PIPE * pipe) +: NUM_MPREGS_PIPE])
+            , .mp_fld_lmt_in      (mp_flmt_int[(NUM_MPREGS_PIPE * pipe) +: NUM_MPREGS_PIPE])
 
               // incoming event
             , .evt_data_in        (evt_data_int[pipe])

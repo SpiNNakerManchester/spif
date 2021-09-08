@@ -30,61 +30,61 @@
 `timescale 1ps/1ps
 module pkt_receiver
 (
-  input  wire                     clk,
-  input  wire                     reset,
+  input  wire                       clk,
+  input  wire                       reset,
 
   // incoming packets from transceiver
-  input  wire   [`PKT_BITS - 1:0] pkt_data_in,
-  input  wire                     pkt_vld_in,
-  output reg                      pkt_rdy_out,
+  input  wire     [`PKT_BITS - 1:0] pkt_data_in,
+  input  wire                       pkt_vld_in,
+  output reg                        pkt_rdy_out,
 
   // packet counters
-  input  wire              [31:0] reg_ctr_in [`NUM_CREGS - 1:0],
-  input  wire              [31:0] reply_key_in,
+  input  wire                [31:0] reg_ctr_in [`NUM_DCREGS - 1:0],
+  input  wire                [31:0] reply_key_in,
 
   // register bank interface
-  output wire [`RADDR_BITS - 1:0] prx_addr_out,
-  output wire              [31:0] prx_wdata_out,
-  output wire                     prx_en_out,
+  output wire [`REG_ADR_BITS - 1:0] prx_addr_out,
+  output wire                [31:0] prx_wdata_out,
+  output wire                       prx_en_out,
 
   // diagnostic counter packet
-  output wire   [`PKT_BITS - 1:0] dcp_data_out,
-  output wire                     dcp_vld_out,
-  input  wire                     dcp_rdy_in,
+  output wire     [`PKT_BITS - 1:0] dcp_data_out,
+  output wire                       dcp_vld_out,
+  input  wire                       dcp_rdy_in,
 
   // peripheral packet
-  output reg    [`PKT_BITS - 1:0] per_data_out,
-  output reg                      per_vld_out,
-  input  wire                     per_rdy_in,
+  output reg      [`PKT_BITS - 1:0] per_data_out,
+  output reg                        per_vld_out,
+  input  wire                       per_rdy_in,
 
   // packet counter enables
-  output wire               [1:0] prx_cnt_out
+  output wire                 [1:0] prx_cnt_out
 );
 
 
   // use local parameters for consistent definitions
-  localparam PACKET_BITS = `PKT_BITS;
+  localparam PACKET_BITS  = `PKT_BITS;
 
-  localparam PKT_KEY_SZ  = 32;
-  localparam PKT_PLD_SZ  = 32;
-  localparam PKT_LNG_BIT = 1;
-  localparam PKT_CFG_BIT = 4;
-  localparam PKT_KEY_BIT = 8;
-  localparam PKT_PLD_BIT = PKT_KEY_BIT + PKT_KEY_SZ;
+  localparam PKT_KEY_SZ   = 32;
+  localparam PKT_PLD_SZ   = 32;
+  localparam PKT_LNG_BIT  = 1;
+  localparam PKT_CFG_BIT  = 4;
+  localparam PKT_KEY_BIT  = 8;
+  localparam PKT_PLD_BIT  = PKT_KEY_BIT + PKT_KEY_SZ;
 
   // counters
-  localparam RADDR_BITS  = `RADDR_BITS;
+  localparam REG_ADR_BITS = `REG_ADR_BITS;
 
-  localparam NUM_CREGS   = `NUM_CREGS;
-  localparam SEC_BITS    = `SEC_BITS;
-  localparam REG_BITS    = `REG_BITS;
-  localparam CREGS_SEC   = `CREGS_SEC;
-  localparam BAD_REG     = `BAD_REG;
+  localparam NUM_DCREGS   = `NUM_DCREGS;
+  localparam SEC_BITS     = `SEC_BITS;
+  localparam REG_BITS     = `REG_BITS;
+  localparam DCCNT_SEC    = `DCCNT_SEC;
+  localparam BAD_REG      = `BAD_REG;
 
   // switch ports
-  localparam PER_OUT     = 0;
-  localparam CFG_OUT     = 1;
-  localparam SP          = 2;
+  localparam PER_OUT      = 0;
+  localparam CFG_OUT      = 1;
+  localparam SP           = 2;
 
 
   //---------------------------------------------------------------
@@ -170,10 +170,10 @@ module pkt_receiver
   wire              [REG_BITS - 1:0] ctr_reg;
   wire                               ctr_ok;
 
-  assign ctr_offset = cfg_data[PKT_KEY_BIT +: RADDR_BITS];
+  assign ctr_offset = cfg_data[PKT_KEY_BIT +: REG_ADR_BITS];
   assign ctr_reg    = cfg_data[PKT_KEY_BIT +: REG_BITS];
   assign ctr_sec    = cfg_data[(PKT_KEY_BIT + REG_BITS) +: SEC_BITS];
-  assign ctr_ok     = (ctr_reg < NUM_CREGS) && (ctr_sec == CREGS_SEC);
+  assign ctr_ok     = (ctr_reg < NUM_DCREGS) && (ctr_sec == DCCNT_SEC);
 
   wire   [7:0] dcp_hdr;
   wire  [31:0] dcp_key;
@@ -196,7 +196,7 @@ module pkt_receiver
   // basic register write interface
   //NOTE: enable only when payload present in configuration packet!
   assign prx_en_out    = cfg_vld && pld_pst;
-  assign prx_addr_out  = cfg_data[PKT_KEY_BIT +: RADDR_BITS];
+  assign prx_addr_out  = cfg_data[PKT_KEY_BIT +: REG_ADR_BITS];
   assign prx_wdata_out = cfg_data[PKT_PLD_BIT +: PKT_PLD_SZ];
   //---------------------------------------------------------------
 

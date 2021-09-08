@@ -9,11 +9,11 @@
 // -------------------------------------------------------------------------
 // DETAILS
 //  Created on       : 21 Oct 2020
-//  Last modified on : Thu  1 Jul 09:54:58 BST 2021
+//  Last modified on : Tue  7 Sep 17:35:31 BST 2021
 //  Last modified by : lap
 // -------------------------------------------------------------------------
 // COPYRIGHT
-//  Copyright (c) The University of Manchester, 2020.
+//  Copyright (c) The University of Manchester, 2020-2021.
 //  SpiNNaker Project
 //  Advanced Processor Technologies Group
 //  School of Computer Science
@@ -48,12 +48,12 @@ module hssl_reg_bank
   output wire                 [0:0] apb_pslverr_out,
 
   // packet receiver interface
-  input  wire   [`RADDR_BITS - 1:0] prx_addr_in,
+  input  wire [`REG_ADR_BITS - 1:0] prx_addr_in,
   input  wire                [31:0] prx_wdata_in,
   input  wire                       prx_en_in,
 
   // packet counter enables interface
-  input  wire    [`NUM_CREGS - 1:0] ctr_cnt_in,
+  input  wire    [`NUM_DCREGS - 1:0] ctr_cnt_in,
 
   // status signals
   input  wire  [`HW_VER_BITS - 1:0] hw_version_in,
@@ -67,7 +67,7 @@ module hssl_reg_bank
   output wire                       hssl_stop_out,
 
   // packet counter interface
-  output reg                 [31:0] reg_ctr_out [`NUM_CREGS - 1:0],
+  output reg                 [31:0] reg_ctr_out [`NUM_DCREGS - 1:0],
   output wire                [31:0] reply_key_out,
 
   // wait values for packet dropping
@@ -75,23 +75,28 @@ module hssl_reg_bank
   output wire                [31:0] output_wait_out,
 
   // input router interface
-  output reg                 [31:0] reg_rt_key_out   [`NUM_RREGS - 1:0],
-  output reg                 [31:0] reg_rt_mask_out  [`NUM_RREGS - 1:0],
-  output reg     [`RRTE_BITS - 1:0] reg_rt_route_out [`NUM_RREGS - 1:0],
+  output reg                 [31:0] reg_rt_key_out   [`NUM_RTREGS - 1:0],
+  output reg                 [31:0] reg_rt_mask_out  [`NUM_RTREGS - 1:0],
+  output reg    [`RTRTE_BITS - 1:0] reg_rt_route_out [`NUM_RTREGS - 1:0],
 
   // mapper interface
   output reg                 [31:0] reg_mp_key_out  [HW_NUM_PIPES - 1:0],
-  output reg                 [31:0] reg_mp_fmsk_out [`NUM_MREGS - 1:0],
-  output reg     [`MSFT_BITS - 1:0] reg_mp_fsft_out [`NUM_MREGS - 1:0]
+  output reg                 [31:0] reg_mp_fmsk_out [`NUM_MPREGS - 1:0],
+  output reg    [`MPSFT_BITS - 1:0] reg_mp_fsft_out [`NUM_MPREGS - 1:0],
+  output reg                 [31:0] reg_mp_flmt_out [`NUM_MPREGS - 1:0],
+
+  // filter
+  output reg                 [31:0] reg_fl_val_out [`NUM_FLREGS - 1:0],
+  output reg                 [31:0] reg_fl_msk_out [`NUM_FLREGS - 1:0]
 );
 
 
   // use local parameters for consistent definitions
-  localparam NUM_HREGS      = `NUM_HREGS;
-  localparam NUM_RREGS      = `NUM_RREGS;
-  localparam NUM_CREGS      = `NUM_CREGS;
-  localparam NUM_MREGS_PIPE = `NUM_MREGS_PIPE;
-  localparam NUM_MREGS      = `NUM_MREGS;
+  localparam NUM_IFREGS     = `NUM_IFREGS;
+  localparam NUM_RTREGS     = `NUM_RTREGS;
+  localparam NUM_DCREGS     = `NUM_DCREGS;
+  localparam NUM_MPREGS     = `NUM_MPREGS;
+  localparam NUM_FLREGS     = `NUM_FLREGS;
 
   // registers are associated by type in sections of 16 registers
   localparam SEC_BITS       = `SEC_BITS;
@@ -100,22 +105,21 @@ module hssl_reg_bank
   // addresses are "word" addresses
   localparam SEC_LSB        = `SEC_LSB;
   localparam REG_LSB        = `REG_LSB;
-  localparam RADDR_BITS     = `RADDR_BITS;
 
   // register type / section
-  localparam HREGS_SEC      = `HREGS_SEC;  // interface control & status
-  localparam KREGS_SEC      = `KREGS_SEC;  // input router keys
-  localparam MREGS_SEC      = `MREGS_SEC;  // input router masks
-  localparam RREGS_SEC      = `RREGS_SEC;  // input router routes
-  localparam CREGS_SEC      = `CREGS_SEC;  // diagnostic counters
-  localparam PREGS_SEC      = `PREGS_SEC;  // mapper keys
-  localparam AREGS_SEC      = `AREGS_SEC;  // mapper field masks
-  localparam SREGS_SEC      = `SREGS_SEC;  // mapper field shifts
+  localparam IFCAS_SEC      = `IFCAS_SEC;  // interface control & status
+  localparam RTKEY_SEC      = `RTKEY_SEC;  // input router keys
+  localparam RTMSK_SEC      = `RTMSK_SEC;  // input router masks
+  localparam RTRTE_SEC      = `RTRTE_SEC;  // input router routes
+  localparam DCCNT_SEC      = `DCCNT_SEC;  // diagnostic counters
+  localparam MPKEY_SEC      = `MPKEY_SEC;  // mapper keys
+  localparam MPMSK_SEC      = `MPMSK_SEC;  // mapper field masks
+  localparam MPSFT_SEC      = `MPSFT_SEC;  // mapper field shifts
+  localparam MPLMT_SEC      = `MPLMT_SEC;  // mapper field limits
+  localparam FLVAL_SEC      = `FLVAL_SEC;  // filter values
+  localparam FLMSK_SEC      = `FLMSK_SEC;  // filter masks
 
   localparam BAD_REG        = `BAD_REG;
-
-  localparam MSFT_BITS      = `MSFT_BITS;
-  localparam RRTE_BITS      = `RRTE_BITS;
 
   //NOTE: APB addresses are "byte" addresses - turn to "word"!
   localparam APB_SEC_LSB    = SEC_LSB + 2;
@@ -145,12 +149,16 @@ module hssl_reg_bank
 
   localparam MP_KEY_DEF     = 32'h0000_0000;
   localparam MP_MSK_DEF     = 32'h0000_0000;
-  localparam MP_SFT_DEF     =  6'd0;
+  localparam MP_SFT_DEF     = `MPSFT_BITS'd0;
+  localparam MP_LMT_DEF     = 32'hffff_ffff;
+
+  localparam FL_VAL_DEF     = 32'hffff_ffff;
+  localparam FL_MSK_DEF     = 32'h0000_0000;
 
   //---------------------------------------------------------------
   // internal signals
   //---------------------------------------------------------------
-  reg [31:0] reg_hssl_int [NUM_HREGS - 1:0];
+  reg [31:0] reg_hssl_int [NUM_IFREGS - 1:0];
 
   // drive output signals
   assign hssl_stop_out   = reg_hssl_int[HSSL_STOP_REG][0];
@@ -187,10 +195,10 @@ module hssl_reg_bank
   genvar i;
   generate
     begin
-      for (i = 0; i < NUM_CREGS; i = i + 1)
+      for (i = 0; i < NUM_DCREGS; i = i + 1)
         begin
-          wire apb_ctr_wr = apb_write && (apb_sec == CREGS_SEC) && (apb_reg == i);
-          wire prx_ctr_wr = prx_write && (prx_sec == CREGS_SEC) && (prx_reg == i);
+          wire apb_ctr_wr = apb_write && (apb_sec == DCCNT_SEC) && (apb_reg == i);
+          wire prx_ctr_wr = prx_write && (prx_sec == DCCNT_SEC) && (prx_reg == i);
 
           always @ (posedge clk or negedge resetn)
             if (resetn == 0)
@@ -215,33 +223,42 @@ module hssl_reg_bank
         reg_hssl_int[REPLY_KEY_REG] <= REPLY_KEY_DEF;
         reg_hssl_int[IN_WAIT_REG]   <= IN_WAIT_DEF;
         reg_hssl_int[OUT_WAIT_REG]  <= OUT_WAIT_DEF;
-        reg_rt_key_out              <= '{NUM_RREGS {RT_KEY_DEF}};
-        reg_rt_mask_out             <= '{NUM_RREGS {RT_MSK_DEF}};
-        reg_rt_route_out            <= '{NUM_RREGS {RT_RTE_DEF}};
+        reg_rt_key_out              <= '{NUM_RTREGS {RT_KEY_DEF}};
+        reg_rt_mask_out             <= '{NUM_RTREGS {RT_MSK_DEF}};
+        reg_rt_route_out            <= '{NUM_RTREGS {RT_RTE_DEF}};
         reg_mp_key_out              <= '{HW_NUM_PIPES {MP_KEY_DEF}};
-        reg_mp_fmsk_out             <= '{NUM_MREGS {MP_MSK_DEF}};
-        reg_mp_fsft_out             <= '{NUM_MREGS {MP_SFT_DEF}};
+        reg_mp_fmsk_out             <= '{NUM_MPREGS {MP_MSK_DEF}};
+        reg_mp_fsft_out             <= '{NUM_MPREGS {MP_SFT_DEF}};
+        reg_mp_flmt_out             <= '{NUM_MPREGS {MP_LMT_DEF}};
+        reg_fl_val_out              <= '{NUM_FLREGS {FL_VAL_DEF}};
+        reg_fl_msk_out              <= '{NUM_FLREGS {FL_MSK_DEF}};
       end
     else
       if (prx_write)
         case (prx_sec)
-          HREGS_SEC: reg_hssl_int[prx_reg]     <= prx_wdata_in;
-          KREGS_SEC: reg_rt_key_out[prx_reg]   <= prx_wdata_in;
-          MREGS_SEC: reg_rt_mask_out[prx_reg]  <= prx_wdata_in;
-          RREGS_SEC: reg_rt_route_out[prx_reg] <= prx_wdata_in;
-          PREGS_SEC: reg_mp_key_out[prx_reg]   <= prx_wdata_in;
-          AREGS_SEC: reg_mp_fmsk_out[prx_reg]  <= prx_wdata_in;
-          SREGS_SEC: reg_mp_fsft_out[prx_reg]  <= prx_wdata_in;
+          IFCAS_SEC: reg_hssl_int[prx_reg]     <= prx_wdata_in;
+          RTKEY_SEC: reg_rt_key_out[prx_reg]   <= prx_wdata_in;
+          RTMSK_SEC: reg_rt_mask_out[prx_reg]  <= prx_wdata_in;
+          RTRTE_SEC: reg_rt_route_out[prx_reg] <= prx_wdata_in;
+          MPKEY_SEC: reg_mp_key_out[prx_reg]   <= prx_wdata_in;
+          MPMSK_SEC: reg_mp_fmsk_out[prx_reg]  <= prx_wdata_in;
+          MPSFT_SEC: reg_mp_fsft_out[prx_reg]  <= prx_wdata_in;
+          MPLMT_SEC: reg_mp_flmt_out[prx_reg]  <= prx_wdata_in;
+          FLVAL_SEC: reg_fl_val_out[prx_reg]   <= prx_wdata_in;
+          FLMSK_SEC: reg_fl_msk_out[prx_reg]   <= prx_wdata_in;
         endcase
       else if (apb_write)
         case (apb_sec)
-          HREGS_SEC: reg_hssl_int[apb_reg]     <= apb_pwdata_in;
-          KREGS_SEC: reg_rt_key_out[apb_reg]   <= apb_pwdata_in;
-          MREGS_SEC: reg_rt_mask_out[apb_reg]  <= apb_pwdata_in;
-          RREGS_SEC: reg_rt_route_out[apb_reg] <= apb_pwdata_in;
-          PREGS_SEC: reg_mp_key_out[apb_reg]   <= apb_pwdata_in;
-          AREGS_SEC: reg_mp_fmsk_out[apb_reg]  <= apb_pwdata_in;
-          SREGS_SEC: reg_mp_fsft_out[apb_reg]  <= apb_pwdata_in;
+          IFCAS_SEC: reg_hssl_int[apb_reg]     <= apb_pwdata_in;
+          RTKEY_SEC: reg_rt_key_out[apb_reg]   <= apb_pwdata_in;
+          RTMSK_SEC: reg_rt_mask_out[apb_reg]  <= apb_pwdata_in;
+          RTRTE_SEC: reg_rt_route_out[apb_reg] <= apb_pwdata_in;
+          MPKEY_SEC: reg_mp_key_out[apb_reg]   <= apb_pwdata_in;
+          MPMSK_SEC: reg_mp_fmsk_out[apb_reg]  <= apb_pwdata_in;
+          MPSFT_SEC: reg_mp_fsft_out[apb_reg]  <= apb_pwdata_in;
+          MPLMT_SEC: reg_mp_flmt_out[apb_reg]  <= apb_pwdata_in;
+          FLVAL_SEC: reg_fl_val_out[apb_reg]   <= apb_pwdata_in;
+          FLMSK_SEC: reg_fl_msk_out[apb_reg]   <= apb_pwdata_in;
         endcase
 
   // APB register reads
@@ -249,7 +266,7 @@ module hssl_reg_bank
   always @ (posedge clk)
     if (apb_read)
       case (apb_sec)
-        HREGS_SEC: if (apb_reg < NUM_HREGS)
+        IFCAS_SEC: if (apb_reg < NUM_IFREGS)
                      apb_prdata_out <= reg_hssl_int[apb_reg];
                    else if (apb_reg == STATUS_REG)
                      apb_prdata_out <= {12'h5ec, fpga_model_in, hs_mismatch_in, hs_complete_in, idsi_in};
@@ -258,38 +275,53 @@ module hssl_reg_bank
                    else
                      apb_prdata_out <= BAD_REG;
 
-        KREGS_SEC: if (apb_reg < NUM_RREGS)
+        RTKEY_SEC: if (apb_reg < NUM_RTREGS)
                      apb_prdata_out <= reg_rt_key_out[apb_reg];
                    else
                      apb_prdata_out <= BAD_REG;
 
-        MREGS_SEC: if (apb_reg < NUM_RREGS)
+        RTMSK_SEC: if (apb_reg < NUM_RTREGS)
                      apb_prdata_out <= reg_rt_mask_out[apb_reg];
                    else
                      apb_prdata_out <= BAD_REG;
 
-        RREGS_SEC: if (apb_reg < NUM_RREGS)
+        RTRTE_SEC: if (apb_reg < NUM_RTREGS)
                      apb_prdata_out <= reg_rt_route_out[apb_reg];
                    else
                      apb_prdata_out <= BAD_REG;
 
-        CREGS_SEC: if (apb_reg < NUM_CREGS)
+        DCCNT_SEC: if (apb_reg < NUM_DCREGS)
                      apb_prdata_out <= reg_ctr_out[apb_reg];
                    else
                      apb_prdata_out <= BAD_REG;
 
-        PREGS_SEC: if (apb_reg < HW_NUM_PIPES)
+        MPKEY_SEC: if (apb_reg < HW_NUM_PIPES)
                      apb_prdata_out <= reg_mp_key_out[apb_reg];
                    else
                      apb_prdata_out <= BAD_REG;
 
-        AREGS_SEC: if (apb_reg < NUM_MREGS)
+        MPMSK_SEC: if (apb_reg < NUM_MPREGS)
                      apb_prdata_out <= reg_mp_fmsk_out[apb_reg];
                    else
                      apb_prdata_out <= BAD_REG;
 
-        SREGS_SEC: if (apb_reg < NUM_MREGS)
+        MPSFT_SEC: if (apb_reg < NUM_MPREGS)
                      apb_prdata_out <= $signed(reg_mp_fsft_out[apb_reg]);
+                   else
+                     apb_prdata_out <= BAD_REG;
+
+        MPLMT_SEC: if (apb_reg < NUM_MPREGS)
+                     apb_prdata_out <= reg_mp_flmt_out[apb_reg];
+                   else
+                     apb_prdata_out <= BAD_REG;
+
+        FLVAL_SEC: if (apb_reg < NUM_FLREGS)
+                     apb_prdata_out <= reg_fl_val_out[apb_reg];
+                   else
+                     apb_prdata_out <= BAD_REG;
+
+        FLMSK_SEC: if (apb_reg < NUM_FLREGS)
+                     apb_prdata_out <= reg_fl_msk_out[apb_reg];
                    else
                      apb_prdata_out <= BAD_REG;
 
