@@ -104,15 +104,17 @@
 
 \begin{table}[!ht]
 	\begin{center}
-		\begin{tabularx}{\textwidth}{| p{27mm} p{24mm} p{22mm} p{18mm} X |}
+		\small {
+		\begin{tabularx}{\textwidth}{| p{31mm} p{24mm} p{22mm} p{18mm} X |}
 			\hline
 			\textbf{configuration} & \textbf{routing key} & \textbf{default key} & \textbf{payload} & \textbf{comment}                              \\%
 			\hline
 			\hline
+			\textbf{spiNNlink (local)}  & lc\_key + offset     & \ttfamily{0xfffffe00} & write data      & register offsets in Table~\ref{tab:spin_regs} \\%
 			\textbf{spif (remote)} & rc\_key + offset     & \ttfamily{0xffffff00} & r/w data      & register offsets in Table~\ref{tab:spif_regs} \\%
-			\textbf{FPGA (local)}  & lc\_key + offset     & \ttfamily{0xfffffe00} & write data      & register offsets in Table~\ref{tab:spin_regs} \\%
 			\hline
 		\end{tabularx}
+	    }
 		\caption{Configuration register access via multicast packets}
 	\end{center}
 	\label{tab:reg_prm}
@@ -126,9 +128,9 @@
 			\textbf{routing entry function}  & \textbf{key}          & \textbf{mask}         & \textbf{route}                       \\%
 			\hline
 			\hline
+			\textbf{local writes}            & \ttfamily{0xfffffe00} & \ttfamily{0xffffff00} & \ttfamily{32 (0x20)} - SOUTH link    \\%
 			\textbf{remote reads/writes}     & \ttfamily{0xffffff00} & \ttfamily{0xffffff00} & \ttfamily{32 (0x20)} - SOUTH link    \\%
 			\textbf{remote read replies}     & \ttfamily{0xfffffd00} & \ttfamily{0xffffff00} & \ttfamily{(route to receiving core)} \\%
-			\textbf{local writes}            & \ttfamily{0xfffffe00} & \ttfamily{0xffffff00} & \ttfamily{32 (0x20)} - SOUTH link    \\%
 			\hline
 		\end{tabularx}
 		\caption{SpiNNaker router setup required on chip (0, 0)}
@@ -137,9 +139,77 @@
 \end{table}
 
 
+\clearpage
+\subsection{spiNNlink (Local) Configuration}
+
+
+\subsubsection*{Register Summary}
+
+
+\begin{center}
+	\begin{table}[!h]
+		\rowcolors {1}{}{ \tblc }
+		%		\renewcommand{\arraystretch}{1.2}
+		\begin{tabularx}{\textwidth}{| p{30mm} p{13mm} p{21mm} p{7mm} X |}
+			\hline
+			\textbf{name}                        & \textbf{offset}           & \textbf{offset} (hex)           & \textbf{r/w}        & \textbf{function} \\%
+			\hline
+			\hline
+			\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}00     & \cellcolor{gray!25}(0x00)       & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+			\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}01     & \cellcolor{gray!25}(0x01)       & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+			\textbf{p\_key}                      & 02                        & (0x02)                          & w                   & route packets to peripheral device             \\%
+			\textbf{p\_mask}                     & 03                        & (0x03)                          & w                   & route packets to peripheral device             \\%
+			\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}04-11  & \cellcolor{gray!25} (0x04-0x0b) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+			\textbf{lc\_key}                     & 12                        & (0x0c)                          & w                   & \small{route packets to spiNNlink configuration} \\%
+			\textbf{lc\_mask}                    & 13                        & (0x0d)                          & w                   & \small{route packets to spiNNlink configuration} \\%
+			\textbf{rc\_key}                     & 14                        & (0x0e)                          & w                   & route packets to spif configuration   \\%
+			\textbf{rc\_mask}                    & 15                        & (0x0f)                          & w                   & route packets to spif configuration   \\%
+			\textbf{stop}                        & 16                        & (0x10)                          & w                   & stop peripheral input packets         \\%
+			\textbf{start}                       & 17                        & (0x11)                          & w                   & allow peripheral input packets         \\%
+			\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}18-127 & \cellcolor{gray!25} (0x12-0x7f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+			\hline
+		\end{tabularx}
+		\caption{spiNNlink configuration registers}
+		\label{tab:spin_regs}
+	\end{table}
+\end{center}
+
+
+\subsubsection*{Register Details}
+
+
+\begin{center}
+	\rowcolors {1}{}{ \tblc }
+	%		\renewcommand{\arraystretch}{1.2}
+	\begin{tabularx}{\textwidth}{| p{30mm} p{7mm} p{20mm} X |}
+		\hline
+		\textbf{name}      & \textbf{size}  & \textbf{default}      & \textbf{comment}                            \\%
+		\hline
+		\hline
+		\textbf{p\_key}    & \ttfamily{32b}  & \ttfamily{0xffffffff} &  no packets routed to peripheral by default \\%
+		\textbf{p\_mask}   & \ttfamily{32b}  & \ttfamily{0x00000000} &  no packets routed to peripheral by default \\%
+		\textbf{lc\_key}   & \ttfamily{32b}  & \ttfamily{0xfffffe00} &  lc\_key and lc\_mask updated atomically    \\%
+		\textbf{lc\_mask}  & \ttfamily{32b}  & \ttfamily{0xffffff00} &  write lc\_mask first then lc\_key          \\%
+		\textbf{rc\_key}   & \ttfamily{32b}  & \ttfamily{0xffffff00} &                                             \\%
+		\textbf{rc\_mask}  & \ttfamily{32b}  & \ttfamily{0xffffff00} &                                             \\%
+		\textbf{stop}      & \ttfamily{~1b}  & stop (0)              &  writing any value stops peripheral input   \\%
+		\textbf{start}     & \ttfamily{~1b}  & stop (0)              &  writing any value starts peripheral input  \\%
+		\hline
+	\end{tabularx}
+	
+	\rowcolors {1}{ blue!25 }{ blue!25 }
+	\begin{tabularx}{\textwidth}{| l X |}
+		\hline
+		\textbf{notes:} & $\bullet$ a write to \textbf{lc\_mask} takes effect only after  a write to \textbf{lc\_key}. \\%
+		& $\bullet$ \textbf{stop} drops all incoming peripheral packets. \\%
+		& $\bullet$ \textbf{stop} lets through incoming diagnostic counter read replies. \\%
+		\hline
+	\end{tabularx}
+\end{center}
+
 
 \clearpage
-\subsection{spif Configuration}
+\subsection{spif (Remote) Configuration}
 
 
 \subsubsection*{Register Summary}
@@ -244,75 +314,6 @@
 		                & $\bullet$ \textbf{handshake} 00 = unconnected / 01 = connected / 10 = mismatch. \\%
 		                & $\bullet$ \textbf{version} [23:16] major / [15:8] minor / [7:0] patch.          \\%
 		                & $\bullet$ \textbf{filters} can drop hot pixels, timestamps and such.            \\%
-		\hline
-	\end{tabularx}
-\end{center}
-
-
-\clearpage
-\subsection{SpiNNaker FPGA Configuration}
-
-
-\subsubsection*{Register Summary}
-
-
-\begin{center}
-\begin{table}[!h]
-	\rowcolors {1}{}{ \tblc }
-%		\renewcommand{\arraystretch}{1.2}
-	\begin{tabularx}{\textwidth}{| p{34mm} p{13mm} p{21mm} p{7mm} X |}
-		\hline
-		\textbf{name}                        & \textbf{offset}           & \textbf{offset} (hex)           & \textbf{r/w}        & \textbf{function} \\%
-		\hline
-		\hline
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}00     & \cellcolor{gray!25}(0x00)       & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}01     & \cellcolor{gray!25}(0x01)       & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\textbf{p\_key}                      & 02                        & (0x02)                          & w                   & route packets to peripheral device             \\%
-		\textbf{p\_mask}                     & 03                        & (0x03)                          & w                   & route packets to peripheral device             \\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}04-11  & \cellcolor{gray!25} (0x04-0x0b) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\textbf{lc\_key}                     & 12                        & (0x0c)                          & w                   & route packets to SpiNNaker FPGA  \\%
-		\textbf{lc\_mask}                    & 13                        & (0x0d)                          & w                   & route packets to SpiNNaker FPGA  \\%
-		\textbf{rc\_key}                     & 14                        & (0x0e)                          & w                   & route packets to spif configuration   \\%
-		\textbf{rc\_mask}                    & 15                        & (0x0f)                          & w                   & route packets to spif configuration   \\%
-		\textbf{stop}                        & 16                        & (0x10)                          & w                   & stop peripheral input packets         \\%
-		\textbf{start}                       & 17                        & (0x11)                          & w                   & allow peripheral input packets         \\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}18-127 & \cellcolor{gray!25} (0x12-0x7f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\hline
-	\end{tabularx}
-	\caption{SpiNNaker FPGA configuration registers}
-	\label{tab:spin_regs}
-\end{table}
-\end{center}
-
-
-\subsubsection*{Register Details}
-
-
-\begin{center}
-	\rowcolors {1}{}{ \tblc }
-	%		\renewcommand{\arraystretch}{1.2}
-	\begin{tabularx}{\textwidth}{| p{35mm} p{7mm} p{20mm} X |}
-		\hline
-		\textbf{name}      & \textbf{size}  & \textbf{default}      & \textbf{comment}                            \\%
-		\hline
-		\hline
-		\textbf{p\_key}    & \ttfamily{32b}  & \ttfamily{0xffffffff} &  no packets routed to peripheral by default \\%
-		\textbf{p\_mask}   & \ttfamily{32b}  & \ttfamily{0x00000000} &  no packets routed to peripheral by default \\%
-		\textbf{lc\_key}   & \ttfamily{32b}  & \ttfamily{0xfffffe00} &  lc\_key and lc\_mask updated atomically    \\%
-		\textbf{lc\_mask}  & \ttfamily{32b}  & \ttfamily{0xffffff00} &  write lc\_mask first then lc\_key          \\%
-		\textbf{rc\_key}   & \ttfamily{32b}  & \ttfamily{0xffffff00} &                                             \\%
-		\textbf{rc\_mask}  & \ttfamily{32b}  & \ttfamily{0xffffff00} &                                             \\%
-		\textbf{stop}      & \ttfamily{~1b}  & stop (0)              &  writing any value stops peripheral input   \\%
-		\textbf{start}     & \ttfamily{~1b}  & stop (0)              &  writing any value starts peripheral input  \\%
-		\hline
-	\end{tabularx}
-
-	\rowcolors {1}{ blue!25 }{ blue!25 }
-	\begin{tabularx}{\textwidth}{| l X |}
-		\hline
-		\textbf{notes:} & $\bullet$ a write to \textbf{lc\_mask} takes effect only after  a write to \textbf{lc\_key}. \\%
-		                & $\bullet$ \textbf{stop} drops all incoming peripheral packets. \\%
-		                & $\bullet$ \textbf{stop} lets through incoming diagnostic counter read replies. \\%
 		\hline
 	\end{tabularx}
 \end{center}
@@ -424,7 +425,7 @@
 
 
 \begin{itemize}
-	\itemsep -2.5 mm 
+	\itemsep -2 mm 
 	\item 0.0.1 - 03/07/2021 - lap - initial draft - comments to {\itshape luis.plana@manchester.ac.uk}
 	\item 0.0.2 - 03/09/2021 - lap - added event processing pipe information.
 	\item 0.0.3 - 07/09/2021 - lap - added event filtering information.

@@ -15,7 +15,7 @@
 #include <unistd.h>
 #include <libgen.h>
 
-#include "spif_local.h"
+#include "spif_remote.h"
 
 #define BUF_SIZE_DEF   0x1000
 

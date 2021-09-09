@@ -19,7 +19,7 @@
 #include <sys/un.h>
 #include <libgen.h>
 
-#include "spif_local.h"
+#include "spif_remote.h"
 
 
 #define NSEC_PER_SEC      1000000000

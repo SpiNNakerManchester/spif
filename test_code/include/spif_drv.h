@@ -1,7 +1,7 @@
 //************************************************//
 //*                                              *//
 //* functions to interact with the spif          *//
-//* through the spik kernel driver               *//
+//* through the spif kernel driver               *//
 //*                                              *//
 //* lap - 03/08/2021                             *//
 //*                                              *//

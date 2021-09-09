@@ -1,167 +1,327 @@
 //************************************************//
 //*                                              *//
-//* functions to interact with spif              *//
-//* from the spif board processor                *//
+//* functions to interact with spif (remote)     *//
+//* from SpiNNaker (local)                       *//
 //*                                              *//
-//* lap - 08/09/2021                             *//
+//* lap - 08/06/2021                             *//
 //*                                              *//
 //************************************************//
 
 #ifndef __SPIF_LOCAL_H__
 #define __SPIF_LOCAL_H__
 
-#include <sys/mman.h>
-#include <fcntl.h>
-
-#include "spif_fpga.h"
 #include "spif.h"
 
 
 //--------------------------------------------------------------------
-// spif registers are static globals for performance
-//NOTE: they are "constant" addresses once initialised
+// spiNNlink (local) and spif (remote) configuration routing keys and masks
 //--------------------------------------------------------------------
-static volatile uint * dma_registers;
-static volatile uint * apb_registers;
-//--------------------------------------------------------------------
-
-
-//--------------------------------------------------------------------
-// setup spif DMA controller through the AXI memory-mapped interface
-//
-// returns address of DMA data buffer -- NULL if problems found
-//--------------------------------------------------------------------
-void * spif_setup (uint pipe, size_t buf_size) {
-  // check that requested pipe exists
-  if (pipe >= SPIF_HW_PIPES_NUM) {
-    printf ("error: requested event pipe does not exist\n");
-    return (NULL);
-  }
-
-  // check that requested size fits in the reserved memory space
-  if (buf_size > SPIF_BUF_MAX_SIZE) {
-    printf ("error: requested buffer size exceeds limit\n");
-    return (NULL);
-  }
-
-  //NOTE: make sure that mapped memory is *not* cached!
-  int fd = open ("/dev/mem", O_RDWR | O_SYNC);
-  if (fd < 1) {
-    printf ("error: unable to access DMA memory space\n");
-    return (NULL);
-  }
-
-  // map reserved DDR memory to process address space
-  void * rsvd_mem = mmap (
-    NULL, DDR_RES_MEM_SIZE, PROT_READ | PROT_WRITE,
-    MAP_SHARED, fd, DDR_RES_MEM_ADDR
-    );
-
-  if (rsvd_mem == MAP_FAILED) {
-    printf ("error: unable to access reserved memory space\n");
-    return (NULL);
-  }
-
-  // map APB (configuration) registers to process address space
-  apb_registers = (uint *) mmap (
-    NULL, APB_REGS_SIZE, PROT_READ | PROT_WRITE,
-    MAP_SHARED, fd, APB_REGS_ADDR
-    );
-
-  // map DMA (configuration) registers to process address space
-  off_t dma_addr = DMA_REGS_ADDR + (pipe * DMA_REGS_SIZE);
-  dma_registers = (uint *) mmap (
-    NULL, DMA_REGS_SIZE, PROT_READ | PROT_WRITE,
-    MAP_SHARED, fd, dma_addr
-    );
-
-  // close /dev/mem and drop root privileges
-  close (fd);
-  if (setuid (getuid ()) < 0) {
-    (void) munmap (rsvd_mem, DDR_RES_MEM_SIZE);
-    printf ("error: unable to access DMA memory space\n");
-    return (NULL);
-  }
-
-  // check that everything went well
-  if ((apb_registers == MAP_FAILED) || (dma_registers == MAP_FAILED)) {
-    (void) munmap (rsvd_mem, DDR_RES_MEM_SIZE);
-    printf ("error: unable to access DMA memory space\n");
-    return (NULL);
-  }
-
-  // locate dma buffer according to pipe
-  void * dma_buffer = rsvd_mem + (pipe * PIPE_MEM_SIZE);
-
-  // configure/initialise DMA controller for transmission
-  // reset DMA controller - reset interrupts
-  dma_registers[DMACR] = DMA_RESET;
-
-  // wait for reset to complete
-  while (dma_registers[DMACR] & DMA_RESET) {
-    continue;
-  }
-
-  // start DMA controller
-  dma_registers[DMACR] = DMA_RUN;
-
-  // write dma_buffer physical address to DMA controller
-  dma_registers[DMASA] = (uint) DDR_RES_MEM_ADDR + (uint) (pipe * PIPE_MEM_SIZE);
-
-  return (dma_buffer);
-}
+#define PER_KEY            0xfffe0000    // peripheral packets
+#define PER_MSK            0xffff0000    // peripheral packets
+#define LCFG_KEY           0xfffffe00    // spiNNlink configuration
+#define LCFG_MSK           0xffffff00    // spiNNlink configuration
+#define RCFG_KEY           0xffffff00    // spif configuration
+#define RCFG_MSK           0xffffff00    // spif configuration
+#define RPLY_KEY           0xfffffd00    // diagnostic counter packets
+#define RPLY_MSK           0xffffff00    // diagnostic counter packets
 //--------------------------------------------------------------------
 
 
 //--------------------------------------------------------------------
-// close up access to spif
-//
-//NOTE: exists only for compatibility with the spif kernel driver
+// spiNNlink (local) configuration registers
+//NOTE: in most cases payload carries the value
 //--------------------------------------------------------------------
-void spif_close (void)
+#define LCFG_PKEY          2
+#define LCFG_PMSK          3
+#define LCFG_LCKEY         12
+#define LCFG_LCMSK         13
+#define LCFG_RCKEY         14
+#define LCFG_RCMSK         15
+#define LCFG_STOP          16
+#define LCFG_START         17
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// helpful macros (private)
+//--------------------------------------------------------------------
+// spif is always connected to the SOUTH link of chip (0, 0)
+#define SPIF_LOCAL_ROUTE_TO_SPIF         (1 << 5)
+#define SPIF_LOCAL_ROUTE_TO_CORE(core)   (1 << (core + 6))
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// initialise spif and spiNNlink resources
+//--------------------------------------------------------------------
+uint spif_init ()
 {
+  // initialise spif configuration MC routing table entries
+  // -----------------------------------------------------------------
+  uint entry = rtr_alloc (3);
+  if (entry == 0) {
+    return (FAILURE);
+  }
+
+  // setup local configuration route
+  rtr_mc_set (entry,
+               LCFG_KEY,
+               LCFG_MSK,
+               SPIF_LOCAL_ROUTE_TO_SPIF
+             );
+
+  // setup remote configuration route
+  rtr_mc_set (entry + 1,
+               RCFG_KEY,
+               RCFG_MSK,
+               SPIF_LOCAL_ROUTE_TO_SPIF
+             );
+
+  // identify this core for reply messages
+  uint core = spin1_get_core_id ();
+
+  // setup remote reply configuration route
+  rtr_mc_set (entry + 2,
+               RPLY_KEY,
+               RPLY_MSK,
+               SPIF_LOCAL_ROUTE_TO_CORE(core)
+             );
+
+  return (SUCCESS);
 }
+//--------------------------------------------------------------------
 
 
 //--------------------------------------------------------------------
-// read spif register
-//
-// returns read value
+// set value of key used to identify input peripheral packets
 //--------------------------------------------------------------------
-int spif_read_reg (unsigned int reg)
+void spif_set_peripheral_key (uint key)
 {
-  return apb_registers[reg];
+  while (!spin1_send_mc_packet (
+          LCFG_KEY | LCFG_PKEY,
+          key,
+          WITH_PAYLOAD)
+        );
 }
 //--------------------------------------------------------------------
 
 
 //--------------------------------------------------------------------
-// write spif register
+// set value of mask used to identify input peripheral packets
 //--------------------------------------------------------------------
-void spif_write_reg (unsigned int reg, int val)
+void spif_set_peripheral_mask (uint mask)
 {
-  apb_registers[reg] = val;
+  while (!spin1_send_mc_packet (
+          LCFG_KEY | LCFG_PMSK,
+          mask,
+          WITH_PAYLOAD)
+        );
 }
 //--------------------------------------------------------------------
 
 
 //--------------------------------------------------------------------
-// check status of spif DMA controller
+// set value of input router key
+//--------------------------------------------------------------------
+void spif_set_routing_key (uint entry, uint key)
+{
+  while (!spin1_send_mc_packet (
+          RCFG_KEY | (SPIF_ROUTER_KEY + entry),
+          key,
+          WITH_PAYLOAD)
+        );
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// set value of input router mask
+//--------------------------------------------------------------------
+void spif_set_routing_mask (uint entry, uint mask)
+{
+  while (!spin1_send_mc_packet (
+          RCFG_KEY | (SPIF_ROUTER_MASK + entry),
+          mask,
+          WITH_PAYLOAD)
+        );
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// set value of input router route
+//--------------------------------------------------------------------
+void spif_set_routing_route (uint entry, uint route)
+{
+  while (!spin1_send_mc_packet (
+          RCFG_KEY | (SPIF_ROUTER_ROUTE + entry),
+          route,
+          WITH_PAYLOAD)
+        );
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// set value of cycle count before input packet is dropped on spif
+//--------------------------------------------------------------------
+void spif_set_input_drop_wait (uint wait)
+{
+  while (!spin1_send_mc_packet (
+          RCFG_KEY | SPIF_IN_DROP_WAIT,
+          wait,
+          WITH_PAYLOAD)
+        );
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// set value of pipe mapper key
+//--------------------------------------------------------------------
+void spif_set_mapper_key (uint pipe, uint key)
+{
+  while (!spin1_send_mc_packet (
+          RCFG_KEY | (SPIF_MAPPER_KEY + pipe),
+          key,
+          WITH_PAYLOAD)
+        );
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// set value of pipe mapper field mask
+//--------------------------------------------------------------------
+void spif_set_mapper_field_mask (uint pipe, uint field, uint mask)
+{
+  while (!spin1_send_mc_packet (
+          RCFG_KEY | (SPIF_MAPPER_MASK + (SPIF_MPREGS_NUM * pipe) + field),
+          mask,
+          WITH_PAYLOAD)
+        );
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// set value of pipe mapper field shift
 //
-// returns 0 if DMA controller idle
+//NOTE; negative shift indicates left shift
 //--------------------------------------------------------------------
-uint spif_busy (void) {
-  return (!(dma_registers[DMASR] & DMA_IDLE_MSK));
+void spif_set_mapper_field_shift (uint pipe, uint field, uint shift)
+{
+  while (!spin1_send_mc_packet (
+          RCFG_KEY | (SPIF_MAPPER_SHIFT + (SPIF_MPREGS_NUM * pipe) + field),
+          shift,
+          WITH_PAYLOAD)
+        );
 }
 //--------------------------------------------------------------------
 
 
 //--------------------------------------------------------------------
-// trigger a transfer to SpiNNaker
+// set value of pipe mapper field limit
 //--------------------------------------------------------------------
-void spif_transfer (uint size) {
-  // write length of data batch (in bytes!)
-  dma_registers[DMALEN] = size;
+void spif_set_mapper_field_limit (uint pipe, uint field, uint limit)
+{
+  while (!spin1_send_mc_packet (
+          RCFG_KEY | (SPIF_MAPPER_MASK + (SPIF_MPREGS_NUM * pipe) + field),
+          limit,
+          WITH_PAYLOAD)
+        );
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// set value of pipe filter
+//--------------------------------------------------------------------
+void spif_set_filter_value (uint pipe, uint filter, uint value)
+{
+  while (!spin1_send_mc_packet (
+          RCFG_KEY | (SPIF_FILTER_VALUE + (SPIF_FLREGS_NUM * pipe) + filter),
+          value,
+          WITH_PAYLOAD)
+        );
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// set value of pipe filter mask
+//--------------------------------------------------------------------
+void spif_set_filter_mask (uint pipe, uint filter, uint mask)
+{
+  while (!spin1_send_mc_packet (
+          RCFG_KEY | (SPIF_FILTER_MASK + (SPIF_FLREGS_NUM * pipe) + filter),
+          mask,
+          WITH_PAYLOAD)
+        );
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// allow peripheral input packets in
+//--------------------------------------------------------------------
+void spif_start_input (void)
+{
+  while (!spin1_send_mc_packet (
+          LCFG_KEY | LCFG_START,
+          0,
+          NO_PAYLOAD)
+        );
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// stop peripheral input packets (not configuration packets)
+//
+//NOTE: packets are stopped on spiNNlink not spif
+//--------------------------------------------------------------------
+void spif_stop_input (void)
+{
+  while (!spin1_send_mc_packet (
+          LCFG_KEY | LCFG_STOP,
+          0,
+          NO_PAYLOAD)
+        );
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// read a spif diagnostic counter
+//--------------------------------------------------------------------
+void spif_read_counter (uint counter)
+{
+  // send counter read request
+  while (!spin1_send_mc_packet (
+          RCFG_KEY | counter,
+          0,
+          NO_PAYLOAD)
+        );
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// reset all spif diagnostic counters
+//
+//NOTE: assumes that all counters occupy contiguous registers
+//--------------------------------------------------------------------
+void spif_reset_counters ()
+{
+  // clear spif diagnostic packet counters
+  for (uint i = 0; i < SPIF_DCREGS_NUM; i++) {
+     while (!spin1_send_mc_packet (
+             RCFG_KEY | SPIF_COUNT_OUT + i,
+             0,
+             WITH_PAYLOAD)
+           );
+  }
 }
 //--------------------------------------------------------------------
 

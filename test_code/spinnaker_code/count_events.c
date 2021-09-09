@@ -1,6 +1,6 @@
 // SpiNNaker API
 #include "spin1_api.h"
-#include "spif_remote.h"
+#include "spif_local.h"
 
 
 // ------------------------------------------------------------------------

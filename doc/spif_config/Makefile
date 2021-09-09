@@ -22,5 +22,8 @@ spif_config.pdf: spif_config.tex spif_bd.fig spif_cf.fig spin_per_if.fig mapper_
 	pdflatex spif_config.tex
 	pdflatex spif_config.tex
 
-clean:
-	/bin/rm -f *.dvi *.pdf *.log *.aux
+tidy:
+	/bin/rm -f *.dvi *.log *.aux *.bak *~
+
+clean: tidy
+	/bin/rm -f *.pdf
