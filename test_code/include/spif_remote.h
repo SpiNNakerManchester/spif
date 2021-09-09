@@ -43,11 +43,11 @@
 
 
 //--------------------------------------------------------------------
-// helpful macros
+// helpful macros (private)
 //--------------------------------------------------------------------
 // spif is always connected to the SOUTH link of chip (0, 0)
-#define ROUTE_TO_SPIF         (1 << 5)
-#define ROUTE_TO_CORE(core)   (1 << (core + 6))
+#define SPIF_REMOTE_ROUTE_TO_SPIF         (1 << 5)
+#define SPIF_REMOTE_ROUTE_TO_CORE(core)   (1 << (core + 6))
 //--------------------------------------------------------------------
 
 
@@ -67,14 +67,14 @@ uint spif_init ()
   rtr_mc_set (entry,
                LCFG_KEY,
                LCFG_MSK,
-               ROUTE_TO_SPIF
+               SPIF_REMOTE_ROUTE_TO_SPIF
              );
 
   // setup remote configuration route
   rtr_mc_set (entry + 1,
                RCFG_KEY,
                RCFG_MSK,
-               ROUTE_TO_SPIF
+               SPIF_REMOTE_ROUTE_TO_SPIF
              );
 
   // identify this core for reply messages
@@ -84,7 +84,7 @@ uint spif_init ()
   rtr_mc_set (entry + 2,
                RPLY_KEY,
                RPLY_MSK,
-               ROUTE_TO_CORE(core)
+               SPIF_REMOTE_ROUTE_TO_CORE(core)
              );
 
   return (SUCCESS);
@@ -177,12 +177,12 @@ void spif_set_input_drop_wait (uint wait)
 
 
 //--------------------------------------------------------------------
-// set value of mapper key
+// set value of pipe mapper key
 //--------------------------------------------------------------------
-void spif_set_mapper_key (uint map, uint key)
+void spif_set_mapper_key (uint pipe, uint key)
 {
   while (!spin1_send_mc_packet (
-          RCFG_KEY | (SPIF_MAPPER_KEY + map),
+          RCFG_KEY | (SPIF_MAPPER_KEY + pipe),
           key,
           WITH_PAYLOAD)
         );
@@ -191,12 +191,12 @@ void spif_set_mapper_key (uint map, uint key)
 
 
 //--------------------------------------------------------------------
-// set value of mapper field mask
+// set value of pipe mapper field mask
 //--------------------------------------------------------------------
-void spif_set_mapper_field_mask (uint map, uint field, uint mask)
+void spif_set_mapper_field_mask (uint pipe, uint field, uint mask)
 {
   while (!spin1_send_mc_packet (
-          RCFG_KEY | (SPIF_MAPPER_MASK + (SPIF_MPREGS_NUM * map) + field),
+          RCFG_KEY | (SPIF_MAPPER_MASK + (SPIF_MPREGS_NUM * pipe) + field),
           mask,
           WITH_PAYLOAD)
         );
@@ -205,15 +205,57 @@ void spif_set_mapper_field_mask (uint map, uint field, uint mask)
 
 
 //--------------------------------------------------------------------
-// set value of mapper field shift
+// set value of pipe mapper field shift
 //
 //NOTE; negative shift indicates left shift
 //--------------------------------------------------------------------
-void spif_set_mapper_field_shift (uint map, uint field, uint shift)
+void spif_set_mapper_field_shift (uint pipe, uint field, uint shift)
 {
   while (!spin1_send_mc_packet (
-          RCFG_KEY | (SPIF_MAPPER_SHIFT + (SPIF_MPREGS_NUM * map) + field),
+          RCFG_KEY | (SPIF_MAPPER_SHIFT + (SPIF_MPREGS_NUM * pipe) + field),
           shift,
+          WITH_PAYLOAD)
+        );
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// set value of pipe mapper field limit
+//--------------------------------------------------------------------
+void spif_set_mapper_field_limit (uint pipe, uint field, uint limit)
+{
+  while (!spin1_send_mc_packet (
+          RCFG_KEY | (SPIF_MAPPER_MASK + (SPIF_MPREGS_NUM * pipe) + field),
+          limit,
+          WITH_PAYLOAD)
+        );
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// set value of pipe filter
+//--------------------------------------------------------------------
+void spif_set_filter_value (uint pipe, uint filter, uint value)
+{
+  while (!spin1_send_mc_packet (
+          RCFG_KEY | (SPIF_FILTER_VALUE + (SPIF_FLREGS_NUM * pipe) + filter),
+          value,
+          WITH_PAYLOAD)
+        );
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// set value of pipe filter mask
+//--------------------------------------------------------------------
+void spif_set_filter_mask (uint pipe, uint filter, uint mask)
+{
+  while (!spin1_send_mc_packet (
+          RCFG_KEY | (SPIF_FILTER_MASK + (SPIF_FLREGS_NUM * pipe) + filter),
+          mask,
           WITH_PAYLOAD)
         );
 }
