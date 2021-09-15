@@ -40,30 +40,11 @@
 #define SPIF_COUNT_IN_DROP    66
 #define SPIF_COUNT_IN         67
 #define SPIF_MAPPER_KEY       80    // section of 1 register/pipe
-#define SPIF_MAPPER_MASK      96    // section of 4 registers/pipe
-#define SPIF_MAPPER_SHIFT     112   // section of 4 registers/pipe
-#define SPIF_MAPPER_LIMIT     128   // section of 4 registers/pipe
-#define SPIF_FILTER_VALUE     144   // section of 8 registers/pipe
-#define SPIF_FILTER_MASK      176   // section of 8 registers/pipe
-//--------------------------------------------------------------------
-
-
-//--------------------------------------------------------------------
-// spif DMA controller registers
-//--------------------------------------------------------------------
-#define DMACR                 0     // control
-#define DMASR                 1     // status
-#define DMASA                 6     // source 
-#define DMALEN                10    // length
-//--------------------------------------------------------------------
-
-
-//--------------------------------------------------------------------
-// spif DMA controller command / status constants
-//--------------------------------------------------------------------
-#define DMA_RESET             0x04
-#define DMA_RUN               0x01
-#define DMA_IDLE_MSK          0x02
+#define SPIF_MAPPER_MASK      96    // section of SPIF_MPREGS_NUM registers/pipe
+#define SPIF_MAPPER_SHIFT     112   // section of SPIF_MPREGS_NUM registers/pipe
+#define SPIF_MAPPER_LIMIT     128   // section of SPIF_MPREGS_NUM registers/pipe
+#define SPIF_FILTER_VALUE     144   // section of SPIF_FLREGS_NUM registers/pipe
+#define SPIF_FILTER_MASK      176   // section of SPIF_FLREGS_NUM registers/pipe
 //--------------------------------------------------------------------
 
 
