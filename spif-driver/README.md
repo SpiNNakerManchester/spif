@@ -23,13 +23,15 @@ The following node must be added to the device tree:
     spif {
         compatible = "uom,spif";
         memory-region = <&spif_reserved>;
-        dma = <&axi_dma_0 0>;
+        dma0 = <&axi_dma_0 0>;
         apb = <&APB_M_0>;
     };
 };
 ```
 
-The driver expects to find 4 Kb of reserved memory for its use. The reserved memory is platform-dependent. The following device tree nodes have been used:
+The `dma0` resource corresponds to the first event-processing pipe. An additional `dma` resource must be included for every additional pipe.
+
+The driver expects to find 4 KB (per event-processing pipe) of reserved memory for its use. The reserved memory is platform-dependent. The following single-pipe device tree nodes have been used:
 
 - Trenz Electronic TE0715-04-15 board (ZYNQ 7000).
 
@@ -65,7 +67,7 @@ The driver expects to find 4 Kb of reserved memory for its use. The reserved mem
 };
 ```
 
-
+The memory size must be adjusted for the number of event-processing pipes.
 
 
 Installation
