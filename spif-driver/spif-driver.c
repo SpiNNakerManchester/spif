@@ -36,8 +36,13 @@
 #include <linux/of_platform.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
+#include <linux/semaphore.h>
 
 #include <asm/uaccess.h>
+
+
+// uncomment if driver is to use interrupts
+//#define USE_IRQS
 
 
 // match device with these properties
@@ -67,7 +72,10 @@ MODULE_DEVICE_TABLE (of, spif_driver_of_match);
 
 // device file permissions (r/w for user, group and others)
 #define SPIF_DEV_MODE        ((umode_t) (S_IRUGO | S_IWUGO))
-#define SPIF_IRQ_FLAGS_MODE  0x84
+
+// interrupt configuration flags
+//NOTE: must agree with xilinx-dma-controller flags!
+#define SPIF_IRQ_FLAGS_MODE  (IRQF_SHARED | IRQF_TRIGGER_HIGH)
 
 // spif registers
 #define SPIF_STATUS_REG      14
@@ -111,11 +119,12 @@ MODULE_DEVICE_TABLE (of, spif_driver_of_match);
 #define SPIF_DMAC_LEN        10  // length
 
 // DMA controller commands/status
-#define SPIF_DMAC_RESET      0x04
-#define SPIF_DMAC_RUN        0x01
-#define SPIF_DMAC_STOP       0x00
-#define SPIF_DMAC_IDLE       0x02
-#define SPIF_DMAC_IRQ_EN     0x7000
+#define SPIF_DMAC_RESET      0x00000004
+#define SPIF_DMAC_RUN        0x00000001
+#define SPIF_DMAC_STOP       0x00000000
+#define SPIF_DMAC_IDLE       0x00000002
+#define SPIF_DMAC_IRQ_EN     0x00007000
+#define SPIF_DMAC_IRQ_SET    SPIF_DMAC_IRQ_EN
 #define SPIF_DMAC_IRQ_CLR    SPIF_DMAC_IRQ_EN
 // -------------------------------------------------------------------------
 
@@ -128,7 +137,8 @@ struct spif_pipe_data {
          int              dev_open;     // device is open
          void *           dmar_va;      // dma controller registers
          int              dma_irq;      // dma controller interrupt
-         int              dma_busy;     // dma controller busy
+         int              dma_init;     // dma controller at init state
+  struct semaphore        open_sem;     // grab for access to open
   struct spif_drv_data *  drv_data;     // driver data
   struct spif_pipe_data * next;         // linked list of pipes
 };
@@ -158,9 +168,22 @@ static int spif_open (struct inode * ino, struct file * fp)
   struct spif_pipe_data * pipe;
   struct spif_drv_data *  drv;
          int *            dma_regs;
+         int              dma_cmd;
 
   // find pipe data
   pipe = container_of (ino->i_cdev, struct spif_pipe_data, dev_cdev);
+
+  // guarantee exclusive access
+  if (down_interruptible (&pipe->open_sem)) {
+    return -ERESTARTSYS;
+  }
+
+  // allow only one file handle to spif - disallow concurrent accesses
+  if (pipe->dev_open) {
+    // release mutex
+    up (&pipe->open_sem);
+    return -EBUSY;
+  }
 
   // associate character device data with device file
   fp->private_data = pipe;
@@ -168,25 +191,29 @@ static int spif_open (struct inode * ino, struct file * fp)
   // access driver data
   drv = pipe->drv_data;
 
-  // allow only one file handle to spif - disallow concurrent accesses
-  if (pipe->dev_open) {
-    return -EBUSY;
-  }
-
-  // start the DMA controller - enable interrupts
+  // start the DMA controller - maybe enable interrupts
   dma_regs = (int *) pipe->dmar_va;
-//lap  iowrite32 ((SPIF_DMAC_RUN | SPIF_DMAC_IRQ_EN), (void *) &dma_regs[SPIF_DMAC_CR]);
-  iowrite32 (SPIF_DMAC_RUN, (void *) &dma_regs[SPIF_DMAC_CR]);
+  dma_cmd = SPIF_DMAC_RUN;
+
+#ifdef USE_IRQS
+  if (pipe->dma_irq > 0) {
+    dma_cmd |= SPIF_DMAC_IRQ_EN;
+  }
+#endif
+
+  iowrite32 (dma_cmd, (void *) &dma_regs[SPIF_DMAC_CR]);
 
   // write spif buffer physical address to DMA controller
   iowrite32 ((uint) drv->rsvd_pa, (void *) &dma_regs[SPIF_DMAC_SA]);
 
-  // mark the DMA controller as not busy
-  pipe->dma_busy = 0;
+  // mark the DMA controller at init state
+  pipe->dma_init = 1;
 
   // mark the device as in use to avoid concurrent accesses
   pipe->dev_open = 1;
 
+  // release mutex
+  up (&pipe->open_sem);
   return 0;
 }
 
@@ -202,16 +229,20 @@ static int spif_release (struct inode * ino, struct file * fp)
   // access device data
   pipe = (struct spif_pipe_data *) fp->private_data;
 
+  // guarantee exclusive access
+  if (down_interruptible (&pipe->open_sem)) {
+    return -ERESTARTSYS;
+  }
+
   // stop the DMA controller
   dma_regs = (int *) pipe->dmar_va;
   iowrite32 (SPIF_DMAC_STOP, (void *) &dma_regs[SPIF_DMAC_CR]);
 
-  // mark the DMA controller as not busy
-  pipe->dma_busy = 0;
-
   // mark as unsed to allow new accesses
   pipe->dev_open = 0;
 
+  // release mutex
+  up (&pipe->open_sem);
   return 0;
 }
 
@@ -225,6 +256,7 @@ static long spif_ioctl (struct file * fp, unsigned int req , unsigned long arg)
   struct spif_drv_data *  drv;
          int *            apb_regs;
          int *            dma_regs;
+         int              dma_busy;
          int              data;
          int              loc_req;
          int              loc_reg;
@@ -262,21 +294,22 @@ static long spif_ioctl (struct file * fp, unsigned int req , unsigned long arg)
     dma_regs = (int *) pipe->dmar_va;
 
     // check dma status
-    //NOTE: the DMA controller is *not* idle before the first transfer!
-    if (ioread32 ((void *) &dma_regs[SPIF_DMAC_SR]) & SPIF_DMAC_IDLE) {
-      pipe->dma_busy = 0;
-    }
+    //NOTE: the DMA controller *not* reported idle at init state!
+    dma_busy = !pipe->dma_init &&
+      !(ioread32 ((void *) &dma_regs[SPIF_DMAC_SR]) & SPIF_DMAC_IDLE);
 
     // arg is address of return variable
-    __put_user (pipe->dma_busy, (int *) arg);
+    __put_user (dma_busy, (int *) arg);
 
     return 0;
 
   case SPIF_TRANSFER:  // transfer spif buffer content to SpiNNaker
-    // check dma status
-    //NOTE: the DMA controller is *not* idle before the first transfer!
     dma_regs = (int *) pipe->dmar_va;
-    if (pipe->dma_busy && !(ioread32 ((void *) &dma_regs[SPIF_DMAC_SR]) & SPIF_DMAC_IDLE)) {
+
+    // check dma status
+    //NOTE: the DMA controller *not* reported idle at init state!
+    if (!pipe->dma_init &&
+	!(ioread32 ((void *) &dma_regs[SPIF_DMAC_SR]) & SPIF_DMAC_IDLE)) {
       return -EBUSY;
     }
 
@@ -284,8 +317,8 @@ static long spif_ioctl (struct file * fp, unsigned int req , unsigned long arg)
     // write length to DMA controller length regiter to trigger transfer
     iowrite32 ((uint) arg, (void *) &dma_regs[SPIF_DMAC_LEN]);
 
-    // mark DMA controller as busy
-    pipe->dma_busy = 1;
+    // mark DMA controller as *not* in init stae
+    pipe->dma_init = 0;
 
     return 0;
 
@@ -342,21 +375,25 @@ static struct file_operations spif_file_ops = {
 // -------------------------------------------------------------------------
 // DMAC interrupt handler
 // -------------------------------------------------------------------------
-static irqreturn_t spif_irq (int irq, void * p)
+static irqreturn_t spif_irq_handler (int irq, void * p)
 {
   struct spif_pipe_data * pipe; 
          int *            dma_regs;
 
-  // mark DMA controller as not busy
   pipe = (struct spif_pipe_data *) p;
-  pipe->dma_busy = 0;
+  dma_regs = (int *) pipe->dmar_va;
+
+  // check if need to service (shared) interrupt
+  if ((ioread32 ((void *) &dma_regs[SPIF_DMAC_SR]) & SPIF_DMAC_IRQ_SET) == 0) {
+    // interrupt was not from this device
+    return IRQ_NONE;
+  }
 
   // clear interrupt
-  dma_regs = (int *) pipe->dmar_va;
   iowrite32 (SPIF_DMAC_IRQ_CLR, (void *) &dma_regs[SPIF_DMAC_SR]);
 
   return IRQ_HANDLED;
-  }
+}
 // -------------------------------------------------------------------------
 
 
@@ -497,18 +534,20 @@ static int spif_dmac_init (int pipe_num, struct device_node * pn, struct spif_pi
     goto error0;
   }
 
+#ifdef USE_IRQS
   // try to find the assigned interrupt
   //NOTE: returns <= 0 on failure!
   pipe->dma_irq = of_irq_to_resource (dn, 0, &dmai);
   if (pipe->dma_irq > 0) {
     // try to get control of the interrupt
-    rc = request_irq (pipe->dma_irq, &spif_irq, SPIF_IRQ_FLAGS_MODE, SPIF_DRV_NAME, pipe);
+    rc = request_irq (pipe->dma_irq, &spif_irq_handler, SPIF_IRQ_FLAGS_MODE, SPIF_DRV_NAME, pipe);
     if (rc) {
       printk (KERN_WARNING "%s: DMAC %s interrupt request failed\n", SPIF_DRV_NAME, name);
       rc = -EIO;
       goto error0;
     }
   }
+#endif
 
   // try to find the address of the DMA controller registers
   if (of_address_to_resource (dn, 0, &dmar)) {
@@ -529,16 +568,15 @@ static int spif_dmac_init (int pipe_num, struct device_node * pn, struct spif_pi
   dma_regs = (int *) pipe->dmar_va;
   iowrite32 (SPIF_DMAC_RESET, (void *) &dma_regs[SPIF_DMAC_CR]);
 
-  // mark DMA controller as not busy
-  pipe->dma_busy = 0;
-
   return 0;
 
   // deal with initialisation errors here
 error1:
-  if (pipe->dma_irq) {
+#ifdef USE_IRQS
+  if (pipe->dma_irq > 0) {
     free_irq (pipe->dma_irq, pipe);
   }
+#endif
 
 error0:
   return rc;
@@ -667,6 +705,9 @@ static int spif_pipes_init (struct device_node * pn, struct spif_drv_data * drv)
       goto error4;
     }
 
+    // initialise the open mutex
+    sema_init (&pipe->open_sem, 1);
+
     // update pipe list data
     pipe->next = next_pipe;
     next_pipe  = pipe;
@@ -680,9 +721,12 @@ static int spif_pipes_init (struct device_node * pn, struct spif_drv_data * drv)
   // deal with initialisation errors here
 error4:
   memunmap (pipe->dmar_va);
-  if (pipe->dma_irq) {
+
+#ifdef USE_IRQS
+  if (pipe->dma_irq > 0) {
     free_irq (pipe->dma_irq, pipe);
   }
+#endif
 
 error3:
   kfree (pipe);
@@ -694,9 +738,13 @@ error2:
     cdev_del (&pipe->dev_cdev);
     device_destroy (spif_class, pipe->dev_num);
     memunmap (pipe->dmar_va);
-    if (pipe->dma_irq) {
+
+#ifdef USE_IRQS
+    if (pipe->dma_irq > 0) {
       free_irq (pipe->dma_irq, pipe);
     }
+#endif
+
     kfree (pipe);
   }
 
@@ -753,7 +801,7 @@ static int spif_driver_probe (struct platform_device * pdev)
   // create and initialise spif devices, one per event-processing pipe
   rc = spif_pipes_init (pnode, drv);
   if (rc) {
-    printk (KERN_WARNING "%s: spif device initialisation failed\n", SPIF_DRV_NAME);
+    printk (KERN_WARNING "%s: device initialisation failed\n", SPIF_DRV_NAME);
     goto error2;
   }
     
@@ -796,9 +844,13 @@ static int spif_driver_remove (struct platform_device *pdev)
     cdev_del (&pipe->dev_cdev);
     device_destroy (drv->dev_class, pipe->dev_num);
     memunmap (pipe->dmar_va);
-    if (pipe->dma_irq) {
+
+#ifdef USE_IRQS
+    if (pipe->dma_irq > 0) {
       free_irq (pipe->dma_irq, pipe);
     }
+#endif
+
     kfree (pipe);
   }
 
