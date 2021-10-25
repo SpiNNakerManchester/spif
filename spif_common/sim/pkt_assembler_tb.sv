@@ -22,11 +22,12 @@
 //  * everything
 // -------------------------------------------------------------------------
 
+`include "spio_hss_multiplexer_common.h"
+
 
 `timescale 1ps/1ps
 module pkt_assembler_tb ();
 
-  localparam PACKET_BITS  = 72;
   localparam NUM_MREGS    = 4;
 
   localparam TB_CLK_HALF  = (13.333 / 2);  // currently testing @ 75 MHz
@@ -60,7 +61,7 @@ module pkt_assembler_tb ();
   reg                       evt_vld_tb;
   wire                      evt_rdy_tb;
 
-  wire  [PACKET_BITS - 1:0] pkt_data_tb;
+  wire    [`PKT_BITS - 1:0] pkt_data_tb;
   wire                      pkt_vld_tb;
   reg                       pkt_rdy_tb;
 
@@ -70,8 +71,7 @@ module pkt_assembler_tb ();
   //---------------------------------------------------------------
   pkt_assembler
   #(
-      .PACKET_BITS        (PACKET_BITS)
-    , .NUM_MREGS          (NUM_MREGS)
+      .NUM_MREGS          (NUM_MREGS)
     )
   dut (
       .clk                (clk_dut)

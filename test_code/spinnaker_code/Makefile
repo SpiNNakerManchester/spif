@@ -14,4 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 APP ?= count_events
+
+CFLAGS += -I ../include
+
 include $(SPINN_DIRS)/make/app.make

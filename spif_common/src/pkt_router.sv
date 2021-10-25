@@ -10,7 +10,7 @@
 // -------------------------------------------------------------------------
 // DETAILS
 //  Created on       : 21 Oct 2020
-//  Last modified on : Thu 15 Jul 18:56:59 BST 2021
+//  Last modified on : Tue  7 Sep 17:35:31 BST 2021
 //  Last modified by : lap
 // -------------------------------------------------------------------------
 // COPYRIGHT
@@ -23,46 +23,51 @@
 //  * everything
 // -------------------------------------------------------------------------
 
+`include "spio_hss_multiplexer_common.h"
+`include "hssl_reg_bank.h"
+
 
 `timescale 1ps/1ps
 module pkt_router
-#(
-  parameter PACKET_BITS  = 72,
-  parameter NUM_RREGS    = 16,
-  parameter KEY_LSB      = 8,
-  parameter NUM_CHANNELS = 8
-)
 (
-  input  wire                     clk,
-  input  wire                     reset,
+  input  wire                   clk,
+  input  wire                   reset,
 
   // wait value for packet dropping
-  input  wire              [31:0] drop_wait_in,
+  input  wire            [31:0] drop_wait_in,
 
   // routing table components
-  input  wire              [31:0] reg_key_in   [NUM_RREGS - 1:0],
-  input  wire              [31:0] reg_mask_in  [NUM_RREGS - 1:0],
-  input  wire               [2:0] reg_route_in [NUM_RREGS - 1:0],
+  input  wire            [31:0] reg_key_in   [`NUM_RTREGS - 1:0],
+  input  wire            [31:0] reg_mask_in  [`NUM_RTREGS - 1:0],
+  input  wire             [2:0] reg_route_in [`NUM_RTREGS - 1:0],
 
   // incoming packet
-  input  wire [PACKET_BITS - 1:0] pkt_in_data_in,
-  input  wire                     pkt_in_vld_in,
-  output reg                      pkt_in_rdy_out,
+  input  wire [`PKT_BITS - 1:0] pkt_in_data_in,
+  input  wire                   pkt_in_vld_in,
+  output reg                    pkt_in_rdy_out,
 
   // outgoing packet channels
-  output reg  [PACKET_BITS - 1:0] pkt_out_data_out [NUM_CHANNELS - 1:0],
-  output reg                      pkt_out_vld_out  [NUM_CHANNELS - 1:0],
-  input  wire                     pkt_out_rdy_in   [NUM_CHANNELS - 1:0],
+  output reg  [`PKT_BITS - 1:0] pkt_out_data_out [`NUM_CHANS - 1:0],
+  output reg                    pkt_out_vld_out  [`NUM_CHANS - 1:0],
+  input  wire                   pkt_out_rdy_in   [`NUM_CHANS - 1:0],
 
   // packet counter
-  output wire               [1:0] rt_cnt_out
+  output wire             [1:0] rt_cnt_out
 );
+
+
+  // use local parameters for consistent definitions
+  localparam PACKET_BITS  = `PKT_BITS;
+  localparam NUM_CHANNELS = `NUM_CHANS;
+
+  localparam NUM_RTREGS   = `NUM_RTREGS;
+
 
   //---------------------------------------------------------------
   // internal signals
   //---------------------------------------------------------------
   wire               [31:0] packet_key;
-  wire    [NUM_RREGS - 1:0] hit;
+  wire   [NUM_RTREGS - 1:0] hit;
   wire                      routing;
   reg                 [2:0] route;
   wire                      dropped;
@@ -75,12 +80,12 @@ module pkt_router
   // routing stage
   //---------------------------------------------------------------
   // route input packet
-  assign packet_key = pkt_in_data_in[KEY_LSB +: 32];
+  assign packet_key = pkt_in_data_in[`PKT_KEY_RNG];
 
   // ternary CAM-like routing table
   genvar te;
   generate
-    for (te = 0; te < NUM_RREGS; te = te + 1)
+    for (te = 0; te < NUM_RTREGS; te = te + 1)
       begin : routing_table
         //NOTE: bit-wise and - it is a mask!
         assign hit[te] = ((packet_key & reg_mask_in[te]) == reg_key_in[te]);

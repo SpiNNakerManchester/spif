@@ -1,6 +1,6 @@
 // SpiNNaker API
 #include "spin1_api.h"
-#include "spif_config.h"
+#include "spif_local.h"
 
 
 // ------------------------------------------------------------------------
@@ -25,9 +25,9 @@
 // packet dropping parameters
 #define PKT_DROP_WAIT      512
 
-// spif counters
-#define SPIF_SNT_CNT       1
-#define SPIF_DRP_CNT       2
+// keep track of spif counters read
+#define SENT_CTR           1
+#define DROP_CTR           2
 
 
 // ------------------------------------------------------------------------
@@ -38,9 +38,10 @@
 
 
 //NOTE: this packet key checks lower 3 bits of the event x coordinate
+// and 1 bit of the event-processing pipe
 #define XCOORD_POS         16
 #define PKT_KEY(p)         (MPR_KEY | ((p - 1) << XCOORD_POS))
-#define PKT_MSK            (0xff000000 | (0x07 << XCOORD_POS))
+#define PKT_MSK            (0xff000000 | (0x0f << XCOORD_POS))
 
 
 // ------------------------------------------------------------------------
@@ -73,18 +74,31 @@ void start_spif (uint a, uint b)
     spif_set_routing_route (i, i);
   }
 
-  // configure peripheral input mapper
-  spif_set_mapper_key (MPR_KEY);
+  // configure peripheral input mapper0
+  spif_set_mapper_key (0, MPR_KEY);
 
-  spif_set_mapper_field_mask (0, MPF_MASK_0);
-  spif_set_mapper_field_mask (1, MPF_MASK_1);
-  spif_set_mapper_field_mask (2, MPF_MASK_2);
-  spif_set_mapper_field_mask (3, MPF_MASK_3);
+  spif_set_mapper_field_mask (0, 0, MPF_MASK_0);
+  spif_set_mapper_field_mask (0, 1, MPF_MASK_1);
+  spif_set_mapper_field_mask (0, 2, MPF_MASK_2);
+  spif_set_mapper_field_mask (0, 3, MPF_MASK_3);
 
-  spif_set_mapper_field_shift (0, MPF_SHIFT_0);
-  spif_set_mapper_field_shift (1, MPF_SHIFT_1);
-  spif_set_mapper_field_shift (2, MPF_SHIFT_2);
-  spif_set_mapper_field_shift (3, MPF_SHIFT_3);
+  spif_set_mapper_field_shift (0, 0, MPF_SHIFT_0);
+  spif_set_mapper_field_shift (0, 1, MPF_SHIFT_1);
+  spif_set_mapper_field_shift (0, 2, MPF_SHIFT_2);
+  spif_set_mapper_field_shift (0, 3, MPF_SHIFT_3);
+
+  // configure peripheral input mapper1
+  spif_set_mapper_key (1, MPR_KEY);
+
+  spif_set_mapper_field_mask (1, 0, MPF_MASK_0);
+  spif_set_mapper_field_mask (1, 1, MPF_MASK_1);
+  spif_set_mapper_field_mask (1, 2, MPF_MASK_2);
+  spif_set_mapper_field_mask (1, 3, MPF_MASK_3);
+
+  spif_set_mapper_field_shift (1, 0, MPF_SHIFT_0);
+  spif_set_mapper_field_shift (1, 1, MPF_SHIFT_1);
+  spif_set_mapper_field_shift (1, 2, MPF_SHIFT_2);
+  spif_set_mapper_field_shift (1, 3, MPF_SHIFT_3);
 
   // ajust peripheral input wait-before-drop value
   spif_set_input_drop_wait (PKT_DROP_WAIT);
@@ -143,17 +157,17 @@ void rcv_replies (uint key, uint payload)
 {
   // check key for counter ID
   if ((key & RPLY_MSK) == RPLY_KEY) {
-    if ((key & ~RPLY_MSK) == RWR_CIP_CMD) {
+    if ((key & ~RPLY_MSK) == SPIF_COUNT_IN) {
       spif_cnt_pkts = payload;
       sark.vcpu->user2 = payload;
-      spif_cnt |= SPIF_SNT_CNT;
+      spif_cnt |= SENT_CTR;
       return;
     }
 
-    if ((key & ~RPLY_MSK) == RWR_CDP_CMD) {
+    if ((key & ~RPLY_MSK) == SPIF_COUNT_IN_DROP) {
       spif_cnt_drop = payload;
       sark.vcpu->user3 = payload;
-      spif_cnt |= SPIF_DRP_CNT;
+      spif_cnt |= DROP_CTR;
       return;
     }
   }
@@ -189,8 +203,8 @@ void test_control (uint ticks, uint null)
       spin1_callback_on (MCPL_PACKET_RECEIVED, rcv_replies, 0);
 
       // send counter read requests
-      spif_read_counter (RWR_CIP_CMD);
-      spif_read_counter (RWR_CDP_CMD);
+      spif_read_counter (SPIF_COUNT_IN);
+      spif_read_counter (SPIF_COUNT_IN_DROP);
     }
 
     // stop peripheral input
@@ -231,20 +245,20 @@ void c_main()
     spin1_callback_on (MCPL_PACKET_RECEIVED, count_packets, 0);
 
     // go
-    spin1_start (SYNC_NOWAIT);
+    spin1_start (SYNC_WAIT);
 
     // report results
     sark.vcpu->user1 = rec_pkts;
     io_printf (IO_BUF, "received %u packets\n", rec_pkts);
 
     if (lead_0_0) {
-      if (spif_cnt & SPIF_SNT_CNT) {
+      if (spif_cnt & SENT_CTR) {
         io_printf (IO_BUF, "spif reports %d packets sent\n", spif_cnt_pkts);
       } else {
         io_printf (IO_BUF, "spif sent packet read failed\n", spif_cnt_pkts);
       }
 
-      if (spif_cnt & SPIF_DRP_CNT) {
+      if (spif_cnt & DROP_CTR) {
         io_printf (IO_BUF, "spif reports %d packets dropped\n", spif_cnt_drop);
       } else {
         io_printf (IO_BUF, "spif dropped packet read failed\n", spif_cnt_pkts);

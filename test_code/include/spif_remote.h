@@ -1,13 +1,16 @@
 //************************************************//
 //*                                              *//
 //* functions to interact with the spif          *//
+//* through the spif kernel driver               *//
 //*                                              *//
 //* lap - 03/08/2021                             *//
 //*                                              *//
 //************************************************//
 
-#ifndef __SPIF_IF_H__
-#define __SPIF_IF_H__
+#ifndef __SPIF_DRV_H__
+#define __SPIF_DRV_H__
+
+#include <stdlib.h>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -17,35 +20,7 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 
-
-//--------------------------------------------------------------------
-// spif support constants and functions
-//--------------------------------------------------------------------
-#define SPIF_BUF_MAX_SIZE 4096
-
-#define SPIF_MAPPER_NUM   4
-#define SPIF_ROUTER_NUM   16
-#define SPIF_COUNT_NUM    4
-
-#define SPIF_BUSY         1
-
-// ---------------------------------
-// spif registers
-// ---------------------------------
-#define SPIF_MAPPER_KEY    1
-#define SPIF_REPLY_KEY     2
-#define SPIF_IN_DROP_WAIT  3
-#define SPIF_OUT_DROP_WAIT 4
-#define SPIF_ROUTER_KEY    16
-#define SPIF_ROUTER_MASK   32
-#define SPIF_ROUTER_ROUTE  48
-#define SPIF_COUNT_OUT     64
-#define SPIF_COUNT_CONFIG  65
-#define SPIF_COUNT_IN_DROP 66
-#define SPIF_COUNT_IN      67
-#define SPIF_MAPPER_MASK   80
-#define SPIF_MAPPER_SHIFT  96
-// ---------------------------------
+#include "spif.h"
 
 
 // ---------------------------------
@@ -77,27 +52,25 @@
 
 
 // ---------------------------------
-// spif file descriptor associated with /dev/spif
+// spif file descriptor associated with spif device
 static int spif_fd;
 static int dummy;    // convenient place holder
 // ---------------------------------
 
 
 //--------------------------------------------------------------------
-// set up access to spif through /dev/spif
+// opens requested spif device for access
 //
 // returns -1 if error
 //--------------------------------------------------------------------
-void * spif_setup (int buffer_size)
+int spif_open (uint pipe)
 {
-  // check requested buffer size
-  if (buffer_size > SPIF_BUF_MAX_SIZE) {
-    printf ("spif error: buffer size exceeds maximum\n");
-    return (NULL);
-  }
+  // create device name from pipe
+  char fname[11];
+  (void) sprintf (fname, "/dev/spif%u", pipe);
 
   // open spif device
-  spif_fd = open ("/dev/spif", O_RDWR | O_SYNC);
+  spif_fd = open (fname, O_RDWR | O_SYNC);
   if (spif_fd == -1) {
     switch (errno) {
     case ENOENT:
@@ -112,12 +85,33 @@ void * spif_setup (int buffer_size)
     default:
       printf ("spif error: [%s]\n", strerror (errno));
     }
+  }
+
+  return spif_fd;
+}
+
+
+//--------------------------------------------------------------------
+// set up access to spif through requested pipe device
+//
+// returns NULL if error
+//--------------------------------------------------------------------
+void * spif_setup (uint pipe, int buf_size)
+{
+  // check requested buffer size
+  if (buf_size > SPIF_BUF_MAX_SIZE) {
+    printf ("spif error: buffer size exceeds maximum\n");
+    return (NULL);
+  }
+
+  // open spif device
+  if (spif_open (pipe) == -1) {
     return (NULL);
   }
 
   // map spif memory into user-space buffer 
   void * buffer = mmap (
-    NULL, buffer_size, PROT_READ | PROT_WRITE, MAP_SHARED,
+    NULL, SPIF_BUF_MAX_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
     spif_fd, 0
     );
 
@@ -220,4 +214,4 @@ int spif_req (unsigned int req, int * val)
 }
 
 
-#endif /* __SPIF_IF_H__ */
+#endif /* __SPIF_DRV_H__ */

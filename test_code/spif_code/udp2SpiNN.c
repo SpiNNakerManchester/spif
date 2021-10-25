@@ -17,8 +17,9 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #include <sys/un.h>
+#include <libgen.h>
 
-#include "spif.h"
+#include "spif_remote.h"
 
 
 #define NSEC_PER_SEC      1000000000
@@ -66,18 +67,12 @@ int udp_srv_setup (int eth_port) {
 
 //--------------------------------------------------------------------
 // get the next batch of data from Ethernet
-//NOTE: may need the client address to identify peripheral device
 //
 // returns 0 if no data available
 //--------------------------------------------------------------------
 int udp_get_data_batch (uint * buf, size_t batch_size) {
 
-  struct sockaddr_in cli_addr;
-
-  socklen_t addr_len = sizeof (struct sockaddr);
-
-  return (recvfrom (srv_sckt, (void *) buf, batch_size, 0,
-                    (struct sockaddr *) &cli_addr, &addr_len));
+  return (recv (srv_sckt, (void *) buf, batch_size, 0));
 }
 
 
@@ -89,25 +84,29 @@ int udp_get_data_batch (uint * buf, size_t batch_size) {
 int main (int argc, char * argv[])
 {
   // check that required arguments were provided
-  if (argc < 3) {
-    printf ("usage: %s <udp_port> <num_data_items_to_receive/0 = unlimited>\n", argv[0]);
+  char * cname = basename (argv[0]);
+  if (argc < 4) {
+    printf ("usage: %s <event_pipe> <udp_port> <num_data_items_to_receive/0 = unlimited>\n",
+	    cname);
     exit (-1);
   }
 
   // required arguments
-  int udp_port = atoi (argv[1]);
-  ulong expected_items = atoi (argv[2]);
+  uint  pipe           = atoi (argv[1]);
+  int   udp_port       = atoi (argv[2]);
+  ulong expected_items = atoi (argv[3]);
 
   // setup Ethernet UDP server to receive data
   if (udp_srv_setup (udp_port) == -1) {
-    printf ("error: failed to setup UDP server\n");
+    printf ("%s: failed to setup UDP server\n", cname);
     exit (-1);
   }
 
   // get pointer to spif buffer
   size_t const batch_size = DATA_BATCH_SIZE * sizeof (uint);
-  uint * spif_buffer = (uint *) spif_setup (batch_size);
+  uint * spif_buffer = (uint *) spif_setup (pipe, batch_size);
   if (spif_buffer == NULL) {
+    printf ("%s: unable to access spif\n", cname);
     exit (-1);
   }
 
@@ -140,7 +139,7 @@ int main (int argc, char * argv[])
     }
 
     // trigger a transfer to SpiNNaker
-    //NOTE: length of data batch (in bytes!)
+    //NOTE: length of transfer in bytes!
     spif_transfer (rcv_bytes);
 
     // stats: total data items received
@@ -152,7 +151,7 @@ int main (int argc, char * argv[])
     while (spif_busy ()) {
       wc++;
       if (wc < 0) {
-        printf ("error: wait cycles exceeded limit\n");
+        printf ("%s: wait cycles exceeded limit\n", cname);
         exit (-1);
       }
     }

@@ -25,7 +25,8 @@
 
 
 `timescale 1ps/1ps
-module hssl_vio (
+module hssl_vio
+(
   input  wire        clk,
 
   input  wire  [1:0] probe_in0,

@@ -20,7 +20,10 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <string.h>
+#include <libgen.h>
 
+
+#define NPIPES            2
 
 #define NSEC_PER_SEC      1000000000
 
@@ -30,6 +33,8 @@
 
 #define EVT_NO_TS         0x80000000
 #define EVT_X_POS         16
+#define EVT_X_BITS        3
+#define EVT_PIPE_POS      (EVT_X_POS + EVT_X_BITS)
 
 #define NCHIPS            8
 #define NCORES            8
@@ -74,6 +79,28 @@ int setup_eth_udp_cli (char * eth_serv, int eth_port) {
 //--------------------------------------------------------------------
 int main (int argc, char * argv[])
 {
+  char * cname = basename (argv[0]);
+
+  // check that required arguments were provided
+  if (argc < 6) {
+    printf ("usage: %s <pipe> <server> <port> <num_data_items_to_send> <throttle>\n",
+	    cname);
+    exit (-1);
+  }
+
+  // required arguments
+  uint   pipe          = atoi (argv[1]);
+  char * server        = argv[2];
+  uint   port          = atoi (argv[3]);
+  uint   items_to_send = atoi (argv[4]);
+  uint   throttle      = atoi (argv[5]);
+
+  // check argument values
+  if (pipe >= NPIPES) {
+    printf ("%s: pipe %u does not exist\n", cname, pipe);
+    exit (-1);
+  }
+
   int addr_len = sizeof (struct sockaddr);
 
   // event-related variables
@@ -83,25 +110,14 @@ int main (int argc, char * argv[])
   struct timespec proc_first;
   struct timespec proc_cur;
 
-  // check that required arguments were provided
-  if (argc < 5) {
-    printf ("usage: %s <server> <port> <num_data_items_to_send> <throttle>\n", argv[0]);
-    exit (-1);
-  }
-
   // setup Ethernet UDP client to send raw event data
-  if (setup_eth_udp_cli (argv[1], atoi (argv[2])) == -1) {
-    printf("error: unable to connect to server\n");
+  if (setup_eth_udp_cli (server, port) == -1) {
+    printf("%s: unable to connect to server\n", cname);
     exit (-1);
   }
 
-  // total number of data items to send
-  uint items_to_send = atoi (argv[3]);
-  
-  // throttle factor
-  uint throttle = atoi (argv[4]);
-  
-  printf ("sending %u data items (throttle: %u) to %s:%s\n", items_to_send, throttle, argv[1], argv[2]);
+  printf ("sending %u data items (throttle: %u) to %s:%u pipe %u\n",
+	  items_to_send, throttle, server, port, pipe);
 
   // fill the event data buffer
   uint item = 0;
@@ -109,7 +125,8 @@ int main (int argc, char * argv[])
     for (uint x = 0; x < NCORES; x++) {
       for (uint y = 0; y < NCHIPS; y++) {
 	// No timestamps
-        evt_data[item] = EVT_NO_TS | (x << EVT_X_POS) | y;
+        evt_data[item] = EVT_NO_TS | (pipe << EVT_PIPE_POS) |
+	  (x << EVT_X_POS) | y;
 
 	item++;
 	if (item >= EVT_BATCH_SIZE) {

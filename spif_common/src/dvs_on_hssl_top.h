@@ -24,16 +24,30 @@
 `define DVS_ON_HSSL_TOP_H
 
 //---------------------------------------------------------------
+// implementation parameters
+//---------------------------------------------------------------
+`define HW_VER_BITS    24
+`define HW_PIPE_BITS   4
+`define HW_FPGA_BITS   2
+//---------------------------------------------------------------
+
+//---------------------------------------------------------------
 // hardware version
 // semantic versioning [MM = major, mm = minor, pp = patch]
 //---------------------------------------------------------------
 `define SPIF_VER_STR      "0.0.1"
-`define SPIF_VER_NUM      24'h000001  // 32'hMMmmpp
+`define SPIF_VER_NUM      `HW_VER_BITS'h000001  // 24'hMMmmpp
 
 //---------------------------------------------------------------
 // number of parallel event-processing pipelines
+//NOTE: define or undef pipes appropriately
+//NOTE: PIPE0 should be defined always!
 //---------------------------------------------------------------
-`define SPIF_NUM_PIPES    1
+`define SPIF_NUM_PIPES    `HW_PIPE_BITS'd2
+`define PIPE1
+`undef  PIPE2
+`undef  PIPE3
+//---------------------------------------------------------------
 
 //---------------------------------------------------------------
 // FPGA selection
@@ -46,10 +60,10 @@
 //---------------------------------------------------------------
 // supported FPGAs
 //---------------------------------------------------------------
-`define FPGA_XC7Z015  1    // Zynq7 on TE0715 board
-`define FPGA_XCZU9EG  2    // Zynq Ultrascale+ on zcu102 board
+`define FPGA_XC7Z015        `HW_FPGA_BITS'd1    // Zynq7 on TE0715 board
+`define FPGA_XCZU9EG        `HW_FPGA_BITS'd2    // Zynq Ultrascale+ on zcu102 board
 
-`define FPGA_UNKNOWN  0    // unsupported FPGA
+`define FPGA_UNKNOWN        `HW_FPGA_BITS'd0    // unsupported FPGA
 //---------------------------------------------------------------
 
 //---------------------------------------------------------------
@@ -57,15 +71,19 @@
 //---------------------------------------------------------------
 `ifdef TARGET_XC7Z015
   // Zynq7 on TE0715 board
-  `define FPGA_MODEL    `FPGA_XC7Z015
-  `define MGTCLK_PERIOD 6667
+  `define FPGA_MODEL        `FPGA_XC7Z015
+  `define MGTCLK_PERIOD     6667
+  `define APB_ADR_BITS      32
 `elsif TARGET_XCZU9EG
   // Zynq Ultrascale+ on zcu102 board
-  `define FPGA_MODEL    `FPGA_XCZU9EG
-  `define MGTCLK_PERIOD 6734
+  `define FPGA_MODEL        `FPGA_XCZU9EG
+  `define MGTCLK_PERIOD     6734
+  `define APB_ADR_BITS      40
 `else
   // unsupported FPGA
-  `define FPGA_MODEL    `FPGA_UNKNOWN
+  `define FPGA_MODEL        `FPGA_UNKNOWN
+  `define MGTCLK_PERIOD     0
+  `define APB_ADR_BITS      0
 `endif
 //---------------------------------------------------------------
 

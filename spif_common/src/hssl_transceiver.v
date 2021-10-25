@@ -72,19 +72,12 @@ module hssl_transceiver
   output wire   [3:0] rx_charisk_out,
   output wire   [3:0] rx_disperr_out,
   output wire   [3:0] rx_encerr_out,
-  output wire         rx_bufstatus_out,
+  output wire   [2:0] rx_bufstatus_out,
 
   // GT control and status
   input  wire   [2:0] loopback_in,
   input  wire         handshake_complete_in
 );
-
-  //---------------------------------------------------------------
-  // internal signals
-  //---------------------------------------------------------------
-  genvar i;
-  //---------------------------------------------------------------
-
 
   //---------------------------------------------------------------
   // may need to reset transceiver if the handshake is not completed
@@ -150,6 +143,13 @@ module hssl_transceiver
 
 
           //---------------------------------------------------------------
+          // unused signals
+          //---------------------------------------------------------------
+          assign rx_bufstatus_out = 3'b000;
+          //---------------------------------------------------------------
+
+
+          //---------------------------------------------------------------
           // GTP transceiver + support modules
           //---------------------------------------------------------------
           gtp_x0y0_3Gbs gtp_x0y0_3Gbs_inst (
@@ -168,8 +168,8 @@ module hssl_transceiver
  
             , .gt0_txusrclk_out               (tx_usrclk_out)
             , .gt0_txusrclk2_out              (tx_usrclk2_out)
-            , .gt0_rxusrclk_out               ()
-            , .gt0_rxusrclk2_out              ()
+            , .gt0_rxusrclk_out               (rx_usrclk_out)
+            , .gt0_rxusrclk2_out              (rx_usrclk2_out)
 
             , .gt0_loopback_in                (loopback_in)
 
@@ -281,8 +281,8 @@ module hssl_transceiver
           wire       gth_userclk_rx_reset_int;
 
           // reset clock modules until clock source is stable
-          assign gth_userclk_tx_reset_int  = ~(&gth_txpmaresetdone_int);
-          assign gth_userclk_rx_reset_int  = ~(&gth_rxpmaresetdone_int);
+          assign gth_userclk_tx_reset_int = ~(&gth_txpmaresetdone_int);
+          assign gth_userclk_rx_reset_int = ~(&gth_rxpmaresetdone_int);
 
           // may need to reset transceiver if handshake not completed
           wire       gth_tx_reset_datapath_int;
@@ -386,11 +386,6 @@ module hssl_transceiver
               , .rxctrl3_out                             (gth_rxctrl3_int)
             );
           //---------------------------------------------------------------
-        end
-
-      default:
-        begin
-          $fatal(1, "unsupported FPGA - aborting");
         end
     endcase
   endgenerate

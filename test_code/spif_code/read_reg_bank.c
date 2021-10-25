@@ -13,11 +13,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <libgen.h>
 
-#include "spif.h"
+#include "spif_remote.h"
 
 
-#define SPIF_SIZE_DEF   0x1000
+#define BUF_SIZE_DEF   0x1000
 
 
 //--------------------------------------------------------------------
@@ -27,17 +28,21 @@
 //--------------------------------------------------------------------
 int main (int argc, char* argv[])
 {
+  char * cname = basename (argv[0]);
   // check that enough arguments are present
   if (argc < 2) {
-    printf ("usage: %s <register_offset>\n", argv[0]);
+    printf ("usage: %s <register_offset>\n", cname);
     exit (-1);
   }
 
+  // required arguments
   uint reg_addr = atoi (argv[1]);
 
   // setup access to spif
   //NOTE: size is not important as spif buffer will not be used
-  if (spif_setup (SPIF_SIZE_DEF) == NULL) {
+  //NOTE: pipe is not important as it will not be used
+  if (spif_setup (0, BUF_SIZE_DEF) == NULL) {
+    printf ("%s: unable to access spif\n", cname);
     exit (-1);
   }
 

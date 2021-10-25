@@ -1,7 +1,7 @@
 // -------------------------------------------------------------------------
 //  pkt_assembler
 //
-//  assembles SpiNNaker multicast packets from incoming keys
+//  assembles SpiNNaker multicast packets from incoming events
 //
 // -------------------------------------------------------------------------
 // AUTHOR
@@ -9,11 +9,11 @@
 // -------------------------------------------------------------------------
 // DETAILS
 //  Created on       : 21 Oct 2020
-//  Last modified on : Mon  9 Nov 08:54:58 GMT 2020
+//  Last modified on : Tue  7 Sep 17:35:31 BST 2021
 //  Last modified by : lap
 // -------------------------------------------------------------------------
 // COPYRIGHT
-//  Copyright (c) The University of Manchester, 2020.
+//  Copyright (c) The University of Manchester, 2020-2021.
 //  SpiNNaker Project
 //  Advanced Processor Technologies Group
 //  School of Computer Science
@@ -22,21 +22,25 @@
 //  * everything
 // -------------------------------------------------------------------------
 
+`include "spio_hss_multiplexer_common.h"
+`include "hssl_reg_bank.h"
+
 
 `timescale 1ps/1ps
 module pkt_assembler
-#(
-  parameter PACKET_BITS = 72,
-  parameter NUM_MREGS   = 4
-)
 (
   input  wire                     clk,
   input  wire                     reset,
 
+  // event filter configuration
+  input  wire              [31:0] fl_val_in [`NUM_FLREGS_PIPE - 1:0],
+  input  wire              [31:0] fl_msk_in [`NUM_FLREGS_PIPE - 1:0],
+
   // event mapper configuration
   input  wire              [31:0] mp_key_in,
-  input  wire              [31:0] field_msk_in [NUM_MREGS - 1:0],
-  input  wire               [5:0] field_sft_in [NUM_MREGS - 1:0],
+  input  wire              [31:0] mp_fld_msk_in [`NUM_MPREGS_PIPE - 1:0],
+  input  wire [`MPSFT_BITS - 1:0] mp_fld_sft_in [`NUM_MPREGS_PIPE - 1:0],
+  input  wire              [31:0] mp_fld_lmt_in [`NUM_MPREGS_PIPE - 1:0],
 
   // event inputs
   input  wire              [31:0] evt_data_in,
@@ -44,55 +48,74 @@ module pkt_assembler
   output reg                      evt_rdy_out,
 
   // packet outputs
-  output reg  [PACKET_BITS - 1:0] pkt_data_out,
+  output reg    [`PKT_BITS - 1:0] pkt_data_out,
   output reg                      pkt_vld_out,
   input  wire                     pkt_rdy_in
 );
 
-  genvar i;
+  
+  // use local parameters for consistent definitions
+  localparam NUM_MPR = `NUM_MPREGS_PIPE;
+  localparam NUM_FLR = `NUM_FLREGS_PIPE;
+  
 
   //---------------------------------------------------------------
   // internal signals
   //---------------------------------------------------------------
+  // filter out / drop event
+  wire [NUM_FLR - 1:0] evt_filter_int;
+  wire [NUM_MPR - 1:0] evt_drop_int;
+  
   // mapped event data - to be used as packet key
   wire [31:0] mapped_data_int;
 
   // interface status
-  wire  evt_present_int = evt_vld_in && evt_rdy_out;
-  wire  pkt_busy_int = pkt_vld_out && !pkt_rdy_in;
+  wire evt_present_int = evt_vld_in && !evt_drop_int && !evt_filter_int && evt_rdy_out;
+  wire pkt_busy_int = pkt_vld_out && !pkt_rdy_in;
 
   // input event interface
   reg         parked_int;
   reg  [31:0] parked_data_int;
 
   // map input event data to output packet key
-  wire [31:0] evt_field_int [NUM_MREGS - 1:0];
-  wire [31:0] field_acc_int [NUM_MREGS - 1:0];
+  wire [31:0] evt_field_int [NUM_MPR - 1:0];
+  wire [31:0] field_acc_int [NUM_MPR - 1:0];
+
+  // check if event must be filtered out
+  genvar i;
+  generate
+    for (i = 0; i < NUM_FLR; i = i + 1)
+      assign evt_filter_int[i] = (fl_val_in[i] == (evt_data_in & fl_msk_in[i]));
+  endgenerate
 
   // extract, shift and OR together event fields
+  // and check that field are within their limits
   //NOTE: could use an OR tree instead!
   generate
     begin
-      for (i = 0; i < NUM_MREGS; i = i + 1)
+      for (i = 0; i < NUM_MPR; i = i + 1)
         begin
           // compute shift register 2's complement
-          wire [4:0] left_shift = ~field_sft_in[i][4:0] + 1;
+          wire [4:0] left_shift = ~mp_fld_sft_in[i][4:0] + 1;
 
           // use 2's complement if left shift (negative shift value)
-          assign evt_field_int[i] = field_sft_in[i][5] ?
-            (evt_data_in & field_msk_in[i]) << left_shift :
-            (evt_data_in & field_msk_in[i]) >> field_sft_in[i][4:0];
+          assign evt_field_int[i] = mp_fld_sft_in[i][5] ?
+            (evt_data_in & mp_fld_msk_in[i]) << left_shift :
+            (evt_data_in & mp_fld_msk_in[i]) >> mp_fld_sft_in[i][4:0];
+
+          // check event limit
+          assign evt_drop_int[i] = evt_field_int[i] > mp_fld_lmt_in[i];
         end
 
       //NOTE: field accumulator 0 is a special case - see below
-      for (i = 1; i < NUM_MREGS; i = i + 1)
+      for (i = 1; i < NUM_MPR; i = i + 1)
         assign field_acc_int[i] = field_acc_int[i - 1] | evt_field_int[i];
     end
   endgenerate
 
   // use the mapper routing key as the mapping base
   assign field_acc_int[0] = mp_key_in | evt_field_int[0];
-  assign mapped_data_int  = field_acc_int[NUM_MREGS - 1];
+  assign mapped_data_int  = field_acc_int[NUM_MPR - 1];
 
   // park mapped data when output is busy
   always @ (posedge clk or posedge reset)

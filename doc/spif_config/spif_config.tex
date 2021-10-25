@@ -18,8 +18,8 @@
 % --------------------------------------------------------------------------
 % define useful variables
 % --------------------------------------------------------------------------
-\def\myversion{Version 0.0.1}
-\def\mydate{03 July 2021}
+\def\myversion{Version 0.0.3}
+\def\mydate{07 September 2021}
 
 \def\bcw{5mm}
 \def\ncw{45mm}
@@ -104,15 +104,17 @@
 
 \begin{table}[!ht]
 	\begin{center}
-		\begin{tabularx}{\textwidth}{| p{27mm} p{24mm} p{22mm} p{18mm} X |}
+		\small {
+		\begin{tabularx}{\textwidth}{| p{31mm} p{24mm} p{22mm} p{18mm} X |}
 			\hline
 			\textbf{configuration} & \textbf{routing key} & \textbf{default key} & \textbf{payload} & \textbf{comment}                              \\%
 			\hline
 			\hline
+			\textbf{spiNNlink (local)}  & lc\_key + offset     & \ttfamily{0xfffffe00} & write data      & register offsets in Table~\ref{tab:spin_regs} \\%
 			\textbf{spif (remote)} & rc\_key + offset     & \ttfamily{0xffffff00} & r/w data      & register offsets in Table~\ref{tab:spif_regs} \\%
-			\textbf{FPGA (local)}  & lc\_key + offset     & \ttfamily{0xfffffe00} & write data      & register offsets in Table~\ref{tab:spin_regs} \\%
 			\hline
 		\end{tabularx}
+	    }
 		\caption{Configuration register access via multicast packets}
 	\end{center}
 	\label{tab:reg_prm}
@@ -126,9 +128,9 @@
 			\textbf{routing entry function}  & \textbf{key}          & \textbf{mask}         & \textbf{route}                       \\%
 			\hline
 			\hline
+			\textbf{local writes}            & \ttfamily{0xfffffe00} & \ttfamily{0xffffff00} & \ttfamily{32 (0x20)} - SOUTH link    \\%
 			\textbf{remote reads/writes}     & \ttfamily{0xffffff00} & \ttfamily{0xffffff00} & \ttfamily{32 (0x20)} - SOUTH link    \\%
 			\textbf{remote read replies}     & \ttfamily{0xfffffd00} & \ttfamily{0xffffff00} & \ttfamily{(route to receiving core)} \\%
-			\textbf{local writes}            & \ttfamily{0xfffffe00} & \ttfamily{0xffffff00} & \ttfamily{32 (0x20)} - SOUTH link    \\%
 			\hline
 		\end{tabularx}
 		\caption{SpiNNaker router setup required on chip (0, 0)}
@@ -137,9 +139,77 @@
 \end{table}
 
 
+\clearpage
+\subsection{spiNNlink (Local) Configuration}
+
+
+\subsubsection*{Register Summary}
+
+
+\begin{center}
+	\begin{table}[!h]
+		\rowcolors {1}{}{ \tblc }
+		%		\renewcommand{\arraystretch}{1.2}
+		\begin{tabularx}{\textwidth}{| p{30mm} p{13mm} p{21mm} p{7mm} X |}
+			\hline
+			\textbf{name}                        & \textbf{offset}           & \textbf{offset} (hex)           & \textbf{r/w}        & \textbf{function} \\%
+			\hline
+			\hline
+			\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}00     & \cellcolor{gray!25}(0x00)       & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+			\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}01     & \cellcolor{gray!25}(0x01)       & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+			\textbf{p\_key}                      & 02                        & (0x02)                          & w                   & route packets to peripheral device             \\%
+			\textbf{p\_mask}                     & 03                        & (0x03)                          & w                   & route packets to peripheral device             \\%
+			\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}04-11  & \cellcolor{gray!25} (0x04-0x0b) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+			\textbf{lc\_key}                     & 12                        & (0x0c)                          & w                   & \small{route packets to spiNNlink configuration} \\%
+			\textbf{lc\_mask}                    & 13                        & (0x0d)                          & w                   & \small{route packets to spiNNlink configuration} \\%
+			\textbf{rc\_key}                     & 14                        & (0x0e)                          & w                   & route packets to spif configuration   \\%
+			\textbf{rc\_mask}                    & 15                        & (0x0f)                          & w                   & route packets to spif configuration   \\%
+			\textbf{stop}                        & 16                        & (0x10)                          & w                   & stop peripheral input packets         \\%
+			\textbf{start}                       & 17                        & (0x11)                          & w                   & allow peripheral input packets         \\%
+			\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}18-127 & \cellcolor{gray!25} (0x12-0x7f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+			\hline
+		\end{tabularx}
+		\caption{spiNNlink configuration registers}
+		\label{tab:spin_regs}
+	\end{table}
+\end{center}
+
+
+\subsubsection*{Register Details}
+
+
+\begin{center}
+	\rowcolors {1}{}{ \tblc }
+	%		\renewcommand{\arraystretch}{1.2}
+	\begin{tabularx}{\textwidth}{| p{30mm} p{7mm} p{20mm} X |}
+		\hline
+		\textbf{name}      & \textbf{size}  & \textbf{default}      & \textbf{comment}                            \\%
+		\hline
+		\hline
+		\textbf{p\_key}    & \ttfamily{32b}  & \ttfamily{0xffffffff} &  no packets routed to peripheral by default \\%
+		\textbf{p\_mask}   & \ttfamily{32b}  & \ttfamily{0x00000000} &  no packets routed to peripheral by default \\%
+		\textbf{lc\_key}   & \ttfamily{32b}  & \ttfamily{0xfffffe00} &  lc\_key and lc\_mask updated atomically    \\%
+		\textbf{lc\_mask}  & \ttfamily{32b}  & \ttfamily{0xffffff00} &  write lc\_mask first then lc\_key          \\%
+		\textbf{rc\_key}   & \ttfamily{32b}  & \ttfamily{0xffffff00} &                                             \\%
+		\textbf{rc\_mask}  & \ttfamily{32b}  & \ttfamily{0xffffff00} &                                             \\%
+		\textbf{stop}      & \ttfamily{~1b}  & stop (0)              &  writing any value stops peripheral input   \\%
+		\textbf{start}     & \ttfamily{~1b}  & stop (0)              &  writing any value starts peripheral input  \\%
+		\hline
+	\end{tabularx}
+	
+	\rowcolors {1}{ blue!25 }{ blue!25 }
+	\begin{tabularx}{\textwidth}{| l X |}
+		\hline
+		\textbf{notes:} & $\bullet$ a write to \textbf{lc\_mask} takes effect only after  a write to \textbf{lc\_key}. \\%
+		& $\bullet$ \textbf{stop} drops all incoming peripheral packets. \\%
+		& $\bullet$ \textbf{stop} lets through incoming diagnostic counter read replies. \\%
+		\hline
+	\end{tabularx}
+\end{center}
+
 
 \clearpage
-\subsection{spif Configuration}
+\subsection{spif (Remote) Configuration}
 
 
 \subsubsection*{Register Summary}
@@ -148,13 +218,13 @@
 \begin{table}[!h]
 	\rowcolors {1}{}{ \tblc }
 %		\renewcommand{\arraystretch}{1.2}
-	\begin{tabularx}{\textwidth}{| p{34mm} p{13mm} p{21mm} p{7mm} X |}
+	\begin{tabularx}{\textwidth}{| p{36mm} p{13mm} p{21mm} p{7mm} X |}
 		\hline
 		\textbf{name}                        & \textbf{offset}            & \textbf{offset} (hex)          & \textbf{r/w}        & \textbf{function} \\%
 		\hline
 		\hline
 		\textbf{control}                     & 00                         & (0x00)                         & r/w                 & HSSL interface control \\%
-		\textbf{mp\_key}                     & 01                         & (0x01)                         & r/w                 & routing key for event mapping \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}01      & \cellcolor{gray!25}(0x01) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\textbf{reply\_key}                  & 02                         & (0x02)                         & r/w                 & routing key for read replies \\%
 		\textbf{in\_drop\_wait}              & 03                         & (0x03)                         & r/w                 & input wait-before-drop count \\%
 		\textbf{out\_drop\_wait}             & 04                         & (0x04)                         & r/w                 & output wait-before-drop count \\%
@@ -169,10 +239,24 @@
 		\textbf{in\_dropped\_pkt\_cnt}       & 66                         & (0x42)                         & r/w                 & count dropped input packets \\%
 		\textbf{in\_periph\_pkt\_cnt}        & 67                         & (0x43)                         & r/w                 & count periph input packets\\%
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}68-79   & \cellcolor{gray!25}(0x44-0x4f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\textbf{mp\_fld\_mask [3:0]}         & 80-83                      & (0x50-0x53)                    & r/w                 & field masks for event mapping \\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}84-95   & \cellcolor{gray!25}(0x54-0x5f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\textbf{mp\_fld\_shift [3:0]}        & 96-99                      & (0x60-0x63)                    & r/w                 & field shifts for event mapping  \\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}100-127 & \cellcolor{gray!25}(0x64-0x7f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{mp0\_key}                    & 80                         & (0x50)                         & r/w                 & routing key for event mapper0 \\%
+		\textbf{mp1\_key}                    & 81                         & (0x51)                         & r/w                 & mapper1 - used if event pipes$>$1 \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}82-95   & \cellcolor{gray!25}(0x52-0x5f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{mp0\_fld\_mask [3:0]}        & 96-99                      & (0x60-0x63)                    & r/w                 & field masks for event mapper0 \\%
+		\textbf{mp1\_fld\_mask [3:0]}        & 100-103                    & (0x64-0x67)                    & r/w                 & mapper1 - used if event pipes$>$1 \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}104-111 & \cellcolor{gray!25}(0x68-0x6f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{mp0\_fld\_shift [3:0]}       & 112-115                    & (0x70-0x73)                    & r/w                 & field shifts for event mapper0  \\%
+		\textbf{mp1\_fld\_shift [3:0]}       & 116-119                    & (0x74-0x77)                    & r/w                 & mapper1 - used if event pipes$>$1  \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}110-127 & \cellcolor{gray!25}(0x78-0x7f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{mp0\_fld\_limit [3:0]}       & 128-131                    & (0x80-0x83)                    & r/w                 & field limits for event mapper0  \\%
+		\textbf{mp1\_fld\_limit [3:0]}       & 132-135                    & (0x84-0x87)                    & r/w                 & mapper1 - used if event pipes$>$1  \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}136-143 & \cellcolor{gray!25}(0x88-0x8f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{fl0\_value [7:0]}            & 144-151                    & (0x90-0x97)                    & r/w                 & values for event filter0  \\%
+		\textbf{fl1\_value [7:0]}            & 152-159                    & (0x98-0x9f)                    & r/w                 & filter1 - used if event pipes$>$1  \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}160-175 & \cellcolor{gray!25}(0xa0-0xaf) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{fl0\_mask [7:0]}             & 176-183                    & (0xb0-0xb7)                    & r/w                 & masks for event filter0  \\%
+		\textbf{fl1\_mask [7:0]}             & 184-191                    & (0xb8-0xbf)                    & r/w                 & filter1 - used if event pipes$>$1  \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}192-255 & \cellcolor{gray!25}(0xc0-0xff) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\hline
 	\end{tabularx}
 	\caption{spif configuration registers}
@@ -189,18 +273,17 @@
 \begin{center}
 	\rowcolors {1}{}{ \tblc }
 	%		\renewcommand{\arraystretch}{1.2}
-	\begin{tabularx}{\textwidth}{| p{35mm} p{11mm} p{22mm} X |}
+	\begin{tabularx}{\textwidth}{| p{36mm} p{7mm} p{20mm} X |}
 		\hline
-		\textbf{name}                        & \textbf{width} & \textbf{default}      & \textbf{comment} \\%
+		\textbf{name}                        & \textbf{size} & \textbf{default}      & \textbf{comment} \\%
 		\hline
 		\hline
 		\textbf{control}                     & \ttfamily{~1b} & \ttfamily{0}          & [0] stop events into SpiNNaker \\%
-		\textbf{mp\_key}                     & \ttfamily{32b} & \ttfamily{0x00000000} & no adequate default value - requires setup \\%
 		\textbf{reply\_key}                  & \ttfamily{32b} & \ttfamily{0xfffffd00} & \\%
 		\textbf{in\_drop\_wait}              & \ttfamily{32b} & \ttfamily{32}         & 512 for no drops in worst-case traffic \\%
 		\textbf{out\_drop\_wait}             & \ttfamily{32b} & \ttfamily{32}         & \\%
 		\textbf{status}                      & \ttfamily{32b} & \ttfamily{0x5ec0ffff} & {\small [19:18] FPGA/[17:16] handshake/[15:0] IDSI}\\%
-		\textbf{version}                     & \ttfamily{28b} & \ttfamily{no default} & {\small [27:24] number of event pipes/[23:0] version}\\%
+		\textbf{version}                     & \ttfamily{28b} &                       & {\small [27:24] number of event pipes/[23:0] version}\\%
 		\textbf{ir\_key [15:0]}              & \ttfamily{32b} & \ttfamily{0x00000000} & match all by default \\%
 		\textbf{ir\_mask [15:0]}             & \ttfamily{32b} & \ttfamily{0x00000000} & match all by default \\%
 		\textbf{ir\_route [15:0]}            & \ttfamily{~3b} & \ttfamily{0}          & route to (0, 0) by default \\%
@@ -208,87 +291,29 @@
 		\textbf{config\_pkt\_cnt}            & \ttfamily{32b} & \ttfamily{0x00000000} & write 0 to reset \\%
 		\textbf{in\_dropped\_pkt\_cnt}       & \ttfamily{32b} & \ttfamily{0x00000000} & write 0 to reset \\%
 		\textbf{in\_periph\_pkt\_cnt}        & \ttfamily{32b} & \ttfamily{0x00000000} & write 0 to reset \\%
-		\textbf{mp\_fld\_mask [3:0]}         & \ttfamily{32b} & \ttfamily{0x00000000} & mapping off by default (mask = 0) \\%
-		\textbf{mp\_fld\_shift [3:0]}        & \ttfamily{~6b} & \ttfamily{0}          & negative value indicates left shift \\%
+		\textbf{mp0\_key}                    & \ttfamily{32b} & \ttfamily{0x00000000} & no adequate default value - requires setup \\%
+		\textbf{mp1\_key}                    & \ttfamily{32b} & \ttfamily{0x00000000} & no adequate default value - requires setup \\%
+		\textbf{mp0\_fld\_mask [3:0]}        & \ttfamily{32b} & \ttfamily{0x00000000} & mapping off by default (mask = 0)          \\%
+		\textbf{mp1\_fld\_mask [3:0]}        & \ttfamily{32b} & \ttfamily{0x00000000} & mapping off by default (mask = 0)          \\%
+		\textbf{mp0\_fld\_shift [3:0]}       & \ttfamily{~6b} & \ttfamily{0}          & negative value indicates left shift        \\%
+		\textbf{mp1\_fld\_shift [3:0]}       & \ttfamily{~6b} & \ttfamily{0}          & negative value indicates left shift        \\%
+		\textbf{mp0\_fld\_limit [3:0]}       & \ttfamily{32b} & \ttfamily{0xffffffff} & drop event if field $>$ limit (must be aligned)  \\%
+		\textbf{mp1\_fld\_limit [3:0]}       & \ttfamily{32b} & \ttfamily{0xffffffff} & drop event if field $>$ limit (must be aligned)  \\%
+		\textbf{fl0\_value [7:0]}            & \ttfamily{32b} & \ttfamily{0xffffffff} & drop event if value $=$ event \& mask      \\%
+		\textbf{fl1\_value [7:0]}            & \ttfamily{32b} & \ttfamily{0xffffffff} & drop event if value $=$ event \& mask      \\%
+		\textbf{fl0\_mask [7:0]}             & \ttfamily{32b} & \ttfamily{0x00000000} & drop event if value $=$ event \& mask      \\%
+		\textbf{fl1\_mask [7:0]}             & \ttfamily{32b} & \ttfamily{0x00000000} & drop event if value $=$ event \& mask      \\%
 		\hline
 	\end{tabularx}
 
 	\rowcolors {1}{ blue!25 }{ blue!25 }
 	\begin{tabularx}{\textwidth}{| l X |}
 		\hline
-		\textbf{notes:} & $\bullet$ \textbf{status}[31:20] reads 0x5ec when interface is up. \\%
-		                & $\bullet$ \textbf{FPGA} 00 = unknown / 01 = XC7Z015 / 10 = XCZU9EG. \\%
+		\textbf{notes:} & $\bullet$ \textbf{status}[31:20] reads 0x5ec when interface is up.              \\%
+		                & $\bullet$ \textbf{FPGA} 00 = unknown / 01 = XC7Z015 / 10 = XCZU9EG.             \\%
 		                & $\bullet$ \textbf{handshake} 00 = unconnected / 01 = connected / 10 = mismatch. \\%
-		                & $\bullet$ \textbf{version} [23:16] major / [15:8] minor / [7:0] patch. \\%
-		\hline
-	\end{tabularx}
-\end{center}
-
-
-\clearpage
-\subsection{SpiNNaker FPGA Configuration}
-
-
-\subsubsection*{Register Summary}
-
-
-\begin{center}
-\begin{table}[!h]
-	\rowcolors {1}{}{ \tblc }
-%		\renewcommand{\arraystretch}{1.2}
-	\begin{tabularx}{\textwidth}{| p{34mm} p{13mm} p{21mm} p{7mm} X |}
-		\hline
-		\textbf{name}                        & \textbf{offset}           & \textbf{offset} (hex)           & \textbf{r/w}        & \textbf{function} \\%
-		\hline
-		\hline
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}00     & \cellcolor{gray!25}(0x00)       & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}01     & \cellcolor{gray!25}(0x01)       & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\textbf{p\_key}                      & 02                        & (0x02)                          & w                   & route packets to peripheral device             \\%
-		\textbf{p\_mask}                     & 03                        & (0x03)                          & w                   & route packets to peripheral device             \\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}04-11  & \cellcolor{gray!25} (0x04-0x0b) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\textbf{lc\_key}                     & 12                        & (0x0c)                          & w                   & route packets to SpiNNaker FPGA  \\%
-		\textbf{lc\_mask}                    & 13                        & (0x0d)                          & w                   & route packets to SpiNNaker FPGA  \\%
-		\textbf{rc\_key}                     & 14                        & (0x0e)                          & w                   & route packets to spif configuration   \\%
-		\textbf{rc\_mask}                    & 15                        & (0x0f)                          & w                   & route packets to spif configuration   \\%
-		\textbf{stop}                        & 16                        & (0x10)                          & w                   & stop peripheral input packets         \\%
-		\textbf{start}                       & 17                        & (0x11)                          & w                   & allow peripheral input packets         \\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}18-127 & \cellcolor{gray!25} (0x12-0x7f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-		\hline
-	\end{tabularx}
-	\caption{SpiNNaker FPGA configuration registers}
-	\label{tab:spin_regs}
-\end{table}
-\end{center}
-
-
-\subsubsection*{Register Details}
-
-
-\begin{center}
-	\rowcolors {1}{}{ \tblc }
-	%		\renewcommand{\arraystretch}{1.2}
-	\begin{tabularx}{\textwidth}{| p{35mm} p{11mm} p{22mm} X |}
-		\hline
-		\textbf{name}      & \textbf{width}  & \textbf{default}      & \textbf{comment}                            \\%
-		\hline
-		\hline
-		\textbf{p\_key}    & \ttfamily{32b}  & \ttfamily{0xffffffff} &  no packets routed to peripheral by default \\%
-		\textbf{p\_mask}   & \ttfamily{32b}  & \ttfamily{0x00000000} &  no packets routed to peripheral by default \\%
-		\textbf{lc\_key}   & \ttfamily{32b}  & \ttfamily{0xfffffe00} &  lc\_key and lc\_mask updated atomically    \\%
-		\textbf{lc\_mask}  & \ttfamily{32b}  & \ttfamily{0xffffff00} &  write lc\_mask first then lc\_key          \\%
-		\textbf{rc\_key}   & \ttfamily{32b}  & \ttfamily{0xffffff00} &                                             \\%
-		\textbf{rc\_mask}  & \ttfamily{32b}  & \ttfamily{0xffffff00} &                                             \\%
-		\textbf{stop}      & \ttfamily{~1b}  & stop (0)              &  writing any value stops peripheral input   \\%
-		\textbf{start}     & \ttfamily{~1b}  & stop (0)              &  writing any value starts peripheral input  \\%
-		\hline
-	\end{tabularx}
-
-	\rowcolors {1}{ blue!25 }{ blue!25 }
-	\begin{tabularx}{\textwidth}{| l X |}
-		\hline
-		\textbf{notes:} & $\bullet$ a write to \textbf{lc\_mask} takes effect only after  a write to \textbf{lc\_key}. \\%
-		                & $\bullet$ \textbf{stop} drops all incoming peripheral packets. \\%
-		                & $\bullet$ \textbf{stop} lets through incoming diagnostic counter read replies. \\%
+		                & $\bullet$ \textbf{version} [23:16] major / [15:8] minor / [7:0] patch.          \\%
+		                & $\bullet$ \textbf{filters} can drop hot pixels, timestamps and such.            \\%
 		\hline
 	\end{tabularx}
 \end{center}
@@ -296,6 +321,27 @@
 
 \clearpage
 \section{Mapping peripheral inputs to SpiNNaker packets}
+
+
+\subsection{Filtering Scheme}
+
+
+\begin{figure}[!ht]
+	\centering
+	\begin{minipage}{0.95\columnwidth}
+		\begin{algorithm}[H]
+			\caption{event filtering pseudocode}
+			\begin{algorithmic}[1]
+				\For {i in [0 .. 7]}
+					\If {flt\_value[i] $==$ (event \textbf{AND} flt\_mask[i])}
+						\State \textbf{drop} event
+					\EndIf
+				\EndFor
+			\end{algorithmic}
+			\label{alg:filter}
+		\end{algorithm}
+	\end{minipage}
+\end{figure}
 
 
 \subsection{Mapping Scheme}
@@ -313,15 +359,21 @@
 				    \Else
 					    \State field[i] = (event \textbf{AND} mp\_fld\_mask[i]) \textbf{RIGHT\_SHIFT} mp\_fld\_shift[i]
 					\EndIf
+				    \If {field[i] $>$ mp\_fld\_limit[i]}
+						\State \textbf{drop} event
+				    \EndIf
 				\EndFor
-				\State packet\_key = mp\_key \textbf{OR} field[0] \textbf{OR} field[1] \textbf{OR} field[2] \textbf{OR} field[3]
+			    \If {event \textbf{not} dropped}
+					\State packet\_key = mp\_key \textbf{OR} field[0] \textbf{OR} field[1] \textbf{OR} field[2] \textbf{OR} field[3]
+			    \EndIf
 			\end{algorithmic}
-			\label{alg:crd+cfc_fifo}
+			\label{alg:mapper}
 		\end{algorithm}
 	\end{minipage}
 \end{figure}
 
 
+\clearpage
 \subsection{Mapping Example}
 
 
@@ -331,20 +383,24 @@
 
 \begin{table}[!ht]
 	\begin{center}
-		\begin{tabular}{| l c l l |}
+		\begin{tabular}{| l c c l |}
 			\hline
-			\textbf{register}          & \textbf{field}                    & \textbf{value} & \textbf{comment}                 \\%
+			\textbf{register}          & \textbf{field}                    & \textbf{value}        & \textbf{comment}                 \\%
 			\hline
 			\hline
-			\textbf{mp\_key}           & \cellcolor{green!50}key           & 0xee000000     & every '1' copied / no shift      \\%
-			\textbf{mp\_fld\_mask[0]}  & \cellcolor{brown!85}x coord       & 0x007f0000     & select 7 least-significant bits  \\%
-			\textbf{mp\_fld\_shift[0]} & \cellcolor{brown!85}x coord       & 16             &                                  \\%
-			\textbf{mp\_fld\_mask[1]}  & \cellcolor{violet!50}y coord      & 0x0000007f     & select 7 least-significant bits  \\%
-			\textbf{mp\_fld\_shift[1]} & \cellcolor{violet!50}y coord      & -7             & \textbf{negative} for left shift \\%
-			\textbf{mp\_fld\_mask[2]}  & \cellcolor{yellow!50}p (polarity) & 0x00008000     & select single bit                \\%
-			\textbf{mp\_fld\_shift[2]} & \cellcolor{yellow!50}p (polarity) & 1              &                                  \\%
-			\textbf{mp\_fld\_mask[3]}  & \textit{not used}                 & 0x00000000     & \textbf{must} be 0               \\%
-			\textbf{mp\_fld\_shift[3]} & \textit{not used}                 & -              & ignored (mp\_fld\_mask[3] = 0)   \\%
+			\textbf{mp\_key}           & \cellcolor{green!50}key           & \ttfamily{0xee000000} & every '1' copied / no shift      \\%
+			\textbf{mp\_fld\_mask[0]}  & \cellcolor{brown!85}x coord       & \ttfamily{0x007f0000} & select 7 least-significant bits  \\%
+			\textbf{mp\_fld\_shift[0]} & \cellcolor{brown!85}x coord       & 16                    &                                  \\%
+			\textbf{mp\_fld\_limit[0]} & \cellcolor{brown!85}x coord       & 100                   & sensor has 100 pixels/row        \\%
+			\textbf{mp\_fld\_mask[1]}  & \cellcolor{violet!50}y coord      & \ttfamily{0x0000007f} & select 7 least-significant bits  \\%
+			\textbf{mp\_fld\_shift[1]} & \cellcolor{violet!50}y coord      & -7                    & \textbf{negative} for left shift \\%
+			\textbf{mp\_fld\_limit[1]} & \cellcolor{violet!50}y coord      & 100 $\ll$ 7           & sensor has 100 pixels/column     \\%
+			\textbf{mp\_fld\_mask[2]}  & \cellcolor{yellow!50}p (polarity) & \ttfamily{0x00008000} & select single bit                \\%
+			\textbf{mp\_fld\_shift[2]} & \cellcolor{yellow!50}p (polarity) & 1                     &                                  \\%
+			\textbf{mp\_fld\_limit[2]} & \cellcolor{yellow!50}p (polarity) & 1 $\ll$ 14            & accept both polarities           \\%
+			\textbf{mp\_fld\_mask[3]}  & \textit{not used}                 & \ttfamily{0x00000000} & \textbf{must} be 0               \\%
+			\textbf{mp\_fld\_shift[3]} & \textit{not used}                 & -                     & ignored (mp\_fld\_mask[3] = 0)   \\%
+			\textbf{mp\_fld\_limit[3]} & \textit{not used}                 & \ttfamily{0xffffffff} & always fails                     \\%
 			\hline
 		\end{tabular}
 		\caption{Register configuration for mapping example}
@@ -369,8 +425,10 @@
 
 
 \begin{itemize}
-	\item {\itshape 0.0.1 - 03jul21 - lap} - initial draft - comments to
-	{\itshape luis.plana@manchester.ac.uk}
+	\itemsep -2 mm 
+	\item 0.0.1 - 03/07/2021 - lap - initial draft - comments to {\itshape luis.plana@manchester.ac.uk}
+	\item 0.0.2 - 03/09/2021 - lap - added event processing pipe information.
+	\item 0.0.3 - 07/09/2021 - lap - added event filtering information.
 \end{itemize}
 
 

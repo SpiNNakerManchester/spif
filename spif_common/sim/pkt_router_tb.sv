@@ -22,14 +22,14 @@
 //  * everything
 // -------------------------------------------------------------------------
 
+`include "spio_hss_multiplexer_common.h"
+
 
 `timescale 1ps/1ps
 module pkt_router_tb ();
 
-  localparam PACKET_BITS  = 72;
   localparam NUM_RREGS    = 16;
-  localparam KEY_LSB      = 8;
-  localparam NUM_CHANNELS = 8;
+  localparam NUM_CHANNELS = `NUM_CHANS;
 
   localparam TB_CLK_HALF  = (13.333 / 2);  // currently testing @ 75 MHz
   localparam DUT_CLK_HALF = (13.333 / 2);  // currently testing @ 75 MHz
@@ -52,17 +52,17 @@ module pkt_router_tb ();
 
   reg                [31:0] drop_wait_tb;
 
-  reg                [31:0] reg_key_tb   [NUM_RREGS - 1:0];
-  reg                [31:0] reg_mask_tb  [NUM_RREGS - 1:0];
-  reg                 [2:0] reg_route_tb [NUM_RREGS - 1:0];
+  reg                [31:0] reg_key_tb   [NUM_RREGS];
+  reg                [31:0] reg_mask_tb  [NUM_RREGS];
+  reg                 [2:0] reg_route_tb [NUM_RREGS];
 
-  reg   [PACKET_BITS - 1:0] pkt_in_data_tb;
+  reg     [`PKT_BITS - 1:0] pkt_in_data_tb;
   reg                       pkt_in_vld_tb;
   wire                      pkt_in_rdy_tb;
 
-  wire  [PACKET_BITS - 1:0] pkt_out_data_tb [NUM_CHANNELS - 1:0];
-  wire                      pkt_out_vld_tb  [NUM_CHANNELS - 1:0];
-  reg                       pkt_out_rdy_tb  [NUM_CHANNELS - 1:0];
+  wire    [`PKT_BITS - 1:0] pkt_out_data_tb [NUM_CHANNELS];
+  wire                      pkt_out_vld_tb  [NUM_CHANNELS];
+  reg                       pkt_out_rdy_tb  [NUM_CHANNELS];
 
   wire                [1:0] rt_cnt_tb;
 
@@ -72,6 +72,7 @@ module pkt_router_tb ();
   pkt_router
   #(
       .NUM_RREGS          (NUM_RREGS)
+    , .NUM_CHANNELS       (NUM_CHANNELS)
     )
   dut (
       .clk                (clk_dut)

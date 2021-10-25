@@ -30,4 +30,48 @@ sp 7 3
 app_load count_events.aplx . 1-8 17
 rtr_diag clr
 
+sp 0 1
+app_load count_events.aplx . 9-16 17
+rtr_diag clr
+
+sp 1 1
+app_load count_events.aplx . 9-16 17
+rtr_diag clr
+
+sp 2 1
+app_load count_events.aplx . 9-16 17
+rtr_diag clr
+
+sp 3 1
+app_load count_events.aplx . 9-16 17
+rtr_diag clr
+
+sp 4 1
+app_load count_events.aplx . 9-16 17
+rtr_diag clr
+
+sp 5 2
+app_load count_events.aplx . 9-16 17
+rtr_diag clr
+
+sp 6 3
+app_load count_events.aplx . 9-16 17
+rtr_diag clr
+
+sp 7 4
+app_load count_events.aplx . 9-16 17
+rtr_diag clr
+
 sp 0 0
+
+# give all cores a chance to initialise
+sleep 1
+
+# start test
+app_sig all 17 sync0
+
+# wait for test to finish
+sleep 60
+
+# check reported results
+ps d
