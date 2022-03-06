@@ -19,6 +19,18 @@ set_property PACKAGE_PIN AA3 [get_ports gt_txp_out]
 set_property PACKAGE_PIN V5 [get_ports gt_refclk_n]
 set_property PACKAGE_PIN U5 [get_ports gt_refclk_p]
 
+# constraints for Ethernet PHY LED drivers
+# ----------------------------------------------------------------------------------------------------------------------
+set_property PACKAGE_PIN J3       [get_ports eth_phy_led0]
+set_property PACKAGE_PIN K8       [get_ports eth_phy_led1]
+set_property IOSTANDARD  LVCMOS33 [get_ports {eth_phy_led0 eth_phy_led1}]
+
+# constraints for Ethernet RJ45 LEDs
+# ----------------------------------------------------------------------------------------------------------------------
+set_property PACKAGE_PIN H6       [get_ports eth_led0]
+set_property PACKAGE_PIN H5       [get_ports eth_led1]
+set_property IOSTANDARD  LVCMOS33 [get_ports {eth_led0 eth_led1}]
+
 # Clock constraints for clocks provided as inputs to the core
 #NOTE: the IP core-level XDC constrains clocks produced by the core.
 # ----------------------------------------------------------------------------------------------------------------------

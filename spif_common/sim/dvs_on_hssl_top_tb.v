@@ -34,6 +34,7 @@ module dvs_on_hssl_top_tb ();
   //---------------------------------------------------------------
   // Gigabit transceiver reference clock period
   localparam GT_CLK_PERIOD = `MGTCLK_PERIOD;  // picoseconds
+  localparam ETH_LED_PERIOD = 500000;
   //---------------------------------------------------------------
 
 
@@ -46,6 +47,14 @@ module dvs_on_hssl_top_tb ();
   // HSSL loop back
   wire ch0_gthxn;
   wire ch0_gthxp;
+
+`ifdef TARGET_XC7Z015
+  // Ehternet LEDs
+  reg  eth_phy_led0;
+  reg  eth_phy_led1;
+  wire eth_led0;
+  wire eth_led1;
+`endif
   //---------------------------------------------------------------
 
 
@@ -61,12 +70,36 @@ module dvs_on_hssl_top_tb ();
   //---------------------------------------------------------------
 
 
+`ifdef TARGET_XC7Z015
+  //---------------------------------------------------------------
+  //simulate Ethernet PHY LED signals
+  //---------------------------------------------------------------
+  initial begin
+    eth_phy_led0 = 1'b0;
+    eth_phy_led1 = 1'b1;
+    forever
+      begin
+        eth_phy_led0 = #(ETH_LED_PERIOD / 2) ~eth_phy_led0;
+        eth_phy_led1 = #(ETH_LED_PERIOD / 2) ~eth_phy_led1;
+      end
+  end
+  //---------------------------------------------------------------
+`endif
+
+
   //---------------------------------------------------------------
   // processor sub-system + HSSL interface + transceiver block
   //---------------------------------------------------------------
   dvs_on_hssl_top dh (
     .gt_refclk_p  (refclk0_x1y3),
     .gt_refclk_n  (~refclk0_x1y3),
+
+`ifdef TARGET_XC7Z015
+    .eth_phy_led0 (eth_phy_led0),
+    .eth_phy_led1 (eth_phy_led1),
+    .eth_led0     (eth_led0),
+    .eth_led1     (eth_led1),
+`endif
 
     .gt_rxn_in    (ch0_gthxn),
     .gt_rxp_in    (ch0_gthxp),

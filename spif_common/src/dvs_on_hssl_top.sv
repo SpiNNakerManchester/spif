@@ -60,6 +60,14 @@ module dvs_on_hssl_top
   inout  wire        FIXED_IO_ps_clk,
   inout  wire        FIXED_IO_ps_porb,
   inout  wire        FIXED_IO_ps_srstb,
+
+  // Ethernet PHY LED drivers
+  input  wire eth_phy_led0,
+  input  wire eth_phy_led1,
+
+  // Ethernet RJ45 LEDs
+  output reg  eth_led0,
+  output reg  eth_led1,
 `endif
 
   // transceiver HSSL data ports
@@ -211,6 +219,36 @@ module dvs_on_hssl_top
   wire        vio_rx_reset_datapath_int;
   wire  [2:0] vio_loopback_int;
   //---------------------------------------------------------------
+
+
+`ifdef TARGET_XC7Z015
+  //---------------------------------------------------------------
+  // connect Ethernet PHY LED drivers to Ethernet RJ45 LEDs
+  //---------------------------------------------------------------
+  localparam LED0_TIME = 10000000;
+
+  // led 0 indicates the state of the link
+  //NOTE: led0 driver not working on the board
+  reg [31:0] led0_cnt;   
+
+  always @ (posedge tl_freerun_clk_int)
+    //eth_led0 <= eth_phy_led0;
+    eth_led0 <= (led0_cnt != 0);
+
+  always @ (posedge tl_freerun_clk_int or posedge tl_reset_all_int)
+    if (tl_reset_all_int)
+      led0_cnt <= LED0_TIME;
+    else
+      if (eth_phy_led1)
+        led0_cnt <= LED0_TIME;
+      else if (led0_cnt != 0)
+        led0_cnt <= led0_cnt -1;
+
+  // led 1 indicates activity 
+  always @ (posedge tl_freerun_clk_int)
+    eth_led1 <= eth_phy_led1;
+  //---------------------------------------------------------------
+`endif
 
 
   //---------------------------------------------------------------
