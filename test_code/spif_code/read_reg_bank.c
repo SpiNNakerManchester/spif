@@ -51,6 +51,6 @@ int main (int argc, char* argv[])
   printf ("reg[%u] = %d (0x%08x)\n", reg_addr, reg_data, reg_data);
 
   // clean up and finish
-  spif_close ();
+  spif_close (spif_fd);
   return 0;
 }

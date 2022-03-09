@@ -92,20 +92,15 @@ int spif_open (uint pipe)
 
 
 //--------------------------------------------------------------------
-// set up access to spif through requested pipe device
+// request a spif buffer associated with a pipe
 //
 // returns NULL if error
 //--------------------------------------------------------------------
-void * spif_setup (uint pipe, int buf_size)
+void * spif_get_buffer (uint spif_fd, int buf_size)
 {
   // check requested buffer size
   if (buf_size > SPIF_BUF_MAX_SIZE) {
     printf ("spif error: buffer size exceeds maximum\n");
-    return (NULL);
-  }
-
-  // open spif device
-  if (spif_open (pipe) == -1) {
     return (NULL);
   }
 
@@ -126,11 +121,36 @@ void * spif_setup (uint pipe, int buf_size)
 
 
 //--------------------------------------------------------------------
+// set up access to spif through requested pipe device
+//
+// returns NULL if error
+//--------------------------------------------------------------------
+void * spif_setup (uint pipe, int buf_size)
+{
+  // open spif device
+  if (spif_open (pipe) == -1) {
+    return (NULL);
+  }
+
+  // get spif buffer (mapped into user space memory)
+  void * buffer = spif_get_buffer (spif_fd, buf_size);
+
+  if (buffer == MAP_FAILED) {
+    printf ("spif error: unable to map spif buffer [%s]\n", strerror (errno));
+    close (spif_fd);
+    return (NULL);
+  }
+
+  return (buffer);
+}
+
+
+//--------------------------------------------------------------------
 // close up access to spif
 //
-// returns spif device file handle
+// no return value
 //--------------------------------------------------------------------
-void spif_close (void)
+void spif_close (int spif_fd)
 {
   close (spif_fd);
 }
@@ -174,7 +194,7 @@ void spif_write_reg (unsigned int reg, int val)
 //
 // returns 0 if spif idle (no ongoing transfer)
 //--------------------------------------------------------------------
-int spif_busy (void)
+int spif_busy (int spif_fd)
 {
   // send request to spif and convey result
   //NOTE: ioctl never fails with this request
@@ -189,7 +209,7 @@ int spif_busy (void)
 //
 // returns 0 if transfer succeeds
 //--------------------------------------------------------------------
-int spif_transfer (int length)
+int spif_transfer (int spif_fd, int length)
 {
   // send request to spif and convey result
   return (ioctl (spif_fd, SPIF_TRANSFER, (void *) (long) length));

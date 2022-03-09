@@ -211,7 +211,7 @@ int main (int argc, char * argv[])
 
     // trigger a transfer to SpiNNaker
     //NOTE: length of transfer in bytes!
-    spif_transfer (rcv_items * sizeof (uint));
+    spif_transfer (spif_fd, rcv_items * sizeof (uint));
 
     // stats: total data items received
     total_items += rcv_items;
@@ -219,7 +219,7 @@ int main (int argc, char * argv[])
     // wait until spif finishes the current transfer
     //NOTE: make sure not to wait forever!
     int wc = 0;
-    while (spif_busy ()) {
+    while (spif_busy (spif_fd)) {
       wc++;
       if (wc < 0) {
         printf ("%s: wait cycles exceeded limit\n", cname);
