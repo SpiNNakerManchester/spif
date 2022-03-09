@@ -327,9 +327,6 @@ int main (int argc, char *argv[])
   sigaction(SIGUSR1, &signal_cfg, NULL);
   sigaction(SIGUSR2, &signal_cfg, NULL);
 
-  while (1) {
-    for (int pipe = 0; pipe < SPIF_NUM_PIPES; pipe++) {
-      pthread_join (listener[pipe], NULL);
-    }
-  }
+  // go to sleep and let the listeners do the work
+  pause ();
 }
