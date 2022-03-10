@@ -252,6 +252,8 @@ int usb_discover (void) {
 // returns -1 on error condition, 0 otherwise
 //--------------------------------------------------------------------
 void usb_add_dev (void) {
+  fprintf (lf, "USB device connected\n");
+
   switch (spiffer.usb_cnt) {
     case 0:
       if (usb_discover () > 0) {
@@ -264,6 +266,8 @@ void usb_add_dev (void) {
     default:
       fprintf (lf, "warning: ignoring USB connect - too many devices\n");
   }
+
+  (void) fflush (lf);
 }
 //--------------------------------------------------------------------
 
@@ -273,7 +277,18 @@ void usb_add_dev (void) {
 //
 // returns -1 on error condition, 0 otherwise
 //--------------------------------------------------------------------
-void usb_rm_dev (void) {
+void usb_rm_dev (caerDeviceHandle dev) {
+  fprintf (lf, "USB device disconnected\n");
+
+  // which pipe is dev attached to?
+  //TODO: add discovery when dev == NULL
+  uint pipe = 0;
+  if (dev != NULL) {
+    while ((pipe < spiffer.usb_cnt) && (dev != spiffer.device_hdl[pipe])) {
+      pipe++;
+    }
+  }
+
   switch (spiffer.usb_cnt) {
     case 0:
       fprintf (lf, "warning: ignoring USB disconnect - no devices\n");
@@ -281,13 +296,15 @@ void usb_rm_dev (void) {
 
     case 1:
       spiffer.usb_cnt--;
-      pthread_cancel (listener[0]);
-      (void) pthread_create (&listener[0], &attr, udp_listener, (void *) 0);
+      pthread_cancel (listener[pipe]);
+      (void) pthread_create (&listener[pipe], &attr, udp_listener, (void *) pipe);
       break;
 
     default:
       fprintf (lf, "warning: ignoring USB disconnect - too many devices\n");
   }
+
+  (void) fflush (lf);
 }
 //--------------------------------------------------------------------
 
@@ -307,14 +324,11 @@ int usb_get_events (caerDeviceHandle dev, uint * buf) {
   while (1) {
     caerEventPacketContainer packetContainer = caerDeviceDataGet (dev);
     if (packetContainer == NULL) {
-      // check if too many empty packets
+      // check if too many empty packets (sign of disconnection)
       dev_disconn++;
       if (dev_disconn > USB_DISCONN_WAIT) {
-	fprintf (lf, "USB device not sending\n");
-	(void) fflush (lf);
-
-	// remove "disconnected" ddevice
-	usb_rm_dev ();
+	// remove "disconnected" device
+        usb_rm_dev (dev);
       }
 
       continue;
@@ -367,7 +381,6 @@ void * usb_listener (void * data) {
   int pipe = (int) data;
 
   fprintf (lf, "listening USB -> pipe%i\n", pipe);
-
   (void) fflush (lf);
 
   int              sp = spif_pipe[pipe];
@@ -410,13 +423,11 @@ void * usb_listener (void * data) {
 void sig_service (int signum) {
   switch (signum) {
     case SIGUSR1:
-      fprintf (lf, "USB device connected\n");
       usb_add_dev ();
       break;
 
     case SIGUSR2:
-      fprintf (lf, "USB device disconnected\n");
-      usb_rm_dev ();
+      usb_rm_dev (USB_DEV_DISCOVER);
       break;
 
     default:

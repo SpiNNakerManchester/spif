@@ -17,6 +17,7 @@
 #define UDP_PORT_BASE     3333
 #define USB_EVTS_PER_PKT  256
 #define USB_DISCONN_WAIT  10000
+#define USB_DEV_DISCOVER  NULL
 
 
 // USB listener
@@ -82,7 +83,7 @@ void usb_add_dev (void);
 //
 // returns -1 on error condition, 0 otherwise
 //--------------------------------------------------------------------
-void usb_rm_dev (void);
+void usb_rm_dev (caerDeviceHandle dev);
 //--------------------------------------------------------------------
 
 
