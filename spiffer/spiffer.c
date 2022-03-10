@@ -74,8 +74,8 @@ void spiffer_stop (int ec) {
   }
 
   // close USB devices,
-  for (uint dev = 0; dev < spiffer.usb_cnt; dev++) {
-    caerDeviceClose (&spiffer.device_hdl[dev]);
+  for (uint pipe = 0; pipe < spiffer.usb_cnt; pipe++) {
+    caerDeviceClose (&spiffer.device_hdl[pipe]);
   }
 
   // say goodbye,
@@ -123,7 +123,9 @@ int udp_srv_setup (int eth_port) {
 //--------------------------------------------------------------------
 // receive events through Ethernet UDP port and forward them to spif
 //
-// lives until cancelled by the arrival of a signal
+// expects event to arrive in spif format - no mapping is done
+//
+// terminated as a result of signal servicing
 //--------------------------------------------------------------------
 void * udp_listener (void * data) {
   int pipe = (int) data;
@@ -257,9 +259,14 @@ void usb_add_dev (void) {
   switch (spiffer.usb_cnt) {
     case 0:
       if (usb_discover () > 0) {
-	spiffer.usb_cnt++;
+	// terminate UDP listener
 	pthread_cancel (listener[0]);
+
+	// start USB listener
 	(void) pthread_create (&listener[0], &attr, usb_listener, (void *) 0);
+
+	// update number of connected USB devices
+	spiffer.usb_cnt++;
       }
       break;
 
@@ -295,9 +302,17 @@ void usb_rm_dev (caerDeviceHandle dev) {
       break;
 
     case 1:
-      spiffer.usb_cnt--;
+      // close USB device
+      caerDeviceClose (&dev);
+
+      // terminate USB listener
       pthread_cancel (listener[pipe]);
+
+      // start UDP listener
       (void) pthread_create (&listener[pipe], &attr, udp_listener, (void *) pipe);
+
+      // update number of connected USB devices
+      spiffer.usb_cnt--;
       break;
 
     default:
@@ -310,7 +325,15 @@ void usb_rm_dev (caerDeviceHandle dev) {
 
 
 //--------------------------------------------------------------------
-// get the next batch of events from USB device
+// geta batch of events from USB device
+// map them to spif events with format:
+//
+//    [31] timestamp (0: present, 1: absent)
+// [30:16] 15-bit x coordinate
+//    [15] polarity
+//  [14:0] 15-bit y coordinate
+//
+// Currently, timestamps are not supported - time models itself
 //
 // returns 0 if no data available
 //--------------------------------------------------------------------
@@ -324,7 +347,7 @@ int usb_get_events (caerDeviceHandle dev, uint * buf) {
   while (1) {
     caerEventPacketContainer packetContainer = caerDeviceDataGet (dev);
     if (packetContainer == NULL) {
-      // check if too many empty packets (sign of disconnection)
+      // too many empty containers suggest device disconnection
       dev_disconn++;
       if (dev_disconn > USB_DISCONN_WAIT) {
 	// remove "disconnected" device
@@ -375,7 +398,7 @@ int usb_get_events (caerDeviceHandle dev, uint * buf) {
 //--------------------------------------------------------------------
 // receive events from a USB device and forward them to spif
 //
-// lives until cancelled by the arrival of a signal
+// terminated as a result of signal servicing
 //--------------------------------------------------------------------
 void * usb_listener (void * data) {
   int pipe = (int) data;
@@ -401,7 +424,7 @@ void * usb_listener (void * data) {
     while (spif_busy (sp)) {
       wc++;
       if (wc < 0) {
-        fprintf (lf, "error: spif not responding\n");
+        fprintf (lf, "warning: spif not responding\n");
         (void) fflush (lf);
         wc = 0;
       }
@@ -423,19 +446,19 @@ void * usb_listener (void * data) {
 void sig_service (int signum) {
   switch (signum) {
     case SIGUSR1:
+      // new USB device connected
       usb_add_dev ();
       break;
 
     case SIGUSR2:
+      // USB device disconnected
       usb_rm_dev (USB_DEV_DISCOVER);
       break;
 
     default:
-      // shut down spiffer
+      // spiffer shut down requested
       spiffer_stop (0);
   }
-
-  (void) fflush (lf);
 }
 //--------------------------------------------------------------------
 
