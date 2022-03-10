@@ -25,12 +25,8 @@
 // spif support
 #include "spif_remote.h"
 
-
-// constants
-#define SPIF_BATCH_SIZE   256
-#define SPIF_NUM_PIPES    2
-#define UDP_PORT_BASE     3333
-#define EVTS_PER_PACKET   256
+// spiffer onstants and function prototypes
+# include "spiffer.h"
 
 
 //global variables
@@ -48,17 +44,8 @@ uint * spif_buf[SPIF_NUM_PIPES];
 // UDP listener
 int pipe_skt[SPIF_NUM_PIPES];
 
-// USB listener
-typedef char caer_sn_t[9];
-
 // spiffer
-struct spiffer_state {
-  uint             usb_cnt;                     // number of connected USB devices
-  caerDeviceHandle device_hdl[SPIF_NUM_PIPES];  // CAER handle assigned to USB device 
-  caer_sn_t        device_sn[SPIF_NUM_PIPES];   // USB device serial number 
-};
-
-struct spiffer_state spiffer;
+spiffer_state_t spiffer;
 
 // log file
 //TODO: change to system/kernel log
@@ -72,22 +59,29 @@ FILE * lf;
 // returns -1 on error condition, 0 otherwise
 //--------------------------------------------------------------------
 void spiffer_stop (int ec) {
+  // shutdown spif pipes,
   for (int pipe = 0; pipe < SPIF_NUM_PIPES; pipe++) {
-    // cancel threads
+    // cancel thread,
+    pthread_cancel (listener[pipe]);
 
-    // close UDP ports
+    // close UDP port,
     close (pipe_skt[pipe]);
     fprintf (lf, "UDP port %i closed\n", UDP_PORT_BASE + pipe);
 
-    // close spif pipes
+    // and close spif pipe
     spif_close (spif_pipe[pipe]);
     fprintf (lf, "spif pipe%i closed\n", pipe);
   }
 
-  // say goodbye
+  // close USB devices,
+  for (uint dev = 0; dev < spiffer.usb_cnt; dev++) {
+    caerDeviceClose (&spiffer.device_hdl[dev]);
+  }
+
+  // say goodbye,
   fprintf (lf, "spiffer stopped\n");
 
-  // close log
+  // and close log
   fclose (lf);
 
   exit (ec);
@@ -102,22 +96,21 @@ void spiffer_stop (int ec) {
 // returns -1 if problems found
 //--------------------------------------------------------------------
 int udp_srv_setup (int eth_port) {
-  // create UDP socket
+  // create UDP socket,
   int skt = socket (AF_INET, SOCK_DGRAM, 0);
   if (skt == -1) {
     return (-1);
   }
 
-  // configure server environment
+  // configure server,
   struct sockaddr_in srv_addr;
   srv_addr.sin_family      = AF_INET;
   srv_addr.sin_port        = htons (eth_port);
   srv_addr.sin_addr.s_addr = INADDR_ANY;
   bzero (&(srv_addr.sin_zero), 8);
 
-  // bind UDP socket
-  if (bind (skt, (struct sockaddr *) &srv_addr,
-      sizeof (struct sockaddr)) == -1) {
+  // and bind socket
+  if (bind (skt, (struct sockaddr *) &srv_addr, sizeof (struct sockaddr)) == -1) {
     close (skt);
     return (-1);
   }
@@ -144,22 +137,22 @@ void * udp_listener (void * data) {
   size_t ss = SPIF_BATCH_SIZE * sizeof (uint);
   int    ps = pipe_skt[pipe];
 
+  // get event batches from UDP port and send them to spif
   while (1) {
-    // get next batch of events
-    //NOTE: blocks until events are available
+    // get next batch of events (blocking),
     int rcv_bytes = recv (ps, (void *) sb, ss, 0);
 
-    // trigger a transfer to SpiNNaker
+    // trigger a transfer to SpiNNaker,
     spif_transfer (sp, rcv_bytes);
 
-    // wait until spif finishes the current transfer
-    //NOTE: report when waiting too long!
+    // and wait until spif finishes the transfer
+    //NOTE: report if waiting for too long!
     int wc = 0;
     while (spif_busy (sp)) {
       wc++;
       if (wc < 0) {
         fprintf (lf, "error: spif not responding\n");
-	(void) fflush (lf);
+        (void) fflush (lf);
         wc = 0;
       }
     }
@@ -196,9 +189,9 @@ int usb_discover (void) {
   // report camera info
   struct caer_davis_info davis_info = caerDavisInfoGet (camera);
   fprintf (lf, "%s --- ID: %d, Master: %d, DVS X: %d, DVS Y: %d, Logic: %d.\n",
-	  davis_info.deviceString, davis_info.deviceID, davis_info.deviceIsMaster,
-	  davis_info.dvsSizeX, davis_info.dvsSizeY, davis_info.logicVersion
-	  );
+          davis_info.deviceString, davis_info.deviceID, davis_info.deviceIsMaster,
+          davis_info.dvsSizeX, davis_info.dvsSizeY, davis_info.logicVersion
+          );
 
   // update spiffer state
   spiffer.device_hdl[0] = camera;
@@ -224,7 +217,7 @@ int usb_discover (void) {
 
   // adjust number of events that a container packet can hold
   bool rc = caerDeviceConfigSet (camera, CAER_HOST_CONFIG_PACKETS,
-    CAER_HOST_CONFIG_PACKETS_MAX_CONTAINER_PACKET_SIZE, EVTS_PER_PACKET
+    CAER_HOST_CONFIG_PACKETS_MAX_CONTAINER_PACKET_SIZE, USB_EVTS_PER_PKT
     );
 
   if (!rc) {
@@ -254,6 +247,52 @@ int usb_discover (void) {
 
 
 //--------------------------------------------------------------------
+// add new USB device
+//
+// returns -1 on error condition, 0 otherwise
+//--------------------------------------------------------------------
+void usb_add_dev (void) {
+  switch (spiffer.usb_cnt) {
+    case 0:
+      if (usb_discover () > 0) {
+	spiffer.usb_cnt++;
+	pthread_cancel (listener[0]);
+	(void) pthread_create (&listener[0], &attr, usb_listener, (void *) 0);
+      }
+      break;
+
+    default:
+      fprintf (lf, "warning: ignoring USB connect - too many devices\n");
+  }
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// remove USB device
+//
+// returns -1 on error condition, 0 otherwise
+//--------------------------------------------------------------------
+void usb_rm_dev (void) {
+  switch (spiffer.usb_cnt) {
+    case 0:
+      fprintf (lf, "warning: ignoring USB disconnect - no devices\n");
+      break;
+
+    case 1:
+      spiffer.usb_cnt--;
+      pthread_cancel (listener[0]);
+      (void) pthread_create (&listener[0], &attr, udp_listener, (void *) 0);
+      break;
+
+    default:
+      fprintf (lf, "warning: ignoring USB disconnect - too many devices\n");
+  }
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
 // get the next batch of events from USB device
 //
 // returns 0 if no data available
@@ -262,11 +301,26 @@ int usb_get_events (caerDeviceHandle dev, uint * buf) {
   // keep track of the number of valid events received
   uint evt_num = 0;
 
+  // attempt to detect device disconnection
+  uint dev_disconn = 0;
+
   while (1) {
     caerEventPacketContainer packetContainer = caerDeviceDataGet (dev);
     if (packetContainer == NULL) {
+      // check if too many empty packets
+      dev_disconn++;
+      if (dev_disconn > USB_DISCONN_WAIT) {
+	fprintf (lf, "USB device not sending\n");
+	(void) fflush (lf);
+
+	// remove "disconnected" ddevice
+	usb_rm_dev ();
+      }
+
       continue;
     }
+
+    dev_disconn = 0;
 
     // only interested in 'polarity' events
     caerPolarityEventPacket polarity_packet = (caerPolarityEventPacket)
@@ -335,7 +389,7 @@ void * usb_listener (void * data) {
       wc++;
       if (wc < 0) {
         fprintf (lf, "error: spif not responding\n");
-	(void) fflush (lf);
+        (void) fflush (lf);
         wc = 0;
       }
     }
@@ -357,40 +411,12 @@ void sig_service (int signum) {
   switch (signum) {
     case SIGUSR1:
       fprintf (lf, "USB device connected\n");
-
-      switch (spiffer.usb_cnt) {
-        case 0:
-	  if (usb_discover () > 0) {
-	    spiffer.usb_cnt++;
-	    pthread_cancel (listener[0]);
-	    (void) pthread_create (&listener[0], &attr, usb_listener, (void *) 0);
-	  }
-	  break;
-
-        default:
-	  fprintf (lf, "warning: ignoring USB connect - too many devices\n");
-      }
-
+      usb_add_dev ();
       break;
 
     case SIGUSR2:
       fprintf (lf, "USB device disconnected\n");
-
-      switch (spiffer.usb_cnt) {
-        case 0:
-	  fprintf (lf, "warning: ignoring USB disconnect - no devices\n");
-	  break;
-
-        case 1:
-	  spiffer.usb_cnt--;
-	  pthread_cancel (listener[0]);
-          (void) pthread_create (&listener[0], &attr, udp_listener, (void *) 0);
-	  break;
-
-        default:
-	  fprintf (lf, "warning: ignoring USB disconnect - too many devices\n");
-      }
-
+      usb_rm_dev ();
       break;
 
     default:
