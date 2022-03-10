@@ -16,19 +16,18 @@
 #define SPIF_NUM_PIPES    2
 #define UDP_PORT_BASE     3333
 #define USB_EVTS_PER_PKT  256
-#define USB_DISCONN_WAIT  10000
+#define USB_DISCONN_CNT   10000
 #define USB_DEV_DISCOVER  NULL
 
 
 // USB listener
 typedef char caer_sn_t[9];
 
-// spiffer
-typedef struct spiffer_state {
-  uint             usb_cnt;                     // number of connected USB devices
-  caerDeviceHandle device_hdl[SPIF_NUM_PIPES];  // CAER handle assigned to USB device 
-  caer_sn_t        device_sn[SPIF_NUM_PIPES];   // USB device serial number 
-} spiffer_state_t;
+typedef struct usb_devs {
+  uint             dev_cnt;                  // number of connected USB devices
+  caerDeviceHandle dev_hdl[SPIF_NUM_PIPES];  // CAER handle assigned to USB device 
+  caer_sn_t        dev_sn[SPIF_NUM_PIPES];   // USB device serial number 
+} usb_devs_t;
 
 
 //--------------------------------------------------------------------

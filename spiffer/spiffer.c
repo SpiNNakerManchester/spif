@@ -44,8 +44,9 @@ uint * spif_buf[SPIF_NUM_PIPES];
 // UDP listener
 int pipe_skt[SPIF_NUM_PIPES];
 
-// spiffer
-spiffer_state_t spiffer;
+// USB listener
+usb_devs_t usb_devs;
+usb_devs_t usb_devs_nxt;
 
 // log file
 //TODO: change to system/kernel log
@@ -74,8 +75,8 @@ void spiffer_stop (int ec) {
   }
 
   // close USB devices,
-  for (uint pipe = 0; pipe < spiffer.usb_cnt; pipe++) {
-    caerDeviceClose (&spiffer.device_hdl[pipe]);
+  for (uint pipe = 0; pipe < usb_devs.dev_cnt; pipe++) {
+    caerDeviceClose (&usb_devs.dev_hdl[pipe]);
   }
 
   // say goodbye,
@@ -196,8 +197,8 @@ int usb_discover (void) {
           );
 
   // update spiffer state
-  spiffer.device_hdl[0] = camera;
-  (void) strcpy (spiffer.device_sn[0], davis_info.deviceSerialNumber);
+  usb_devs.dev_hdl[0] = camera;
+  (void) strcpy (usb_devs.dev_sn[0], davis_info.deviceSerialNumber);
 
   // send the default configuration before using the device
   //NOTE: no configuration is sent automatically!
@@ -256,17 +257,17 @@ int usb_discover (void) {
 void usb_add_dev (void) {
   fprintf (lf, "USB device connected\n");
 
-  switch (spiffer.usb_cnt) {
+  switch (usb_devs.dev_cnt) {
     case 0:
       if (usb_discover () > 0) {
-	// terminate UDP listener
-	pthread_cancel (listener[0]);
+        // terminate UDP listener
+        pthread_cancel (listener[0]);
 
-	// start USB listener
-	(void) pthread_create (&listener[0], &attr, usb_listener, (void *) 0);
+        // start USB listener
+        (void) pthread_create (&listener[0], &attr, usb_listener, (void *) 0);
 
-	// update number of connected USB devices
-	spiffer.usb_cnt++;
+        // update number of connected USB devices
+        usb_devs.dev_cnt++;
       }
       break;
 
@@ -291,12 +292,12 @@ void usb_rm_dev (caerDeviceHandle dev) {
   //TODO: add discovery when dev == NULL
   uint pipe = 0;
   if (dev != NULL) {
-    while ((pipe < spiffer.usb_cnt) && (dev != spiffer.device_hdl[pipe])) {
+    while ((pipe < usb_devs.dev_cnt) && (dev != usb_devs.dev_hdl[pipe])) {
       pipe++;
     }
   }
 
-  switch (spiffer.usb_cnt) {
+  switch (usb_devs.dev_cnt) {
     case 0:
       fprintf (lf, "warning: ignoring USB disconnect - no devices\n");
       break;
@@ -312,7 +313,7 @@ void usb_rm_dev (caerDeviceHandle dev) {
       (void) pthread_create (&listener[pipe], &attr, udp_listener, (void *) pipe);
 
       // update number of connected USB devices
-      spiffer.usb_cnt--;
+      usb_devs.dev_cnt--;
       break;
 
     default:
@@ -341,23 +342,25 @@ int usb_get_events (caerDeviceHandle dev, uint * buf) {
   // keep track of the number of valid events received
   uint evt_num = 0;
 
-  // attempt to detect device disconnection
-  uint dev_disconn = 0;
+  // count consecutive empty containers to detect device disconnection
+  uint empty_cnt = 0;
 
   while (1) {
     caerEventPacketContainer packetContainer = caerDeviceDataGet (dev);
     if (packetContainer == NULL) {
-      // too many empty containers suggest device disconnection
-      dev_disconn++;
-      if (dev_disconn > USB_DISCONN_WAIT) {
-	// remove "disconnected" device
+      empty_cnt++;
+
+      // too many consecutive empty containers suggest device disconnection
+      if (empty_cnt > USB_DISCONN_CNT) {
+        // remove "disconnected" device
         usb_rm_dev (dev);
       }
 
       continue;
     }
 
-    dev_disconn = 0;
+    // non-empty container - restart empty count
+    empty_cnt = 0;
 
     // only interested in 'polarity' events
     caerPolarityEventPacket polarity_packet = (caerPolarityEventPacket)
@@ -408,7 +411,7 @@ void * usb_listener (void * data) {
 
   int              sp = spif_pipe[pipe];
   uint *           sb = spif_buf[pipe];
-  caerDeviceHandle ud = spiffer.device_hdl[pipe];
+  caerDeviceHandle ud = usb_devs.dev_hdl[pipe];
 
   while (1) {
     // get next batch of events
@@ -487,8 +490,8 @@ int main (int argc, char *argv[])
   // set up thread attributes
   (void) pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
 
-  // initialise spiffer state
-  spiffer.usb_cnt = 0;
+  // initialise USB device count
+  usb_devs.dev_cnt = 0;
 
   // spif buffer size
   size_t batch_size = SPIF_BATCH_SIZE * sizeof (uint);
