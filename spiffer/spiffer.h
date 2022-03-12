@@ -24,9 +24,9 @@
 typedef char caer_sn_t[9];
 
 typedef struct usb_devs {
-  uint             dev_cnt;                  // number of connected USB devices
-  caerDeviceHandle dev_hdl[SPIF_NUM_PIPES];  // CAER handle assigned to USB device 
-  caer_sn_t        dev_sn[SPIF_NUM_PIPES];   // USB device serial number 
+  int              dev_cnt;                  // number of connected USB devices
+  caerDeviceHandle dev_hdl[SPIF_NUM_PIPES];  // USB device handle
+  caer_sn_t        dev_sn[SPIF_NUM_PIPES];   // USB device serial number
 } usb_devs_t;
 
 
@@ -82,7 +82,7 @@ void usb_add_dev (void);
 //
 // returns -1 on error condition, 0 otherwise
 //--------------------------------------------------------------------
-void usb_rm_dev (caerDeviceHandle dev);
+void usb_rm_dev (void * data);
 //--------------------------------------------------------------------
 
 
