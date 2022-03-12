@@ -146,9 +146,9 @@ int spif_pipes_init (void);
 //--------------------------------------------------------------------
 // initialise system signal services
 //
-// no return value
+// returns SPIFFER_OK on success or SPIFFER_ERROR on error
 //--------------------------------------------------------------------
-void sig_init (void);
+int sig_init (void);
 //--------------------------------------------------------------------
 
 

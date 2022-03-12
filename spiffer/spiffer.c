@@ -77,6 +77,8 @@ void spiffer_stop (int ec) {
   // say goodbye,
   fprintf (lf, "spiffer stopped\n");
 
+  (void) fflush (lf);
+
   // and close log
   fclose (lf);
 
@@ -136,7 +138,7 @@ void * udp_listener (void * data) {
   int pipe = (int) data;
 
   // announce that listener is ready
-  fprintf (lf, "listening UDP %i-> pipe%i\n\n", UDP_PORT_BASE + pipe, pipe);
+  fprintf (lf, "listening UDP %i-> pipe%i\n", UDP_PORT_BASE + pipe, pipe);
   (void) fflush (lf);
 
   int    sp = spif_pipe[pipe];
@@ -205,7 +207,7 @@ int usb_dev_config (int pipe, caerDeviceHandle dh) {
   // turn on data sending
   caerDeviceDataStart (dh, NULL, NULL, NULL, &usb_add_devs, (void *) pipe);
 
-  fprintf (lf, "configured USB device 0x%08x\n", (uint) pipe);
+  fprintf (lf, "configured USB device for pipe%i\n", (uint) pipe);
 
   // set data transmission to blocking mode
   caerDeviceConfigSet (dh, CAER_HOST_CONFIG_DATAEXCHANGE,
@@ -223,46 +225,24 @@ int usb_dev_config (int pipe, caerDeviceHandle dh) {
 // no return value
 //--------------------------------------------------------------------
 void usb_sort (int ndv, caerDeviceHandle * dvh, int * sorted) {
-/*
-  // prepare to sort device serial numbers
-  caer_sn_t first_sn;
-  
-  sno[0] = 0;
-
-  for (int dv = 1; dv < USB_DISCOVER_CNT; dv++) {
-    sno[dv] = -1;
+  // prepare to sort device serial numbers,
+  char * serial[ndv];
+  for (int dv = 0; dv < ndv; dv++) {
+    struct caer_davis_info davis_info = caerDavisInfoGet (dvh[dv]);
+    serial[dv] = davis_info.deviceSerialNumber;
+    sorted[dv] = dv;
   }
 
-    // get device data
-    struct caer_davis_info davis_info = caerDavisInfoGet (dh);
-
-    // sort serial number
-    if (dv == 0) {
-      srtcpy (first_sn, davis_info.deviceSerialNumber);
-    } else {
-
+  // straightforward bubble sort - small number of elements!
+  for (int i = 0; i < (ndv - 1); i++) {
+    for (int j = 0; j < (ndv - i - 1); j++) {
+      if (strcmp (serial[j], serial[j + 1]) > 0) {
+	// swap elements
+	int temp      = sorted[j];
+	sorted[j]     = sorted[j + 1];
+	sorted[j + 1] = temp;
+      }
     }
-
-  // bubble-sort device serial numbers
-  //TODO: fix
-  if (ndd > 1) {
-    int * sn_order;
-    sn_order = (int *) malloc (ndd * sizeof (int));
-    if (sn_order == NULL) {
-      fprintf (lf, "error malloc'ing sort memory\n");
-      return (SPIFFER_ERROR);
-    }
-
-    sn_order[0] = 0;
-    for (int dv = 1; dv < ndd; dv++) {
-      continue;
-    }
-  }
-*/
-  (void) dvh;
-
-  for (int d = 0; d < ndv; d++) {
-    sorted[d] = d;
   }
 }
 //--------------------------------------------------------------------
@@ -368,9 +348,7 @@ int usb_discover_devs (int old_pipe) {
 void usb_add_devs (void * data) {
   int old_pipe = (int) data;
 
-  fprintf (lf, "usb_add_devs %i\n", old_pipe);
-  (void) fflush (lf);
-
+  // try to discover supported USB devices
   int ndd = usb_discover_devs (old_pipe);
 
   // process discovered devices,
@@ -473,12 +451,14 @@ int usb_get_events (caerDeviceHandle dev, uint * buf) {
 void * usb_listener (void * data) {
   int pipe = (int) data;
 
-  fprintf (lf, "listening USB -> pipe%i\n\n", pipe);
-  (void) fflush (lf);
-
   int              sp = spif_pipe[pipe];
   uint *           sb = spif_buf[pipe];
   caerDeviceHandle ud = usb_devs.dev_hdl[pipe];
+
+  struct caer_davis_info davis_info = caerDavisInfoGet (ud);
+
+  fprintf (lf, "listening USB %s -> pipe%i\n", davis_info.deviceSerialNumber, pipe);
+  (void) fflush (lf);
 
   while (1) {
     // get next batch of events
@@ -560,16 +540,27 @@ int spif_pipes_init (void) {
 //--------------------------------------------------------------------
 // initialise system signal services
 //
-// no return value
+// returns SPIFFER_OK on success or SPIFFER_ERROR on error
 //--------------------------------------------------------------------
-void sig_init (void) {
+int sig_init (void) {
   // set up signal servicing
-  signal_cfg.sa_flags = 0;
   signal_cfg.sa_handler = &sig_service;
+  signal_cfg.sa_flags = 0;
+  sigemptyset (&signal_cfg.sa_mask);
+  sigaddset   (&signal_cfg.sa_mask, SIGTERM);
+  sigaddset   (&signal_cfg.sa_mask, SIGINT);
+  sigaddset   (&signal_cfg.sa_mask, SIGUSR1);
 
   // register signal service routine
-  sigaction(SIGINT,  &signal_cfg, NULL);
-  sigaction(SIGUSR1, &signal_cfg, NULL);
+  if (sigaction (SIGTERM,  &signal_cfg, NULL) == SPIFFER_ERROR) {
+    return (SPIFFER_ERROR);
+  }
+
+  if (sigaction (SIGINT,  &signal_cfg, NULL) == SPIFFER_ERROR) {
+    return (SPIFFER_ERROR);
+  }
+
+  return (sigaction (SIGUSR1, &signal_cfg, NULL));
 }
 //--------------------------------------------------------------------
 
@@ -635,7 +626,9 @@ int main (int argc, char *argv[])
   }
 
   // configure system signal service,
-  sig_init ();
+  if (sig_init () == SPIFFER_ERROR) {
+    spiffer_stop (SPIFFER_ERROR);
+  }
 
   // update log,
   (void) fflush (lf);
