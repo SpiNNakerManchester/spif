@@ -19,9 +19,12 @@ Support for Iniviation Davis cameras requires the libcaer library.
 Installation
 ------------
 
-udev support for USB device detection:
-/etc/udev/rules.d/99-spiffer.rules
+udev rules for USB device detection:
+- /etc/udev/rules.d/99-spiffer.rules
 
-systemd service:
-/lib/systemd/system/spiffer.service
-/etc/systemd/system/spiffer.service
+systemd service unit:
+- /lib/systemd/system/spiffer.service
+
+create links to unit file from:
+- /etc/systemd/system/
+- /etc/systemd/system/multi-user.target.wants/
