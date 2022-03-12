@@ -34,8 +34,7 @@
 struct sigaction signal_cfg;
 
 // threads
-pthread_t      listener[SPIF_NUM_PIPES];
-pthread_attr_t attr;
+pthread_t listener[SPIF_NUM_PIPES];
 
 // spif
 int    spif_pipe[SPIF_NUM_PIPES];
@@ -305,9 +304,9 @@ int usb_discover_new (void) {
   // report camera info
   struct caer_davis_info davis_info = caerDavisInfoGet (camera);
   fprintf (lf, "%s --- ID: %d, Master: %d, DVS X: %d, DVS Y: %d, Logic: %d.\n",
-	   davis_info.deviceString, davis_info.deviceID, davis_info.deviceIsMaster,
-	   davis_info.dvsSizeX, davis_info.dvsSizeY, davis_info.logicVersion
-	   );
+           davis_info.deviceString, davis_info.deviceID, davis_info.deviceIsMaster,
+           davis_info.dvsSizeX, davis_info.dvsSizeY, davis_info.logicVersion
+           );
   (void) fflush (lf);
 
   // send the default configuration before using the device
@@ -321,9 +320,9 @@ int usb_discover_new (void) {
 
   // adjust number of events that a container packet can hold
   rc = caerDeviceConfigSet (camera, CAER_HOST_CONFIG_PACKETS,
-			    CAER_HOST_CONFIG_PACKETS_MAX_CONTAINER_PACKET_SIZE,
-			    USB_EVTS_PER_PKT
-			    );
+                            CAER_HOST_CONFIG_PACKETS_MAX_CONTAINER_PACKET_SIZE,
+                            USB_EVTS_PER_PKT
+                            );
 
   if (!rc) {
     fprintf (lf, "error: failed to set camera container packet number\n");
@@ -339,8 +338,8 @@ int usb_discover_new (void) {
 
   // set data transmission to blocking mode
   caerDeviceConfigSet (camera, CAER_HOST_CONFIG_DATAEXCHANGE,
-		       CAER_HOST_CONFIG_DATAEXCHANGE_BLOCKING, true
-		       );
+                       CAER_HOST_CONFIG_DATAEXCHANGE_BLOCKING, true
+                       );
 
   // update spiffer state
   usb_devs.dev_hdl[dv] = camera;
@@ -371,9 +370,10 @@ void usb_add_dev (void) {
 
     // terminate current listener,
     pthread_cancel (listener[pipe]);
+    pthread_join (listener[pipe], NULL);
 
     // and start new USB listener
-    (void) pthread_create (&listener[pipe], &attr, usb_listener, (void *) pipe);
+    (void) pthread_create (&listener[pipe], NULL, usb_listener, (void *) pipe);
   }
 
   // update number of connected devices
@@ -397,9 +397,10 @@ void usb_rm_dev (void * data) {
   if (pipe < SPIF_NUM_PIPES) {
     // terminate USB listener
     pthread_cancel (listener[pipe]);
+    pthread_join (listener[pipe], NULL);
 
     // start UDP listener
-    (void) pthread_create (&listener[pipe], &attr, udp_listener, (void *) pipe);
+    (void) pthread_create (&listener[pipe], NULL, udp_listener, (void *) pipe);
 
     // update number of connected USB devices
     usb_devs.dev_cnt--;
@@ -426,6 +427,10 @@ int usb_get_events (caerDeviceHandle dev, uint * buf) {
   uint evt_num = 0;
 
   while (1) {
+    // this is a safe place to cancel this thread
+    pthread_testcancel ();
+
+    // get events from USB device
     caerEventPacketContainer packetContainer = caerDeviceDataGet (dev);
     if (packetContainer == NULL) {
       continue;
@@ -550,9 +555,6 @@ int main (int argc, char *argv[])
   // say hello
   fprintf (lf, "spiffer started\n");
 
-  // set up thread attributes
-  (void) pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
-
   // initialise USB device count
   usb_devs.dev_cnt = 0;
 
@@ -586,7 +588,7 @@ int main (int argc, char *argv[])
 
     // start a thread for every spif pipe
     //NOTE: always start with UDP listeners, which can be active at any time
-    (void) pthread_create (&listener[pipe], &attr, udp_listener, (void *) pipe);
+    (void) pthread_create (&listener[pipe], NULL, udp_listener, (void *) pipe);
   }
 
   // set up signal servicing
