@@ -1,0 +1,10 @@
+## spiffer events
+##
+## Inivation cameras
+ACTION=="add",    ATTR{idVendor}=="152a", RUN+="/usr/bin/pkill --signal SIGUSR1 spiffer"
+ACTION=="remove", ENV{PRODUCT}=="152a/*/*", ENV{ID_MODEL_FROM_DATABASE}=="INI*", RUN+="/usr/bin/pkill --signal SIGUSR2 spiffer"
+##
+## Prophesee cameras
+##NOTE: not supported -- camera plugins unavailable 09/03/22 -lap
+##ACTION=="add",    ATTR{idVendor}=="04b4", ATTR{idProduct}=="00f4", RUN+="/usr/bin/pkill --signal SIGUSR1 spiffer"
+##ACTION=="remove", ATTR{idVendor}=="04b4", ATTR{idProduct}=="00f4", RUN+="/usr/bin/pkill --signal SIGUSR2 spiffer"
