@@ -161,6 +161,71 @@ void * udp_listener (void * data) {
 
 
 //--------------------------------------------------------------------
+// attempt to open and configure USB device
+//
+// returns 0 on succes -1 on error
+//--------------------------------------------------------------------
+int usb_dev_config (int pipe) {
+  // open device and give it a device ID
+  //TODO: update for other device types
+  caerDeviceHandle camera = caerDeviceOpen (pipe + 1, CAER_DEVICE_DAVIS, 0, 0, NULL);
+  if (camera == NULL) {
+    fprintf (lf, "error: failed to open event camera\n");
+    (void) fflush (lf);
+    return (-1);
+  }
+
+  // report camera info
+  struct caer_davis_info davis_info = caerDavisInfoGet (camera);
+  fprintf (lf, "%s --- ID: %d, Master: %d, DVS X: %d, DVS Y: %d, Logic: %d.\n",
+           davis_info.deviceString, davis_info.deviceID, davis_info.deviceIsMaster,
+           davis_info.dvsSizeX, davis_info.dvsSizeY, davis_info.logicVersion
+           );
+  (void) fflush (lf);
+
+  // send the default configuration before using the device
+  bool rc = caerDeviceSendDefaultConfig (camera);
+
+  if (!rc) {
+    fprintf (lf, "error: failed to send camera default configuration\n");
+    (void) fflush (lf);
+    return (-1);
+  }
+
+  // adjust number of events that a container packet can hold
+  rc = caerDeviceConfigSet (camera, CAER_HOST_CONFIG_PACKETS,
+                            CAER_HOST_CONFIG_PACKETS_MAX_CONTAINER_PACKET_SIZE,
+                            USB_EVTS_PER_PKT
+                            );
+
+  if (!rc) {
+    fprintf (lf, "error: failed to set camera container packet number\n");
+    (void) fflush (lf);
+    return (-1);
+  }
+
+  // turn on data sending
+  caerDeviceDataStart (camera, NULL, NULL, NULL, &usb_rm_dev, (void *) pipe);
+
+  fprintf (lf, "started USB device 0x%08x\n", (uint) pipe);
+  (void) fflush (lf);
+
+  // set data transmission to blocking mode
+  caerDeviceConfigSet (camera, CAER_HOST_CONFIG_DATAEXCHANGE,
+                       CAER_HOST_CONFIG_DATAEXCHANGE_BLOCKING, true
+                       );
+
+  // update spiffer state
+  usb_devs.dev_hdl[pipe] = camera;
+  (void) strcpy (usb_devs.dev_sn[pipe], davis_info.deviceSerialNumber);
+
+  (void) fflush (lf);
+  return (0);
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
 // attempt to discover new supported devices connected to the USB bus
 //
 // returns the number of devices or -1 on detection error
@@ -212,71 +277,6 @@ void * udp_listener (void * data) {
     dev_cnt = SPIF_NUM_PIPES - usb_devs.dev_cnt;
   }
 
-  fprintf (lf, "adding %i USB device%c\n", dev_cnt, dev_cnt > 1 ? 's' : '\0');
-  (void) fflush (lf);
-
-  // open and configure discovered devices
-  for (int dc = 0; dc < dev_cnt; dc++) {
-    int dv = dc + usb_devs.dev_cnt;
-
-    // open camera and give it a device ID
-    //TODO: update for other device types
-    caerDeviceHandle camera = caerDeviceOpen (dv, CAER_DEVICE_DAVIS, 0, 0, NULL);
-    if (camera == NULL) {
-      fprintf (lf, "error: failed to open event camera\n");
-      (void) fflush (lf);
-      free (devices);
-      return (-1);
-    }
-
-    // report camera info
-    struct caer_davis_info davis_info = caerDavisInfoGet (camera);
-    fprintf (lf, "%s --- ID: %d, Master: %d, DVS X: %d, DVS Y: %d, Logic: %d.\n",
-             davis_info.deviceString, davis_info.deviceID, davis_info.deviceIsMaster,
-             davis_info.dvsSizeX, davis_info.dvsSizeY, davis_info.logicVersion
-             );
-    (void) fflush (lf);
-
-    // send the default configuration before using the device
-    bool rc = caerDeviceSendDefaultConfig (camera);
-
-    if (!rc) {
-      fprintf (lf, "error: failed to send camera default configuration\n");
-      (void) fflush (lf);
-      free (devices);
-      return (-1);
-    }
-
-    // adjust number of events that a container packet can hold
-    rc = caerDeviceConfigSet (camera, CAER_HOST_CONFIG_PACKETS,
-                              CAER_HOST_CONFIG_PACKETS_MAX_CONTAINER_PACKET_SIZE,
-                              USB_EVTS_PER_PKT
-                              );
-
-    if (!rc) {
-      fprintf (lf, "error: failed to set camera container packet number\n");
-      (void) fflush (lf);
-      free (devices);
-      return (-1);
-    }
-
-    // turn on data sending 
-    caerDeviceDataStart (camera, NULL, NULL, NULL, &usb_rm_dev, (void *) dv);
-
-    fprintf (lf, "started USB device 0x%08x\n", (uint) dv);
-    (void) fflush (lf);
-
-    // set data transmission to blocking mode
-    caerDeviceConfigSet (camera, CAER_HOST_CONFIG_DATAEXCHANGE,
-                         CAER_HOST_CONFIG_DATAEXCHANGE_BLOCKING, true
-                         );
-
-    // update spiffer state
-    usb_devs.dev_hdl[dv] = camera;
-    (void) strcpy (usb_devs.dev_sn[dv], davis_info.deviceSerialNumber);
-  }
-
-  (void) fflush (lf);
   free (devices);
   return (dev_cnt);
   }*/ //lap
@@ -290,63 +290,10 @@ int usb_discover_new (void) {
   fprintf (lf, "adding 1 USB device\n");
 
   // open and configure new device
-  int dv = usb_devs.dev_cnt;
-
-  // open camera and give it a device ID
-  //TODO: update for other device types
-  caerDeviceHandle camera = caerDeviceOpen (dv + 1, CAER_DEVICE_DAVIS, 0, 0, NULL);
-  if (camera == NULL) {
-    fprintf (lf, "error: failed to open event camera\n");
-    (void) fflush (lf);
-    return (-1);
-  }
-
-  // report camera info
-  struct caer_davis_info davis_info = caerDavisInfoGet (camera);
-  fprintf (lf, "%s --- ID: %d, Master: %d, DVS X: %d, DVS Y: %d, Logic: %d.\n",
-           davis_info.deviceString, davis_info.deviceID, davis_info.deviceIsMaster,
-           davis_info.dvsSizeX, davis_info.dvsSizeY, davis_info.logicVersion
-           );
-  (void) fflush (lf);
-
-  // send the default configuration before using the device
-  bool rc = caerDeviceSendDefaultConfig (camera);
-
-  if (!rc) {
-    fprintf (lf, "error: failed to send camera default configuration\n");
-    (void) fflush (lf);
-    return (-1);
-  }
-
-  // adjust number of events that a container packet can hold
-  rc = caerDeviceConfigSet (camera, CAER_HOST_CONFIG_PACKETS,
-                            CAER_HOST_CONFIG_PACKETS_MAX_CONTAINER_PACKET_SIZE,
-                            USB_EVTS_PER_PKT
-                            );
-
-  if (!rc) {
-    fprintf (lf, "error: failed to set camera container packet number\n");
-    (void) fflush (lf);
-    return (-1);
-  }
-
-  // turn on data sending 
-  caerDeviceDataStart (camera, NULL, NULL, NULL, &usb_rm_dev, (void *) dv);
-
-  fprintf (lf, "started USB device 0x%08x\n", (uint) dv);
-  (void) fflush (lf);
-
-  // set data transmission to blocking mode
-  caerDeviceConfigSet (camera, CAER_HOST_CONFIG_DATAEXCHANGE,
-                       CAER_HOST_CONFIG_DATAEXCHANGE_BLOCKING, true
-                       );
-
-  // update spiffer state
-  usb_devs.dev_hdl[dv] = camera;
-  (void) strcpy (usb_devs.dev_sn[dv], davis_info.deviceSerialNumber);
+  int rc = usb_dev_config (usb_devs.dev_cnt);
 
   (void) fflush (lf);
-  return (1);
+  return (rc == 0 ? 1 : rc);
 }
 //--------------------------------------------------------------------
 

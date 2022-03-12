@@ -60,6 +60,14 @@ void * udp_listener (void * data);
 
 
 //--------------------------------------------------------------------
+// attempt to open and configure USB device
+//
+// returns 0 on succes -1 on error
+//--------------------------------------------------------------------
+int usb_dev_config (int pipe);
+
+
+//--------------------------------------------------------------------
 // attempt to discover CAER devices connected to the USB bus
 //
 // returns the number of devices or -1 on detection error
