@@ -18,8 +18,7 @@
 #define SPIF_NUM_PIPES    2
 #define UDP_PORT_BASE     3333
 #define USB_EVTS_PER_PKT  256
-#define USB_DISCONN_CNT   10000
-#define USB_DEV_DISCOVER  NULL
+#define USB_DISCOVER_CNT  SPIF_NUM_PIPES
 
 
 // USB listener
@@ -27,8 +26,8 @@ typedef char caer_sn_t[9];
 
 typedef struct usb_devs {
   int              dev_cnt;                  // number of connected USB devices
+  int              dev_id;                   // next device ID
   caerDeviceHandle dev_hdl[SPIF_NUM_PIPES];  // USB device handle
-  caer_sn_t        dev_sn[SPIF_NUM_PIPES];   // USB device serial number
 } usb_devs_t;
 
 
@@ -62,37 +61,41 @@ void * udp_listener (void * data);
 
 
 //--------------------------------------------------------------------
+// sort USB devices by serial number
+//
+// no return value
+//--------------------------------------------------------------------
+void usb_sort (int ndv, caerDeviceHandle * dvh, int * sorted);
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
 // attempt to open and configure USB device
 //
-// returns SPIFFER_OK on success SPIFFER_ERROR on error
+// returns SPIFFER_OK on success or SPIFFER_ERROR on error
 //--------------------------------------------------------------------
-int usb_dev_config (int pipe);
+int usb_dev_config (int pipe, caerDeviceHandle dh);
+//--------------------------------------------------------------------
 
 
 //--------------------------------------------------------------------
-// attempt to discover CAER devices connected to the USB bus
+// attempt to discover new supported devices connected to the USB bus
+// sort devices by serial number for consistent mapping to spif
 //
-// returns the number of devices or SPIFFER_ERROR on detection error
-//--------------------------------------------------------------------
-int usb_discover (void);
-//--------------------------------------------------------------------
-
-
-//--------------------------------------------------------------------
-// add new USB device
+//NOTE: the caer discover library function seems to fail sometimes
 //
-// returns SPIFFER_ERROR on error condition, SPIFFER_OK otherwise
+// returns the number of discovered devices (0 on error)
 //--------------------------------------------------------------------
-void usb_add_dev (void);
+int usb_discover_devs (int old_pipe);
 //--------------------------------------------------------------------
 
 
 //--------------------------------------------------------------------
-// remove USB device
+// add new USB devices
 //
-// returns SPIFFER_ERROR on error condition, SPIFFER_OK otherwise
+// no return value
 //--------------------------------------------------------------------
-void usb_rm_dev (void * data);
+void usb_add_devs (void * data);
 //--------------------------------------------------------------------
 
 
@@ -153,7 +156,6 @@ void sig_init (void);
 // service system signals
 //
 // SIGUSR1 indicates that a USB device has been connected
-// SIGUSR2 indicates that a USB device was disconnected
 // SIGINT  requests spiffer to stop
 //
 // no return value
