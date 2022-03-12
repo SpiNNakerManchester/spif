@@ -41,7 +41,7 @@ int    spif_pipe[SPIF_NUM_PIPES];
 uint * spif_buf[SPIF_NUM_PIPES];
 
 // UDP listener
-int pipe_skt[SPIF_NUM_PIPES];
+int udp_skt[SPIF_NUM_PIPES];
 
 // USB listener
 usb_devs_t usb_devs;
@@ -54,20 +54,19 @@ FILE * lf;
 //--------------------------------------------------------------------
 // stop spiffer
 // caused by systemd request or error condition
-//
-// returns -1 on error condition, 0 otherwise
 //--------------------------------------------------------------------
 void spiffer_stop (int ec) {
   // shutdown spif pipes,
   for (int pipe = 0; pipe < SPIF_NUM_PIPES; pipe++) {
     // cancel thread,
     (void) pthread_cancel (listener[pipe]);
+    pthread_join (listener[pipe], NULL);
 
     // close UDP port,
-    close (pipe_skt[pipe]);
+    close (udp_skt[pipe]);
     fprintf (lf, "UDP port %i closed\n", UDP_PORT_BASE + pipe);
 
-    // close USB devices,
+    // close USB device,
     (void) caerDeviceClose (&usb_devs.dev_hdl[pipe]);
 
     // and close spif pipe
@@ -87,32 +86,41 @@ void spiffer_stop (int ec) {
 
 
 //--------------------------------------------------------------------
-// setup Ethernet UDP server to listen for events
+// setup Ethernet UDP servers to listen for events
 // create and bind on socket
 //
-// returns -1 if problems found
+// returns SPIFFER_ERROR if problems found
 //--------------------------------------------------------------------
-int udp_srv_setup (int eth_port) {
-  // create UDP socket,
-  int skt = socket (AF_INET, SOCK_DGRAM, 0);
-  if (skt == -1) {
-    return (-1);
+int udp_init (void) {
+  for (int pipe = 0; pipe < SPIF_NUM_PIPES; pipe++) {
+    int eth_port = UDP_PORT_BASE + pipe;
+
+    // create UDP socket,
+    int skt = socket (AF_INET, SOCK_DGRAM, 0);
+    if (skt == SPIFFER_ERROR) {
+      fprintf (lf, "error: failed to create socket for UDP port %i\n", eth_port);
+      return (SPIFFER_ERROR);
+    }
+
+    // configure server,
+    struct sockaddr_in srv_addr;
+    srv_addr.sin_family      = AF_INET;
+    srv_addr.sin_port        = htons (eth_port);
+    srv_addr.sin_addr.s_addr = INADDR_ANY;
+    bzero (&(srv_addr.sin_zero), 8);
+
+    // bind socket,
+    if (bind (skt, (struct sockaddr *) &srv_addr, sizeof (struct sockaddr)) == SPIFFER_ERROR) {
+      close (skt);
+      fprintf (lf, "error: failed to bind socket for UDP port %i\n", eth_port);
+      return (SPIFFER_ERROR);
+    }
+
+    // and map socket to pipe
+    udp_skt[pipe] = skt;
   }
 
-  // configure server,
-  struct sockaddr_in srv_addr;
-  srv_addr.sin_family      = AF_INET;
-  srv_addr.sin_port        = htons (eth_port);
-  srv_addr.sin_addr.s_addr = INADDR_ANY;
-  bzero (&(srv_addr.sin_zero), 8);
-
-  // and bind socket
-  if (bind (skt, (struct sockaddr *) &srv_addr, sizeof (struct sockaddr)) == -1) {
-    close (skt);
-    return (-1);
-  }
-
-  return (skt);
+  return (SPIFFER_OK);
 }
 //--------------------------------------------------------------------
 
@@ -134,12 +142,13 @@ void * udp_listener (void * data) {
   int    sp = spif_pipe[pipe];
   uint * sb = spif_buf[pipe];
   size_t ss = SPIF_BATCH_SIZE * sizeof (uint);
-  int    ps = pipe_skt[pipe];
+  int    us = udp_skt[pipe];
 
   // get event batches from UDP port and send them to spif
   while (1) {
     // get next batch of events (blocking),
-    int rcv_bytes = recv (ps, (void *) sb, ss, 0);
+    //NOTE: this is a thread cancellation point
+    int rcv_bytes = recv (us, (void *) sb, ss, 0);
 
     // trigger a transfer to SpiNNaker,
     spif_transfer (sp, rcv_bytes);
@@ -163,7 +172,7 @@ void * udp_listener (void * data) {
 //--------------------------------------------------------------------
 // attempt to open and configure USB device
 //
-// returns 0 on succes -1 on error
+// returns SPIFFER_OK on success SPIFFER_ERROR on error
 //--------------------------------------------------------------------
 int usb_dev_config (int pipe) {
   // open device and give it a device ID
@@ -172,7 +181,7 @@ int usb_dev_config (int pipe) {
   if (camera == NULL) {
     fprintf (lf, "error: failed to open event camera\n");
     (void) fflush (lf);
-    return (-1);
+    return (SPIFFER_ERROR);
   }
 
   // report camera info
@@ -189,7 +198,7 @@ int usb_dev_config (int pipe) {
   if (!rc) {
     fprintf (lf, "error: failed to send camera default configuration\n");
     (void) fflush (lf);
-    return (-1);
+    return (SPIFFER_ERROR);
   }
 
   // adjust number of events that a container packet can hold
@@ -201,7 +210,7 @@ int usb_dev_config (int pipe) {
   if (!rc) {
     fprintf (lf, "error: failed to set camera container packet number\n");
     (void) fflush (lf);
-    return (-1);
+    return (SPIFFER_ERROR);
   }
 
   // turn on data sending
@@ -220,7 +229,7 @@ int usb_dev_config (int pipe) {
   (void) strcpy (usb_devs.dev_sn[pipe], davis_info.deviceSerialNumber);
 
   (void) fflush (lf);
-  return (0);
+  return (SPIFFER_OK);
 }
 //--------------------------------------------------------------------
 
@@ -228,7 +237,7 @@ int usb_dev_config (int pipe) {
 //--------------------------------------------------------------------
 // attempt to discover new supported devices connected to the USB bus
 //
-// returns the number of devices or -1 on detection error
+// returns the number of discovered devices or SPIFFER_ERROR on error
 //--------------------------------------------------------------------
 /* //lap int usb_discover_new (void) {
   caerDeviceDiscoveryResult devices;
@@ -240,7 +249,7 @@ int usb_dev_config (int pipe) {
     fprintf (lf, "error detecting new USB devices\n");
     (void) fflush (lf);
     free (devices);
-    return (-1);
+    return (SPIFFER_ERROR);
   }
 
   // check if no supported devices found
@@ -263,7 +272,7 @@ int usb_dev_config (int pipe) {
       fprintf (lf, "error detecting Inivation cameras\n");
       (void) fflush (lf);
       free (devices);
-      return (-1);
+      return (SPIFFER_ERROR);
     }
 
     sn_order[0] = 0;
@@ -284,7 +293,7 @@ int usb_discover_new (void) {
   if (usb_devs.dev_cnt >= SPIF_NUM_PIPES) {
       fprintf (lf, "warning: too many USB devices\n");
       (void) fflush (lf);
-      return (-1);
+      return (SPIFFER_ERROR);
   }
 
   fprintf (lf, "adding 1 USB device\n");
@@ -293,7 +302,7 @@ int usb_discover_new (void) {
   int rc = usb_dev_config (usb_devs.dev_cnt);
 
   (void) fflush (lf);
-  return (rc == 0 ? 1 : rc);
+  return (rc == SPIFFER_OK ? 1 : rc);
 }
 //--------------------------------------------------------------------
 
@@ -357,7 +366,7 @@ void usb_rm_dev (void * data) {
 
 
 //--------------------------------------------------------------------
-// geta batch of events from USB device
+// get a batch of events from USB device
 // map them to spif events with format:
 //
 //    [31] timestamp (0: present, 1: absent)
@@ -365,9 +374,9 @@ void usb_rm_dev (void * data) {
 //    [15] polarity
 //  [14:0] 15-bit y coordinate
 //
-// Currently, timestamps are not supported - time models itself
+// timestamps are ignored - time models itself
 //
-// returns 0 if no data available
+// returns the number of events in the batch
 //--------------------------------------------------------------------
 int usb_get_events (caerDeviceHandle dev, uint * buf) {
   // keep track of the number of valid events received
@@ -459,6 +468,70 @@ void * usb_listener (void * data) {
 
 
 //--------------------------------------------------------------------
+// initialise USB device state
+//
+// returns SPIFFER_OK on success or SPIFFER_ERROR on error
+//--------------------------------------------------------------------
+int usb_init (void) {
+  // initialise USB device count
+  usb_devs.dev_cnt = 0;
+
+  return (SPIFFER_OK);
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// initialise spif pipes
+//
+// returns SPIFFER_OK on success or SPIFFER_ERROR on error
+//--------------------------------------------------------------------
+int spif_pipes_init (void) {
+  // spif data batch size - also buffer size
+  size_t batch_size = SPIF_BATCH_SIZE * sizeof (uint);
+
+  // open spif pipes and get corresponding buffer
+  for (int pipe = 0; pipe < SPIF_NUM_PIPES; pipe++) {
+    // open spif pipe
+    spif_pipe[pipe] = spif_open (pipe);
+    if (spif_pipe[pipe] == SPIFFER_ERROR) {
+      fprintf (lf, "error: unable to open spif pipe%i\n", pipe);
+      return (SPIFFER_ERROR);
+    }
+
+    // get pipe buffer
+    spif_buf[pipe] = (uint *) spif_get_buffer (spif_pipe[pipe], batch_size);
+    if (spif_buf[pipe] == NULL) {
+      fprintf (lf, "error: failed to get buffer for spif pipe%i\n", pipe);
+      return (SPIFFER_ERROR);
+    }
+
+    fprintf (lf, "spif pipe%i opened\n", pipe);
+  }
+
+  return (SPIFFER_OK);
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// initialise system signal services
+//
+// no return value
+//--------------------------------------------------------------------
+void sig_init (void) {
+  // set up signal servicing
+  signal_cfg.sa_flags = 0;
+  signal_cfg.sa_handler = &sig_service;
+
+  // register signal service routine
+  sigaction(SIGINT,  &signal_cfg, NULL);
+  sigaction(SIGUSR1, &signal_cfg, NULL);
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
 // service system signals
 //
 // SIGUSR1 indicates that a USB device has been connected
@@ -475,13 +548,14 @@ void sig_service (int signum) {
 
     default:
       // spiffer shut down requested
-      spiffer_stop (0);
+      spiffer_stop (SPIFFER_OK);
   }
 }
 //--------------------------------------------------------------------
 
 
 //--------------------------------------------------------------------
+// main thread:
 // opens spif pipes
 // sets up a UDP server per spif pipe
 // creates a listener thread per spif pipe
@@ -492,64 +566,44 @@ int main (int argc, char *argv[])
   (void) argc;
   (void) argv;
 
-  // open log file
+  // open log file,
   //TODO: needs a permanent home
   lf = fopen ("/tmp/spiffer.log", "a");
   if (lf == NULL) {
-    spiffer_stop (-1);
+    spiffer_stop (SPIFFER_ERROR);
   }
 
-  // say hello
+  // say hello,
   fprintf (lf, "spiffer started\n");
 
-  // initialise USB device count
-  usb_devs.dev_cnt = 0;
+  // open spif pipes and set up buffers,
+  if (spif_pipes_init () == SPIFFER_ERROR) {
+    spiffer_stop (SPIFFER_ERROR);
+  }
 
-  // spif buffer size
-  size_t batch_size = SPIF_BATCH_SIZE * sizeof (uint);
+  // set up UDP servers - one for every pipe,
+  if (udp_init () == SPIFFER_ERROR) {
+    spiffer_stop (SPIFFER_ERROR);
+  }
 
-  // open spif pipes and get corresponding buffer
+  // set up USB status,
+  if (usb_init () == SPIFFER_ERROR) {
+    spiffer_stop (SPIFFER_ERROR);
+  }
+
+  // start a thread for every spif pipe,
   for (int pipe = 0; pipe < SPIF_NUM_PIPES; pipe++) {
-    // open spif pipe
-    spif_pipe[pipe] = spif_open (pipe);
-    if (spif_pipe[pipe] == -1) {
-      fprintf (lf, "error: unable to open spif pipe%i\n", pipe);
-      spiffer_stop (-1);
-    }
-
-    // get pipe buffer
-    spif_buf[pipe] = (uint *) spif_get_buffer (spif_pipe[pipe], batch_size);
-    if (spif_buf[pipe] == NULL) {
-      fprintf (lf, "error: failed to get buffer for spif pipe%i\n", pipe);
-      spiffer_stop (-1);
-    }
-
-    fprintf (lf, "spif pipe%i opened\n", pipe);
-
-    // setup Ethernet UDP servers to receive events
-    pipe_skt[pipe] = udp_srv_setup (UDP_PORT_BASE + pipe);
-    if (pipe_skt[pipe] == -1) {
-      fprintf (lf, "error: failed to listen on UDP port %i\n", UDP_PORT_BASE + pipe);
-      spiffer_stop (-1);
-    }
-
-    // start a thread for every spif pipe
-    //NOTE: always start with UDP listeners, which can be active at any time
+    // always start with UDP listeners, which can be active at any time
     (void) pthread_create (&listener[pipe], NULL, udp_listener, (void *) pipe);
   }
 
-  // set up signal servicing
-  signal_cfg.sa_flags = 0;
-  signal_cfg.sa_handler = &sig_service;
+  // configure system signal service,
+  sig_init ();
 
-  // register signal service routine
-  sigaction(SIGINT,  &signal_cfg, NULL);
-  sigaction(SIGUSR1, &signal_cfg, NULL);
-
-  // update log
+  // update log,
   (void) fflush (lf);
 
-  // go to sleep and let the listeners do the work
+  // and go to sleep - let the listeners do the work
   while (1) {
     pause ();
   }

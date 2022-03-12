@@ -12,6 +12,8 @@
 
 
 // constants
+#define SPIFFER_ERROR     -1
+#define SPIFFER_OK        0
 #define SPIF_BATCH_SIZE   256
 #define SPIF_NUM_PIPES    2
 #define UDP_PORT_BASE     3333
@@ -33,27 +35,27 @@ typedef struct usb_devs {
 //--------------------------------------------------------------------
 // stop spiffer
 // caused by systemd request or error condition
-//
-// returns -1 on error condition, 0 otherwise
 //--------------------------------------------------------------------
 void spiffer_stop (int ec);
 //--------------------------------------------------------------------
 
 
 //--------------------------------------------------------------------
-// setup Ethernet UDP server to listen for events
+// setup Ethernet UDP servers to listen for events
 // create and bind on socket
 //
-// returns -1 if problems found
+// returns SPIFFER_ERROR if problems found
 //--------------------------------------------------------------------
-int udp_srv_setup (int eth_port);
+int udp_init (void);
 //--------------------------------------------------------------------
 
 
 //--------------------------------------------------------------------
 // receive events through Ethernet UDP port and forward them to spif
 //
-// lives until cancelled by the arrival of a signal
+// expects event to arrive in spif format - no mapping is done
+//
+// terminated as a result of signal servicing
 //--------------------------------------------------------------------
 void * udp_listener (void * data);
 //--------------------------------------------------------------------
@@ -62,7 +64,7 @@ void * udp_listener (void * data);
 //--------------------------------------------------------------------
 // attempt to open and configure USB device
 //
-// returns 0 on succes -1 on error
+// returns SPIFFER_OK on success SPIFFER_ERROR on error
 //--------------------------------------------------------------------
 int usb_dev_config (int pipe);
 
@@ -70,7 +72,7 @@ int usb_dev_config (int pipe);
 //--------------------------------------------------------------------
 // attempt to discover CAER devices connected to the USB bus
 //
-// returns the number of devices or -1 on detection error
+// returns the number of devices or SPIFFER_ERROR on detection error
 //--------------------------------------------------------------------
 int usb_discover (void);
 //--------------------------------------------------------------------
@@ -79,7 +81,7 @@ int usb_discover (void);
 //--------------------------------------------------------------------
 // add new USB device
 //
-// returns -1 on error condition, 0 otherwise
+// returns SPIFFER_ERROR on error condition, SPIFFER_OK otherwise
 //--------------------------------------------------------------------
 void usb_add_dev (void);
 //--------------------------------------------------------------------
@@ -88,16 +90,24 @@ void usb_add_dev (void);
 //--------------------------------------------------------------------
 // remove USB device
 //
-// returns -1 on error condition, 0 otherwise
+// returns SPIFFER_ERROR on error condition, SPIFFER_OK otherwise
 //--------------------------------------------------------------------
 void usb_rm_dev (void * data);
 //--------------------------------------------------------------------
 
 
 //--------------------------------------------------------------------
-// get the next batch of events from USB device
+// get a batch of events from USB device
+// map them to spif events with format:
 //
-// returns 0 if no data available
+//    [31] timestamp (0: present, 1: absent)
+// [30:16] 15-bit x coordinate
+//    [15] polarity
+//  [14:0] 15-bit y coordinate
+//
+// timestamps are ignored - time models itself
+//
+// returns the number of events in the batch
 //--------------------------------------------------------------------
 int usb_get_events (caerDeviceHandle dev, uint * buf);
 //--------------------------------------------------------------------
@@ -106,9 +116,36 @@ int usb_get_events (caerDeviceHandle dev, uint * buf);
 //--------------------------------------------------------------------
 // receive events from a USB device and forward them to spif
 //
-// lives until cancelled by the arrival of a signal
+// terminated as a result of signal servicing
 //--------------------------------------------------------------------
 void * usb_listener (void * data);
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// initialise USB device state
+//
+// returns SPIFFER_OK on success or SPIFFER_ERROR on error
+//--------------------------------------------------------------------
+int usb_init (void);
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// initialise spif pipes
+//
+// returns SPIFFER_OK on success or SPIFFER_ERROR on error
+//--------------------------------------------------------------------
+int spif_pipes_init (void);
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// initialise system signal services
+//
+// no return value
+//--------------------------------------------------------------------
+void sig_init (void);
 //--------------------------------------------------------------------
 
 
