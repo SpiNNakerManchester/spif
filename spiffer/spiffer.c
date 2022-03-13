@@ -226,17 +226,18 @@ int usb_dev_config (int pipe, caerDeviceHandle dh) {
 //--------------------------------------------------------------------
 void usb_sort (int ndv, caerDeviceHandle * dvh, int * sorted) {
   // prepare to sort device serial numbers,
+  struct caer_davis_info davis_info[ndv];
   char * serial[ndv];
   for (int dv = 0; dv < ndv; dv++) {
-    struct caer_davis_info davis_info = caerDavisInfoGet (dvh[dv]);
-    serial[dv] = davis_info.deviceSerialNumber;
-    sorted[dv] = dv;
+    davis_info[dv] = caerDavisInfoGet (dvh[dv]);
+    serial[dv]     = davis_info[dv].deviceSerialNumber;
+    sorted[dv]     = dv;
   }
 
   // straightforward bubble sort - small number of elements!
   for (int i = 0; i < (ndv - 1); i++) {
     for (int j = 0; j < (ndv - i - 1); j++) {
-      if (strcmp (serial[j], serial[j + 1]) > 0) {
+      if (strcmp (serial[sorted[j]], serial[sorted[j + 1]]) > 0) {
 	// swap elements
 	int temp      = sorted[j];
 	sorted[j]     = sorted[j + 1];
