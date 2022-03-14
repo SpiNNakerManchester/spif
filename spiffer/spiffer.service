@@ -4,7 +4,6 @@ Description=spif UDP/USB listening service
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/spiffer
-ExecStop=/usr/bin/pkill --signal SIGINT spiffer
 
 [Install]
 WantedBy=multi-user.target

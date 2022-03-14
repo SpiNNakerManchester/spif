@@ -26,7 +26,6 @@ typedef char serial_t[9];
 
 typedef struct usb_devs {
   int              dev_cnt;                  // number of connected USB devices
-  int              dev_id;                   // next device ID
   caerDeviceHandle dev_hdl[SPIF_NUM_PIPES];  // USB device handle
   serial_t         dev_sn[SPIF_NUM_PIPES];   // USB device handle
 } usb_devs_t;
@@ -160,7 +159,8 @@ int sig_init (void);
 // service system signals
 //
 // SIGUSR1 indicates that a USB device has been connected
-// SIGINT  requests spiffer to stop
+// SIGUSR2 ignored (duplicate connection event)
+// SIGTERM requests spiffer to stop
 //
 // no return value
 //--------------------------------------------------------------------

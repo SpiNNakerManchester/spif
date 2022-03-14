@@ -33,7 +33,8 @@
 struct sigaction signal_cfg;
 
 // threads
-pthread_t listener[SPIF_NUM_PIPES];
+pthread_t       listener[SPIF_NUM_PIPES];
+pthread_mutex_t usb_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 // spif
 int    spif_pipe[SPIF_NUM_PIPES];
@@ -57,20 +58,19 @@ FILE * lf;
 void spiffer_stop (int ec) {
   // shutdown spif pipes,
   for (int pipe = 0; pipe < SPIF_NUM_PIPES; pipe++) {
-    // cancel thread,
+    // shutdown listener,
     (void) pthread_cancel (listener[pipe]);
     pthread_join (listener[pipe], NULL);
 
+    // shutdown USB device,
+    (void) caerDeviceDataStop (usb_devs.dev_hdl[pipe]);
+    (void) caerDeviceClose (&usb_devs.dev_hdl[pipe]);
+
     // close UDP port,
     close (udp_skt[pipe]);
-    fprintf (lf, "UDP port %i closed\n", UDP_PORT_BASE + pipe);
-
-    // close USB device,
-    (void) caerDeviceClose (&usb_devs.dev_hdl[pipe]);
 
     // and close spif pipe
     spif_close (spif_pipe[pipe]);
-    fprintf (lf, "spif pipe%i closed\n", pipe);
   }
 
   // say goodbye,
@@ -119,6 +119,11 @@ int udp_init (void) {
 
     //  and map socket to pipe
     udp_skt[pipe] = skt;
+  }
+
+  // start UDP listeners
+  for (int pipe = 0; pipe < SPIF_NUM_PIPES; pipe++) {
+    (void) pthread_create (&listener[pipe], NULL, udp_listener, (void *) pipe);
   }
 
   return (SPIFFER_OK);
@@ -195,6 +200,14 @@ int usb_dev_config (int pipe, caerDeviceHandle dh) {
     return (SPIFFER_ERROR);
   }
 
+  // turn on data transmission
+  rc = caerDeviceDataStart (dh, NULL, NULL, NULL, &usb_survey_devs, (void *) pipe);
+
+  if (!rc) {
+    fprintf (lf, "error: failed to start camera data transmission\n");
+    return (SPIFFER_ERROR);
+  }
+
   // set spiffer data reception to blocking mode
   rc = caerDeviceConfigSet (dh, CAER_HOST_CONFIG_DATAEXCHANGE,
                             CAER_HOST_CONFIG_DATAEXCHANGE_BLOCKING, true
@@ -202,16 +215,6 @@ int usb_dev_config (int pipe, caerDeviceHandle dh) {
 
   if (!rc) {
     fprintf (lf, "error: failed to set blocking mode\n");
-    return (SPIFFER_ERROR);
-  }
-
-  fprintf (lf, "configured USB device for pipe%i\n", (uint) pipe);
-
-  // turn on data transmission
-  rc = caerDeviceDataStart (dh, NULL, NULL, NULL, &usb_survey_devs, (void *) pipe);
-
-  if (!rc) {
-    fprintf (lf, "error: failed to start camera data transmission\n");
     return (SPIFFER_ERROR);
   }
 
@@ -268,42 +271,49 @@ int usb_discover_devs (int discon_dev) {
   caerDeviceHandle dvh[USB_DISCOVER_CNT];
   serial_t         dvn[USB_DISCOVER_CNT];
 
-  // keep previously discovered devices except disconnected one
-  for (int dv = 0; dv < usb_devs.dev_cnt; dv++) {
-    if (dv != discon_dev) {
-      dvh[ndd] = usb_devs.dev_hdl[dv];
-      (void) strcpy (dvn[ndd], usb_devs.dev_sn[dv]);
-      ndd++;
+  // shutdown listeners and connected USB devices
+  for (int pipe = 0; pipe < SPIF_NUM_PIPES; pipe++) {
+    // shutdown listener,
+    (void) pthread_cancel (listener[pipe]);
+    pthread_join (listener[pipe], NULL);
+
+    // shutdown USB device,
+    if (pipe != discon_dev) {
+      (void) caerDeviceDataStop (usb_devs.dev_hdl[pipe]);
+      (void) caerDeviceClose (&usb_devs.dev_hdl[pipe]);
+      usb_devs.dev_hdl[pipe] = NULL;
     }
   }
+
+  // start from a clean state
+  usb_devs.dev_cnt = 0;
+  int dev_id = 1;
 
   // discover devices by trying to open them
   while (ndd < USB_DISCOVER_CNT) {
     // try to open a new device and give it a device ID,
     //TODO: update for other device types
-    caerDeviceHandle dh = caerDeviceOpen (usb_devs.dev_id, CAER_DEVICE_DAVIS, 0, 0, NULL);
+    caerDeviceHandle dh = caerDeviceOpen (dev_id, CAER_DEVICE_DAVIS, 0, 0, NULL);
 
     if (dh == NULL) {
       // no more devices available
       break;
     }
 
-    // get camera info - serial number
-    struct caer_davis_info davis_info = caerDavisInfoGet (dh);
-
     // update device ID
-    usb_devs.dev_id++;
+    dev_id++;
 
-    // and remember device handle and serial number
+    // remember device handle
     dvh[ndd] = dh;
+
+    // remember device serial number
+    struct caer_davis_info davis_info = caerDavisInfoGet (dh);
     (void) strcpy (dvn[ndd], davis_info.deviceSerialNumber);
+
     ndd++;
   }
 
   fprintf (lf, "discovered %i USB device%c\n", ndd, ndd == 1 ? ' ' : 's');
-
-  // start from a clean state
-  usb_devs.dev_cnt = 0;
 
   // check if no devices found
   if (ndd == 0) {
@@ -362,31 +372,26 @@ int usb_discover_devs (int discon_dev) {
 // no return value
 //--------------------------------------------------------------------
 void usb_survey_devs (void * data) {
+  // grab the lock - keep other threads out
+  pthread_mutex_lock (&usb_mtx);
+
   int discon_dev = (int) data;
 
   // try to discover supported USB devices
   int ndd = usb_discover_devs (discon_dev);
 
-  // start USB listeners,
+  // start USB listeners on discovered devices
   for (int pipe = 0; pipe < ndd; pipe++) {
-    // terminate current listener,
-    pthread_cancel (listener[pipe]);
-    pthread_join (listener[pipe], NULL);
-
-    // and start new USB listener
     (void) pthread_create (&listener[pipe], NULL, usb_listener, (void *) pipe);
   }
 
   // and start UDP listeners on the rest of the pipes
   for (int pipe = ndd; pipe < SPIF_NUM_PIPES; pipe++) {
-
-    // terminate current listener,
-    pthread_cancel (listener[pipe]);
-    pthread_join (listener[pipe], NULL);
-
-    // and start new UDP listener
     (void) pthread_create (&listener[pipe], NULL, udp_listener, (void *) pipe);
   }
+
+  // release the lock
+  pthread_mutex_unlock (&usb_mtx);
 
   (void) fflush (lf);
 }
@@ -504,11 +509,8 @@ int usb_init (void) {
   // initialise USB device count
   usb_devs.dev_cnt = 0;
 
-  // initialise USB device ID
-  usb_devs.dev_id = 1;
-
   // check if any USB devices are connected
-  usb_survey_devs ((void *) -1);
+  //lap usb_survey_devs ((void *) -1);
 
   return (SPIFFER_OK);
 }
@@ -539,8 +541,6 @@ int spif_pipes_init (void) {
       fprintf (lf, "error: failed to get buffer for spif pipe%i\n", pipe);
       return (SPIFFER_ERROR);
     }
-
-    fprintf (lf, "spif pipe%i opened\n", pipe);
   }
 
   return (SPIFFER_OK);
@@ -559,19 +559,19 @@ int sig_init (void) {
   signal_cfg.sa_flags = 0;
   sigemptyset (&signal_cfg.sa_mask);
   sigaddset   (&signal_cfg.sa_mask, SIGTERM);
-  sigaddset   (&signal_cfg.sa_mask, SIGINT);
   sigaddset   (&signal_cfg.sa_mask, SIGUSR1);
+  sigaddset   (&signal_cfg.sa_mask, SIGUSR2);
 
   // register signal service routine
-  if (sigaction (SIGTERM,  &signal_cfg, NULL) == SPIFFER_ERROR) {
+  if (sigaction (SIGUSR1,  &signal_cfg, NULL) == SPIFFER_ERROR) {
     return (SPIFFER_ERROR);
   }
 
-  if (sigaction (SIGINT,  &signal_cfg, NULL) == SPIFFER_ERROR) {
+  if (sigaction (SIGUSR2,  &signal_cfg, NULL) == SPIFFER_ERROR) {
     return (SPIFFER_ERROR);
   }
 
-  return (sigaction (SIGUSR1, &signal_cfg, NULL));
+  return (sigaction (SIGTERM, &signal_cfg, NULL));
 }
 //--------------------------------------------------------------------
 
@@ -580,7 +580,8 @@ int sig_init (void) {
 // service system signals
 //
 // SIGUSR1 indicates that a USB device has been connected
-// SIGINT  requests spiffer to stop
+// SIGUSR2 ignored (duplicate connection event)
+// SIGTERM requests spiffer to stop
 //
 // no return value
 //--------------------------------------------------------------------
@@ -589,6 +590,10 @@ void sig_service (int signum) {
     case SIGUSR1:
       // need to survey USB devices
       usb_survey_devs ((void *) -1);
+      break;
+
+    case SIGUSR2:
+      // ignore bind events
       break;
 
     default:
