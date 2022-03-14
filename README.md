@@ -18,26 +18,6 @@ The designs were implemented and verified using `Xilinx Vivado version 2019.2`.
 Both platforms connect to the SpiNNaker system using a SATA cable and the spiNNlink protocol used in SpiNNaker systems for board-to-board interconnect.
 
 
-<a name="evt_fmt"></a>`spif` event format
------------------------------------------
-
-`spif` accepts events through Ethernet UDP ports and USB and transfers them to SpiNNaker.
-
-- events arriving on UDP ports are transferred _as is_ to SpiNNaker,
-- events arriving on USB are mapped to `spif` events before being transferred to SpiNNaker.
-
-`spif` events are 32-bit numbers with the following bit assignments:
-
-|  bits   | event field  | comment               |
-|--------:|:------------:|:----------------------|
-|    [31] |  timestamp   | 0: present, 1: absent |
-| [30:16] | x coordinate |                       |
-|    [15] | polarity     |                       |
-|  [14:0] | y coordinate |                       |
-
-In the current implementation timestamps are never used - time models itself!
-
-
 spiNNlink
 ---------
 
