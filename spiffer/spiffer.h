@@ -22,12 +22,13 @@
 
 
 // USB listener
-typedef char caer_sn_t[9];
+typedef char serial_t[9];
 
 typedef struct usb_devs {
   int              dev_cnt;                  // number of connected USB devices
   int              dev_id;                   // next device ID
   caerDeviceHandle dev_hdl[SPIF_NUM_PIPES];  // USB device handle
+  serial_t         dev_sn[SPIF_NUM_PIPES];   // USB device handle
 } usb_devs_t;
 
 
@@ -65,7 +66,7 @@ void * udp_listener (void * data);
 //
 // no return value
 //--------------------------------------------------------------------
-void usb_sort (int ndv, caerDeviceHandle * dvh, int * sorted);
+void usb_sort (int ndv, serial_t * dvn, int * sorted);
 //--------------------------------------------------------------------
 
 
@@ -79,23 +80,26 @@ int usb_dev_config (int pipe, caerDeviceHandle dh);
 
 
 //--------------------------------------------------------------------
-// attempt to discover new supported devices connected to the USB bus
-// sort devices by serial number for consistent mapping to spif
+// attempt to discover new devices connected to the USB bus
+// sort devices by serial number for consistent mapping to spif pipes
 //
-//NOTE: the caer discover library function seems to fail sometimes
+// discon_dev = known disconnected USB device, -1 for unknown
 //
 // returns the number of discovered devices (0 on error)
 //--------------------------------------------------------------------
-int usb_discover_devs (int old_pipe);
+int usb_discover_devs (int discon_dev);
 //--------------------------------------------------------------------
 
 
 //--------------------------------------------------------------------
-// add new USB devices
+// survey USB devices
+// called at start up and on USB device connection and disconnection
+//
+// data = known disconnected USB device, -1 for unknown
 //
 // no return value
 //--------------------------------------------------------------------
-void usb_add_devs (void * data);
+void usb_survey_devs (void * data);
 //--------------------------------------------------------------------
 
 
