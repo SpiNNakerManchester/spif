@@ -17,6 +17,21 @@ The designs were implemented and verified using `Xilinx Vivado version 2019.2`.
 
 Both platforms connect to the SpiNNaker system using a SATA cable and the spiNNlink protocol used in SpiNNaker systems for board-to-board interconnect.
 
+
+`spif` event format
+-----------
+`spif` accepts 32-bit events with the following bit assignments:
+
+|  bits   | event field  | comment               |
+|--------:|:------------:|:----------------------|
+|    [31] |  timestamp   | 0: present, 1: absent |
+| [30:16] | x coordinate |                       |
+|    [15] | polarity     |                       |
+|  [14:0] | y coordinate |                       |
+
+In the current implementation timestamps are never used - time models itself!
+
+
 spiNNlink
 ---------
 
@@ -28,6 +43,7 @@ The following open-access publication describes the SpiNNlink specification and 
 
 LA Plana, J Garside, J Heathcote, J Pepper, S Temple, S Davidson, M Luján and S Furber, *spiNNlink: FPGA-Based Interconnect for the Million-Core SpiNNaker System*, in IEEE Access, vol. 8, pp. 84918-84928, 2020, doi: [10.1109/ACCESS.2020.2991038](https://doi.org/10.1109/ACCESS.2020.2991038).
 
+
 Authors
 -------
 
@@ -36,6 +52,7 @@ The designs in this repository are largely the work of:
 * LA Plana (The University of Manchester)
 
 with input from J Conradt (KTH), JE Pedersen (KTH), JP Romero Bermúdez (KTH), AG Rowley (UManchester), S Davidson (UManchester) and O Rhodes (UManchester).
+
 
 Acknowledgments
 ---------------
