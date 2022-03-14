@@ -19,8 +19,14 @@ Both platforms connect to the SpiNNaker system using a SATA cable and the spiNNl
 
 
 <a name="evt_fmt"></a>`spif` event format
------------
-`spif` accepts 32-bit events with the following bit assignments:
+-----------------------------------------
+
+`spif` accepts events through Ethernet UDP ports and USB and transfers them to SpiNNaker.
+
+- events arriving on UDP ports are transferred _as is_ to SpiNNaker,
+- events arriving on USB are mapped to `spif` events before being transferred to SpiNNaker.
+
+`spif` events are 32-bit numbers with the following bit assignments:
 
 |  bits   | event field  | comment               |
 |--------:|:------------:|:----------------------|
