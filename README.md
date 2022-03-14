@@ -18,7 +18,7 @@ The designs were implemented and verified using `Xilinx Vivado version 2019.2`.
 Both platforms connect to the SpiNNaker system using a SATA cable and the spiNNlink protocol used in SpiNNaker systems for board-to-board interconnect.
 
 
-`spif` event format
+<a name="evt_fmt"></a>`spif` event format
 -----------
 `spif` accepts 32-bit events with the following bit assignments:
 
