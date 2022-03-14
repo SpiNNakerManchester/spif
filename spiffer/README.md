@@ -14,7 +14,29 @@ Current implementation features and limitations
 - listens on UDP port 3333 and forwards events to spif pipe0,
 - listens on UDP port 3334 and forwards events to spif pipe1,
 - sorts cameras by serial number and connects the lower number to pipe0 and the higher number to pipe1,
+- transfers events arriving on UDP ports _as is_ to spif,
+- maps events arriving on USB to [`spif` events](#evt_fmt) before transferring them to spif,
 - writes a world-readable, root-writable transient log file (`/tmp/spiffer.log`). The log is used to report fatal errors during setup (UDP ports, USB devices and such) and listener status when USB devices connect or disconnect. 
+
+
+<a name="evt_fmt"></a>`spif` events
+-----------------------------------
+
+`spif` accepts events through Ethernet UDP ports and USB and transfers them to SpiNNaker.
+
+- events arriving on UDP ports are transferred _as is_ to SpiNNaker,
+- events arriving on USB are mapped to `spif` events before being transferred to SpiNNaker.
+
+`spif` events are 32-bit numbers with the following bit assignments:
+
+|  bits   | event field  | comment               |
+|--------:|:------------:|:----------------------|
+|    [31] |  timestamp   | 0: present, 1: absent |
+| [30:16] | x coordinate |                       |
+|    [15] | polarity     |                       |
+|  [14:0] | y coordinate |                       |
+
+In the current implementation timestamps are never used - time models itself!
 
 
 Compilation
