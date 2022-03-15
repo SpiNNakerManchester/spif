@@ -54,32 +54,13 @@ Compilation
 Installation
 ------------
 
-`spiffer` operation requires setting of udev rules and creating systemd service unit.
+`spiffer` operation requires setting new udev rules and creating a systemd service unit.
 
 > use `sudo make install` to install  `spiffer` 
 
-The following steps are taken:
 
-1. `spiffer` is copied to /usr/local/bin/
-
-2. `99-spiffer.rules` is copied to /etc/udev/rules.d/
-
-3. `udevadm control --reload` reloads udev rules
-
-4. `spiffer.service` is copied to /lib/systemd/system/
-
-5. links to `spiffer.service` are created from:
-
-- /etc/systemd/system/
-- /etc/systemd/system/multi-user.target.wants/
-
-6. `/tmp/spiffer.log` is reset
-
-7. `systemctl restart spiffer` restarts spiffer
-
-
-Extending support to new USB devices
-------------------------------------
+Supporting new USB devices
+--------------------------
 
 1. new rules should be added to `99-spiffer.rules` to detect device connections.
 
