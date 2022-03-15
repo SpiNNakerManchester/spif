@@ -9,12 +9,12 @@ spiffer: spiffer.c
 	gcc $(USBCFLAGS) -o spiffer spiffer.c -D_DEFAULT_SOURCE=1 -lcaer -lpthread
 
 install: spiffer 99-spiffer.rules spiffer.service
-	systemctl stop spiffer
-	rm -f /etc/systemd/system/multi-user.target.wants/spiffer.service
 	cp -p spiffer /usr/local/bin/
 	cp -p 99-spiffer.rules /etc/udev/rules.d/
 	udevadm control --reload
 	cp -p spiffer.service /lib/systemd/system/
+	systemctl stop spiffer
+	rm -f /etc/systemd/system/multi-user.target.wants/spiffer.service
 	ln -fn /lib/systemd/system/spiffer.service /etc/systemd/system/spiffer.service
 	rm -f /tmp/spiffer.log
 	systemctl daemon-reload
