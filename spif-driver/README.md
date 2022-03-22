@@ -55,8 +55,7 @@ The memory size must be adjusted for the number of event-processing pipes.
 
 Finally, support to drive the Ethernet RJ45 connector LEDs requires the following addtion:
 
-<pre><code>
-&gem0 {
+<pre><code>&gem0 {
     status = "okay";
     	ethernet_phy0: ethernet-phy@0 {
 		compatible = "marvell,88e1510";
@@ -64,8 +63,7 @@ Finally, support to drive the Ethernet RJ45 connector LEDs requires the followin
         reg = <0>;
         <b>marvell,reg-init = <3 16 0xff00 0x12 3 17 0xfff0 0x5>;</b>
     };
-};
-</code></pre>
+};</code></pre>
 
 Installation
 ------------
