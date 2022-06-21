@@ -13,7 +13,7 @@ Current implementation features and limitations
 - switches between UDP and USB listening as a result of USB camera connections and disconnections.
 - listens on UDP port 3333 and forwards events to spif pipe0,
 - listens on UDP port 3334 and forwards events to spif pipe1,
-- sorts cameras by serial number and connects the lower number to pipe0 and the higher number to pipe1,
+- sorts USB cameras by serial number and connects the lower number to pipe0 and the higher number to pipe1,
 - transfers events arriving on UDP ports _as is_ to spif,
 - maps events arriving on USB to [`spiffer` events](#evt_fmt) before transferring them to spif,
 - writes a world-readable, root-writable transient log file (`/tmp/spiffer.log`). The log is used to report fatal errors during setup (UDP ports, USB devices and such) and listener status when USB devices connect or disconnect. 
