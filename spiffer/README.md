@@ -44,7 +44,7 @@ Compilation
 
 > use `make` to compile `spiffer` 
 
-`spiffer` has been compiled, installed and tested on the Ubuntu 20.04 distribution of Linux on a 32-bit ARM platform, and on the Ubuntu 18-04 distribution of Linux on a 64-bit ARM platform.
+`spiffer` has been compiled, installed and tested on the Ubuntu 20.04 distribution of Linux on a 32-bit ARM platform, and on the Ubuntu 18.04 distribution of Linux on a 64-bit ARM platform.
 
 `spiffer` requires the pthread library.
 
