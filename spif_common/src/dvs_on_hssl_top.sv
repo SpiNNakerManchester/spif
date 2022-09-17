@@ -722,7 +722,7 @@ module dvs_on_hssl_top
     // peripheral output packet
     , .per_data_out       (per_data_int)
     , .per_vld_out        (per_vld_int)
-    , .per_rdy_in         (per_rdyint)
+    , .per_rdy_in         (per_rdy_int)
 
       // packet counters
     , .prx_cnt_out        (prx_cnt_int)
