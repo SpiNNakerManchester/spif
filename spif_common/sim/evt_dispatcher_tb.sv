@@ -47,6 +47,8 @@ module evt_dispatcher_tb ();
   reg                       clk_dut;
   reg                       reset_dut;
 
+  reg                [63:0] cycle_counter_tb;
+
   reg                [31:0] pkt_counter_tb;
 
   reg   [PACKET_BITS - 1:0] pkt_in_data_tb;
@@ -93,7 +95,17 @@ module evt_dispatcher_tb ();
   //---------------------------------------------------------------
 
   //---------------------------------------------------------------
-  // packet counter is useful to control the tests
+  // cycle counter is useful to control the tests
+  //---------------------------------------------------------------
+  always @ (posedge clk_tb or posedge reset_tb)
+    if (reset_tb)
+      cycle_counter_tb <= 0;
+    else
+      cycle_counter_tb <= cycle_counter_tb + 1;
+  //---------------------------------------------------------------
+
+  //---------------------------------------------------------------
+  // packet counter is useful to control the packet data
   //---------------------------------------------------------------
   always @ (posedge clk_tb or posedge reset_tb)
     if (reset_tb)
@@ -140,7 +152,10 @@ module evt_dispatcher_tb ();
     if (reset_tb)
       evt_rdy_tb <= 1'bx;
     else
-      evt_rdy_tb <= 1'b1;
+      if ((cycle_counter_tb >= 150) && (cycle_counter_tb < 200))
+        evt_rdy_tb <= 1'b0;
+      else
+        evt_rdy_tb <= 1'b1;
   //---------------------------------------------------------------
 
   //---------------------------------------------------------------

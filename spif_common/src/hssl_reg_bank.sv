@@ -147,7 +147,7 @@ module hssl_reg_bank
   localparam RESERVED_DEF   = BAD_REG;
   localparam REPLY_KEY_DEF  = 32'hffff_fd00;  // remote reply routing key
   localparam IN_WAIT_DEF    = 32;
-  localparam OUT_WAIT_DEF   = 32;
+  localparam OUT_WAIT_DEF   = 0;
   localparam OUT_TICK_DEF   = 1000;
   localparam OUT_SIZE_DEF   = 256;
 
