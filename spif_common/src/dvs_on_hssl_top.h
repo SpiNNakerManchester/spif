@@ -35,8 +35,8 @@
 // hardware version
 // semantic versioning [MM = major, mm = minor, pp = patch]
 //---------------------------------------------------------------
-`define SPIF_VER_STR      "0.0.1"
-`define SPIF_VER_NUM      `HW_VER_BITS'h000001  // 24'hMMmmpp
+`define SPIF_VER_STR      "0.1.0"
+`define SPIF_VER_NUM      `HW_VER_BITS'h000100  // 24'hMMmmpp
 
 //---------------------------------------------------------------
 // number of parallel event-processing pipelines

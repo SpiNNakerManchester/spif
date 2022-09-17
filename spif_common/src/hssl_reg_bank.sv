@@ -74,6 +74,10 @@ module hssl_reg_bank
   output wire                [31:0] input_wait_out,
   output wire                [31:0] output_wait_out,
 
+  // event frame parameters
+  output wire                [31:0] output_tick_out,
+  output wire                 [9:0] output_size_out,
+
   // input router interface
   output reg                 [31:0] reg_rt_key_out   [`NUM_RTREGS - 1:0],
   output reg                 [31:0] reg_rt_mask_out  [`NUM_RTREGS - 1:0],
@@ -131,6 +135,8 @@ module hssl_reg_bank
   localparam REPLY_KEY_REG  = 2;
   localparam IN_WAIT_REG    = 3;
   localparam OUT_WAIT_REG   = 4;
+  localparam OUT_TICK_REG   = 5;
+  localparam OUT_SIZE_REG   = 6;
 
   // not real registers - collect signals
   localparam STATUS_REG     = 14;
@@ -142,6 +148,8 @@ module hssl_reg_bank
   localparam REPLY_KEY_DEF  = 32'hffff_fd00;  // remote reply routing key
   localparam IN_WAIT_DEF    = 32;
   localparam OUT_WAIT_DEF   = 32;
+  localparam OUT_TICK_DEF   = 1000;
+  localparam OUT_SIZE_DEF   = 256;
 
   localparam RT_KEY_DEF     = 32'hffff_ffff;  // force a miss
   localparam RT_MSK_DEF     = 32'h0000_0000;
@@ -165,6 +173,8 @@ module hssl_reg_bank
   assign reply_key_out   = reg_hssl_int[REPLY_KEY_REG];
   assign input_wait_out  = reg_hssl_int[IN_WAIT_REG];
   assign output_wait_out = reg_hssl_int[OUT_WAIT_REG];
+  assign output_tick_out = reg_hssl_int[OUT_TICK_REG];
+  assign output_size_out = reg_hssl_int[OUT_SIZE_REG];
 
   // APB register access
   wire                  apb_read  = apb_psel_in && !apb_pwrite_in;
@@ -223,6 +233,8 @@ module hssl_reg_bank
         reg_hssl_int[REPLY_KEY_REG] <= REPLY_KEY_DEF;
         reg_hssl_int[IN_WAIT_REG]   <= IN_WAIT_DEF;
         reg_hssl_int[OUT_WAIT_REG]  <= OUT_WAIT_DEF;
+        reg_hssl_int[OUT_TICK_REG]  <= OUT_TICK_DEF;
+        reg_hssl_int[OUT_SIZE_REG]  <= OUT_SIZE_DEF;
         reg_rt_key_out              <= '{NUM_RTREGS {RT_KEY_DEF}};
         reg_rt_mask_out             <= '{NUM_RTREGS {RT_MSK_DEF}};
         reg_rt_route_out            <= '{NUM_RTREGS {RT_RTE_DEF}};
