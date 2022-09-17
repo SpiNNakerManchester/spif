@@ -30,15 +30,18 @@
 #define SPIF_REPLY_KEY        2
 #define SPIF_IN_DROP_WAIT     3
 #define SPIF_OUT_DROP_WAIT    4
+#define SPIF_OUT_FRM_PERIOD   5
+#define SPIF_OUT_FRM_SIZE     6
 #define SPIF_STATUS           14
 #define SPIF_VERSION          15
 #define SPIF_ROUTER_KEY       16    // section of SPIF_ROUTER_NUM registers
 #define SPIF_ROUTER_MASK      32    // section of SPIF_ROUTER_NUM registers
 #define SPIF_ROUTER_ROUTE     48    // section of SPIF_ROUTER_NUM registers
-#define SPIF_COUNT_OUT        64
-#define SPIF_COUNT_CONFIG     65
+#define SPIF_COUNT_OUT_DROP   64
+#define SPIF_COUNT_OUT        65
 #define SPIF_COUNT_IN_DROP    66
 #define SPIF_COUNT_IN         67
+#define SPIF_COUNT_CONFIG     68
 #define SPIF_MAPPER_KEY       80    // section of 1 register/pipe
 #define SPIF_MAPPER_MASK      96    // section of SPIF_MPREGS_NUM registers/pipe
 #define SPIF_MAPPER_SHIFT     112   // section of SPIF_MPREGS_NUM registers/pipe
