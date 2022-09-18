@@ -309,15 +309,15 @@ static long spif_ioctl (struct file * fp, unsigned int req , unsigned long arg)
     // check dma status
     //NOTE: the DMA controller *not* reported idle at init state!
     if (!pipe->dma_init &&
-	!(ioread32 ((void *) &dma_regs[SPIF_DMAC_SR]) & SPIF_DMAC_IDLE)) {
+        !(ioread32 ((void *) &dma_regs[SPIF_DMAC_SR]) & SPIF_DMAC_IDLE)) {
       return -EBUSY;
     }
 
     // arg is transfer length in bytes
-    // write length to DMA controller length regiter to trigger transfer
+    // write length to DMA controller length register to trigger transfer
     iowrite32 ((uint) arg, (void *) &dma_regs[SPIF_DMAC_LEN]);
 
-    // mark DMA controller as *not* in init stae
+    // mark DMA controller as *not* in init state
     pipe->dma_init = 0;
 
     return 0;
