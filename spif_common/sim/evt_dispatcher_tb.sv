@@ -41,121 +41,125 @@ module evt_dispatcher_tb ();
   //---------------------------------------------------------------
   // internal signals
   //---------------------------------------------------------------
-  reg                       clk_tb;
-  reg                       reset_tb;
+  reg                       tb_clk;
+  reg                       tb_reset;
 
-  reg                       clk_dut;
-  reg                       reset_dut;
+  reg                       dut_clk;
+  reg                       dut_reset;
 
-  reg                [63:0] cycle_counter_tb;
+  reg                [63:0] tb_cycle_counter;
 
-  reg                [31:0] pkt_counter_tb;
+  reg                [31:0] tb_pkt_counter;
+  reg                       tb_pkt_send;
 
-  reg   [PACKET_BITS - 1:0] pkt_in_data_tb;
-  reg                       pkt_in_vld_tb;
-  wire                      pkt_in_rdy_tb;
+  reg   [PACKET_BITS - 1:0] tb_pkt_in_data;
+  reg                       tb_pkt_in_vld;
+  wire                      tb_pkt_in_rdy;
 
-  reg                [31:0] output_tick_tb;
-  reg                 [9:0] output_size_tb;
+  reg                [31:0] tb_output_tick;
+  reg                 [9:0] tb_output_size;
 
-  wire               [31:0] evt_data_tb;
-  wire                [3:0] evt_keep_tb;
-  wire                      evt_last_tb;
-  wire                      evt_vld_tb;
-  reg                       evt_rdy_tb;
+  wire               [31:0] tb_evt_data;
+  wire                [3:0] tb_evt_keep;
+  wire                      tb_evt_last;
+  wire                      tb_evt_vld;
+  reg                       tb_evt_rdy;
 
-  wire                      out_drp_pkt_cnt_tb;
+  wire                      tb_out_drp_pkt_cnt;
 
   //---------------------------------------------------------------
   // dut: packet receiver
   //---------------------------------------------------------------
   evt_dispatcher dut (
-      .clk                (clk_dut)
-    , .reset              (reset_dut)
+      .clk                (dut_clk)
+    , .reset              (dut_reset)
 
       // incoming peripheral output packets from receiver
-    , .pkt_data_in        (pkt_in_data_tb)
-    , .pkt_vld_in         (pkt_in_vld_tb)
-    , .pkt_rdy_out        (pkt_in_rdy_tb)
+    , .pkt_data_in        (tb_pkt_in_data)
+    , .pkt_vld_in         (tb_pkt_in_vld)
+    , .pkt_rdy_out        (tb_pkt_in_rdy)
 
       // event frame parameters
-    , .output_tick_in     (output_tick_tb)
-    , .output_size_in     (output_size_tb)
+    , .output_tick_in     (tb_output_tick)
+    , .output_size_in     (tb_output_size)
 
       // outgoing peripheral output events
-    , .evt_data_out       (evt_data_tb)
-    , .evt_keep_out       (evt_keep_tb)
-    , .evt_last_out       (evt_last_tb)
-    , .evt_vld_out        (evt_vld_tb)
-    , .evt_rdy_in         (evt_rdy_tb)
+    , .evt_data_out       (tb_evt_data)
+    , .evt_keep_out       (tb_evt_keep)
+    , .evt_last_out       (tb_evt_last)
+    , .evt_vld_out        (tb_evt_vld)
+    , .evt_rdy_in         (tb_evt_rdy)
 
     // dropped packet counter enable
-    , .out_drp_cnt_out    (out_drp_pkt_cnt_tb)
+    , .out_drp_cnt_out    (tb_out_drp_pkt_cnt)
     );
   //---------------------------------------------------------------
 
   //---------------------------------------------------------------
   // cycle counter is useful to control the tests
   //---------------------------------------------------------------
-  always @ (posedge clk_tb or posedge reset_tb)
-    if (reset_tb)
-      cycle_counter_tb <= 0;
+  always @ (posedge tb_clk or posedge tb_reset)
+    if (tb_reset)
+      tb_cycle_counter <= 0;
     else
-      cycle_counter_tb <= cycle_counter_tb + 1;
+      tb_cycle_counter <= tb_cycle_counter + 1;
   //---------------------------------------------------------------
 
   //---------------------------------------------------------------
   // packet counter is useful to control the packet data
   //---------------------------------------------------------------
-  always @ (posedge clk_tb or posedge reset_tb)
-    if (reset_tb)
-      pkt_counter_tb <= 0;
+  always @ (posedge tb_clk or posedge tb_reset)
+    if (tb_reset)
+      tb_pkt_counter <= 0;
     else
-      if (pkt_in_vld_tb && pkt_in_rdy_tb)
-        pkt_counter_tb <= pkt_counter_tb + 1;
+      if (tb_pkt_in_vld && tb_pkt_in_rdy)
+        tb_pkt_counter <= tb_pkt_counter + 1;
+    
+  always_comb
+    tb_pkt_send = !tb_reset && ((tb_cycle_counter % 3) == 2);
   //---------------------------------------------------------------
 
   //---------------------------------------------------------------
   // drive dut peripheral output packet interface
   //---------------------------------------------------------------
-  always @ (posedge clk_tb or posedge reset_tb)
-    if (reset_tb)
-      pkt_in_data_tb <= 0;
-    else
-      if (pkt_in_vld_tb && pkt_in_rdy_tb)
-        pkt_in_data_tb <= pkt_counter_tb << KEY_LSB;
+  always_comb
+    tb_pkt_in_data = tb_pkt_counter << KEY_LSB;
 
-  always @ (posedge clk_tb or posedge reset_tb)
-    if (reset_tb)
-      pkt_in_vld_tb <= 1'bx;
+  always @ (posedge tb_clk or posedge tb_reset)
+    if (tb_reset)
+      tb_pkt_in_vld <= 1'b0;
     else
-      pkt_in_vld_tb <= 1'b1;
+      if (tb_pkt_send)
+        tb_pkt_in_vld <= 1'b1;
+      else
+        if (tb_pkt_in_rdy)
+          tb_pkt_in_vld <= 1'b0;
   //---------------------------------------------------------------
 
   //---------------------------------------------------------------
   // drive dut peripheral output event interface
   //---------------------------------------------------------------
-  always @ (posedge clk_tb or posedge reset_tb)
-    if (reset_tb)
-      output_tick_tb <= 32'dx;
+  always @ (posedge tb_clk or posedge tb_reset)
+    if (tb_reset)
+      tb_output_tick <= 32'dx;
     else
-      //lap output_tick_tb <= 32'd2000;
-      output_tick_tb <= 32'd10;
+      //lap tb_output_tick <= 32'd2000;
+      tb_output_tick <= 32'd15;
 
-  always @ (posedge clk_tb or posedge reset_tb)
-    if (reset_tb)
-      output_size_tb <= 10'dx;
+  always @ (posedge tb_clk or posedge tb_reset)
+    if (tb_reset)
+      tb_output_size <= 10'dx;
     else
-      output_size_tb <= 10'd256;
+      tb_output_size <= 10'd256;
 
-  always @ (posedge clk_tb or posedge reset_tb)
-    if (reset_tb)
-      evt_rdy_tb <= 1'bx;
+  always @ (posedge tb_clk or posedge tb_reset)
+    if (tb_reset)
+      tb_evt_rdy <= 1'bx;
     else
-      if ((cycle_counter_tb >= 150) && (cycle_counter_tb < 200))
-        evt_rdy_tb <= 1'b0;
+      if ((tb_cycle_counter >= 150) && (tb_cycle_counter < 200))
+        tb_evt_rdy <= 1'b0;
       else
-        evt_rdy_tb <= 1'b1;
+        tb_evt_rdy <= 1'b1;
   //---------------------------------------------------------------
 
   //---------------------------------------------------------------
@@ -163,10 +167,10 @@ module evt_dispatcher_tb ();
   //---------------------------------------------------------------
   initial
   begin
-    clk_dut = 1'b0;
+    dut_clk = 1'b0;
 
     forever
-      # DUT_CLK_HALF clk_dut = ~clk_dut;
+      # DUT_CLK_HALF dut_clk = ~dut_clk;
   end
   //---------------------------------------------------------------
 
@@ -175,12 +179,12 @@ module evt_dispatcher_tb ();
   //---------------------------------------------------------------
   initial
   begin
-    reset_dut = 1'b0;
+    dut_reset = 1'b0;
 
     // wait a few clock cycles before triggering the reset signal
-    # INIT_DELAY reset_dut = 1'b1;
+    # INIT_DELAY dut_reset = 1'b1;
 
-    # RST_DELAY  reset_dut = 1'b0;  // release dut
+    # RST_DELAY  dut_reset = 1'b0;  // release dut
   end
   //---------------------------------------------------------------
 
@@ -189,10 +193,10 @@ module evt_dispatcher_tb ();
   //---------------------------------------------------------------
   initial
   begin
-    clk_tb = 1'b0;
+    tb_clk = 1'b0;
 
     forever
-      # TB_CLK_HALF clk_tb = ~clk_tb;
+      # TB_CLK_HALF tb_clk = ~tb_clk;
   end
   //---------------------------------------------------------------
 
@@ -201,12 +205,12 @@ module evt_dispatcher_tb ();
   //---------------------------------------------------------------
   initial
   begin
-    reset_tb = 1'b0;
+    tb_reset = 1'b0;
 
     // wait a few clock cycles before triggering the reset signal
-    # (INIT_DELAY / 2) reset_tb = 1'b1;
+    # (INIT_DELAY / 2) tb_reset = 1'b1;
 
-    # RST_DELAY        reset_tb = 1'b0;  // release testbench
+    # RST_DELAY        tb_reset = 1'b0;  // release testbench
   end
   //---------------------------------------------------------------
 endmodule
