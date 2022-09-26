@@ -155,7 +155,7 @@ module dvs_on_hssl_top
 
   // - event frame parameters
   wire [31:0] output_tick_int;
-  wire  [9:0] t;
+  wire  [9:0] output_size_int;
 
   //  - packet routing table
   wire               [31:0] rt_key_int   [NUM_RTREGS - 1:0];
