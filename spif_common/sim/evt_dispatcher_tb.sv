@@ -68,7 +68,7 @@ module evt_dispatcher_tb ();
   wire                      tb_out_drp_pkt_cnt;
 
   //---------------------------------------------------------------
-  // dut: packet receiver
+  // dut: event distpatcher
   //---------------------------------------------------------------
   evt_dispatcher dut (
       .clk                (dut_clk)
