@@ -17,7 +17,7 @@
 #define SPIF_BUF_MAX_SIZE     4096  // KB reserved memory
 
 #define SPIF_ROUTER_NUM       16    // number of ROUTER registers
-#define SPIF_DCREGS_NUM       4     // number of DIAGNOSTIC COUNTER registers
+#define SPIF_DCREGS_NUM       5     // number of DIAGNOSTIC COUNTER registers
 #define SPIF_MPREGS_NUM       4     // number of MAPPER registers per pipe
 #define SPIF_FLREGS_NUM       8     // number of FILTER registers per pipe
 //--------------------------------------------------------------------
