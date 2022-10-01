@@ -288,7 +288,7 @@
 		\textbf{out\_frame\_period}          & \ttfamily{32b} & \ttfamily{1000}       & period in microseconds \\%
 		\textbf{out\_frame\_size}            & \ttfamily{10b} & \ttfamily{256}        & maximum number of events in a frame \\%
 		\textbf{status}                      & \ttfamily{32b} & \ttfamily{0x5ec0ffff} & {\small [19:18] FPGA/[17:16] handshake/[15:0] IDSI}\\%
-		\textbf{version}                     & \ttfamily{28b} &                       & {\small [27:24] number of event pipes/[23:0] version}\\%
+		\textbf{version}                     & \ttfamily{28b} &                       & {\small [31:28] outputs/[27:24] input pipes/[23:0] version}\\%
 		\textbf{ir\_key [15:0]}              & \ttfamily{32b} & \ttfamily{0x00000000} & match all by default \\%
 		\textbf{ir\_mask [15:0]}             & \ttfamily{32b} & \ttfamily{0x00000000} & match all by default \\%
 		\textbf{ir\_route [15:0]}            & \ttfamily{~3b} & \ttfamily{0}          & route to (0, 0) by default \\%
