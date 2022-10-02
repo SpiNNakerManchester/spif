@@ -9,17 +9,17 @@
 // -------------------------------------------------------------------------
 // DETAILS
 //  Created on       : 21 Jul 2021
-//  Last modified on : Tue 14 Sep 16:02:41 BST 2021
+//  Last modified on : Sun  2 Oct 15:18:38 CEST 2022
 //  Last modified by : lap
 // -------------------------------------------------------------------------
 // COPYRIGHT
-//  Copyright (c) The University of Manchester, 2021.
+//  Copyright (c) The University of Manchester, 2021-2022.
 //  SpiNNaker Project
 //  Advanced Processor Technologies Group
 //  School of Computer Science
 // -------------------------------------------------------------------------
 // TODO
-//  * everything
+//  * add support for output pipes
 // -------------------------------------------------------------------------
 
 #include <linux/init.h>
@@ -62,7 +62,7 @@ MODULE_DEVICE_TABLE (of, spif_driver_of_match);
 // -------------------------------------------------------------------------
 // spif constants
 // -------------------------------------------------------------------------
-#define SPIF_DRV_VERSION     "0.0.3"
+#define SPIF_DRV_VERSION     "0.1.0"
 #define SPIF_DRV_NAME        "spif"
 
 // driver ioctl unreserved magic number (seq 0xf0 - 0xff)
@@ -88,11 +88,13 @@ MODULE_DEVICE_TABLE (of, spif_driver_of_match);
 #define SPIF_PAT_VER_MSK     0x000000ff
 #define SPIF_MIN_VER_MSK     0x0000ff00
 #define SPIF_MAJ_VER_MSK     0x00ff0000
-#define SPIF_PIPES_MSK       0xff000000
+#define SPIF_PIPES_MSK       0x0f000000
+#define SPIF_OUTPS_MSK       0xf0000000
 #define SPIF_PAT_VER_SHIFT   0
 #define SPIF_MIN_VER_SHIFT   8
 #define SPIF_MAJ_VER_SHIFT   16
 #define SPIF_PIPES_SHIFT     24
+#define SPIF_OUTPS_SHIFT     28
 
 // spif ioctl operation fields
 //NOTE: size field used to encode spif register!
@@ -459,12 +461,13 @@ static int spif_apbr_init (struct device_node * pn, struct spif_drv_data * drv)
   // report hardware version number and number of event pipes
   data = ioread32 ((void *) &apb_regs[SPIF_VERSION_REG]);
   printk (KERN_INFO
-    "%s: interface found [hw version %d.%d.%d - event pipes: %d]\n",
+    "%s: interface found [hw version %d.%d.%d - event pipes: in/%d out/%d]\n",
     SPIF_DRV_NAME,
     (data & SPIF_MAJ_VER_MSK) >> SPIF_MAJ_VER_SHIFT,
     (data & SPIF_MIN_VER_MSK) >> SPIF_MIN_VER_SHIFT,
     (data & SPIF_PAT_VER_MSK) >> SPIF_PAT_VER_SHIFT,
-    (data & SPIF_PIPES_MSK)   >> SPIF_PIPES_SHIFT
+    (data & SPIF_PIPES_MSK)   >> SPIF_PIPES_SHIFT,
+    (data & SPIF_OUTPS_MSK)   >> SPIF_OUTPS_SHIFT
     );
 
   // remember number of event-processing pipes
