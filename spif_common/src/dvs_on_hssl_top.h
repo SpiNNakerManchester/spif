@@ -9,11 +9,11 @@
 // -------------------------------------------------------------------------
 // DETAILS
 //  Created on       : 28 Mar 2021
-//  Last modified on : Sun 28 Mar 18:13:01 BST 2021
+//  Last modified on : Sun  2 Oct 17:47:23 CEST 2022
 //  Last modified by : $Author: plana $
 // -------------------------------------------------------------------------
 // COPYRIGHT
-//  Copyright (c) The University of Manchester, 2021.
+//  Copyright (c) The University of Manchester, 2021-2022.
 //  SpiNNaker Project
 //  Advanced Processor Technologies Group
 //  School of Computer Science

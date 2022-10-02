@@ -12,11 +12,11 @@
 // -------------------------------------------------------------------------
 // DETAILS
 //  Created on       : 21 Oct 2020
-//  Last modified on : Tue  7 Sep 17:35:31 BST 2021
+//  Last modified on : Sun  2 Oct 17:47:23 CEST 2022
 //  Last modified by : lap
 // -------------------------------------------------------------------------
 // COPYRIGHT
-//  Copyright (c) The University of Manchester, 2020-2021.
+//  Copyright (c) The University of Manchester, 2020-2022.
 //  SpiNNaker Project
 //  Advanced Processor Technologies Group
 //  School of Computer Science
@@ -445,7 +445,10 @@ module dvs_on_hssl_top
 
   hssl_reg_bank
   #(
-      .HW_NUM_PIPES    (HW_NUM_PIPES)
+      .HW_VERSION       (HW_VERSION)
+    , .HW_NUM_PIPES     (HW_NUM_PIPES)
+    , .HW_NUM_OUTPS     (HW_NUM_OUTPS)
+    , .TARGET_FPGA      (TARGET_FPGA)
     )
   rb (
       .clk              (axi_clk_int)
@@ -471,10 +474,6 @@ module dvs_on_hssl_top
     , .ctr_cnt_in       (ctr_cnt_int)
 
       // status signals
-    , .hw_version_in    (HW_VERSION)
-    , .hw_pipe_num_in   (HW_NUM_PIPES)
-    , .hw_outp_num_in   (HW_NUM_OUTPS)
-    , .fpga_model_in    (TARGET_FPGA)
     , .hs_complete_in   (hi_handshake_complete_int)
     , .hs_mismatch_in   (hi_version_mismatch_int)
     , .idsi_in          (hi_idsi_int)

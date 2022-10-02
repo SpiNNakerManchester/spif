@@ -9,11 +9,11 @@
 // -------------------------------------------------------------------------
 // DETAILS
 //  Created on       : 21 Oct 2020
-//  Last modified on : Tue  7 Sep 17:35:31 BST 2021
+//  Last modified on : Sun  2 Oct 17:47:23 CEST 2022
 //  Last modified by : lap
 // -------------------------------------------------------------------------
 // COPYRIGHT
-//  Copyright (c) The University of Manchester, 2020-2021.
+//  Copyright (c) The University of Manchester, 2020-2022.
 //  SpiNNaker Project
 //  Advanced Processor Technologies Group
 //  School of Computer Science
@@ -29,7 +29,10 @@
 `timescale 1ps/1ps
 module hssl_reg_bank
 #(
-    parameter HW_NUM_PIPES = 1
+    parameter HW_VERSION   = 0,
+    parameter HW_NUM_PIPES = 1,
+    parameter HW_NUM_OUTPS = 1,
+    parameter TARGET_FPGA  = 0
 )
 (
   input  wire                       clk,
@@ -56,10 +59,6 @@ module hssl_reg_bank
   input  wire    [`NUM_DCREGS - 1:0] ctr_cnt_in,
 
   // status signals
-  input  wire  [`HW_VER_BITS - 1:0] hw_version_in,
-  input  wire [`HW_PIPE_BITS - 1:0] hw_pipe_num_in,
-  input  wire [`HW_OUTP_BITS - 1:0] hw_outp_num_in,
-  input  wire [`HW_FPGA_BITS - 1:0] fpga_model_in,
   input  wire                       hs_complete_in,
   input  wire                       hs_mismatch_in,
   input  wire [`HW_SNTL_BITS - 1:0] idsi_in,
@@ -282,9 +281,9 @@ module hssl_reg_bank
         IFCAS_SEC: if (apb_reg < NUM_IFREGS)
                      apb_prdata_out <= reg_hssl_int[apb_reg];
                    else if (apb_reg == STATUS_REG)
-                     apb_prdata_out <= {12'h5ec, fpga_model_in, hs_mismatch_in, hs_complete_in, idsi_in};
+                     apb_prdata_out <= {12'h5ec, TARGET_FPGA, hs_mismatch_in, hs_complete_in, idsi_in};
                    else if (apb_reg == HW_VER_REG)
-                     apb_prdata_out <= {hw_outp_num_in, hw_pipe_num_in, hw_version_in};
+                     apb_prdata_out <= {HW_NUM_OUTPS, HW_NUM_PIPES, HW_VERSION};
                    else
                      apb_prdata_out <= BAD_REG;
 
