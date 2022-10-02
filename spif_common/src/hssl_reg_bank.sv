@@ -58,6 +58,7 @@ module hssl_reg_bank
   // status signals
   input  wire  [`HW_VER_BITS - 1:0] hw_version_in,
   input  wire [`HW_PIPE_BITS - 1:0] hw_pipe_num_in,
+  input  wire [`HW_OUTP_BITS - 1:0] hw_outp_num_in,
   input  wire [`HW_FPGA_BITS - 1:0] fpga_model_in,
   input  wire                       hs_complete_in,
   input  wire                       hs_mismatch_in,
@@ -283,7 +284,7 @@ module hssl_reg_bank
                    else if (apb_reg == STATUS_REG)
                      apb_prdata_out <= {12'h5ec, fpga_model_in, hs_mismatch_in, hs_complete_in, idsi_in};
                    else if (apb_reg == HW_VER_REG)
-                     apb_prdata_out <= {4'h0, hw_pipe_num_in, hw_version_in};
+                     apb_prdata_out <= {hw_outp_num_in, hw_pipe_num_in, hw_version_in};
                    else
                      apb_prdata_out <= BAD_REG;
 

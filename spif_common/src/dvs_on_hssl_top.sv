@@ -81,6 +81,7 @@ module dvs_on_hssl_top
   // use local parameters for consistent definitions
   localparam HW_VERSION      = `SPIF_VER_NUM;
   localparam HW_NUM_PIPES    = `SPIF_NUM_PIPES;
+  localparam HW_NUM_OUTPS    = `SPIF_NUM_OUTPS;
   localparam TARGET_FPGA     = `FPGA_MODEL;
   localparam HW_SNTL_BITS    = `HW_SNTL_BITS;
 
@@ -472,6 +473,7 @@ module dvs_on_hssl_top
       // status signals
     , .hw_version_in    (HW_VERSION)
     , .hw_pipe_num_in   (HW_NUM_PIPES)
+    , .hw_outp_num_in   (HW_NUM_OUTPS)
     , .fpga_model_in    (TARGET_FPGA)
     , .hs_complete_in   (hi_handshake_complete_int)
     , .hs_mismatch_in   (hi_version_mismatch_int)
