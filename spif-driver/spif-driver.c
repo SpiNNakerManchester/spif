@@ -134,6 +134,8 @@ MODULE_DEVICE_TABLE (of, spif_driver_of_match);
 // spif data types
 // -------------------------------------------------------------------------
 struct spif_pipe_data {
+         unsigned long    rsvd_pa;      // device memory address
+         unsigned int     rsvd_sz;      // device memory size
          dev_t            dev_num;      // character device number
   struct cdev             dev_cdev;     // pipe character device 
          int              dev_open;     // device is open
@@ -206,7 +208,7 @@ static int spif_open (struct inode * ino, struct file * fp)
   iowrite32 (dma_cmd, (void *) &dma_regs[SPIF_DMAC_CR]);
 
   // write spif buffer physical address to DMA controller
-  iowrite32 ((uint) drv->rsvd_pa, (void *) &dma_regs[SPIF_DMAC_SA]);
+  iowrite32 ((uint) pipe->rsvd_pa, (void *) &dma_regs[SPIF_DMAC_SA]);
 
   // mark the DMA controller at init state
   pipe->dma_init = 1;
@@ -337,16 +339,14 @@ static long spif_ioctl (struct file * fp, unsigned int req , unsigned long arg)
 static int spif_mmap (struct file * fp, struct vm_area_struct * vma)
 {
   struct spif_pipe_data * pipe;
-  struct spif_drv_data *  drv;
          unsigned long    vsize;
 
-  // access device and driver data
+  // access device data
   pipe = (struct spif_pipe_data *) fp->private_data;
-  drv = pipe->drv_data;
 
   // check that the requested size fits
   vsize  = vma->vm_end - vma->vm_start;
-  if (vsize > drv->rsvd_sz) {
+  if (vsize > pipe->rsvd_sz) {
     return -EINVAL;
   }
 
@@ -356,7 +356,7 @@ static int spif_mmap (struct file * fp, struct vm_area_struct * vma)
   vma->vm_page_prot = pgprot_writecombine (vma->vm_page_prot);
 
   // request map
-  return remap_pfn_range (vma, vma->vm_start, __phys_to_pfn (drv->rsvd_pa),
+  return remap_pfn_range (vma, vma->vm_start, __phys_to_pfn (pipe->rsvd_pa),
                           vsize, vma->vm_page_prot);
 }
 
@@ -395,6 +395,41 @@ static irqreturn_t spif_irq_handler (int irq, void * p)
   iowrite32 (SPIF_DMAC_IRQ_CLR, (void *) &dma_regs[SPIF_DMAC_SR]);
 
   return IRQ_HANDLED;
+}
+// -------------------------------------------------------------------------
+
+
+// -------------------------------------------------------------------------
+// remove/clean up auxiliary functions
+// -------------------------------------------------------------------------
+// ++++++++++++++++++++++++++++
+// remove spif devices, one per pipe
+// ++++++++++++++++++++++++++++
+static void spif_pipes_remove (struct spif_drv_data * drv)
+{
+  struct spif_pipe_data * pipe;
+  struct spif_pipe_data * next_pipe;
+
+  // free and unregister all resources
+  next_pipe = drv->pipe_list;
+  while (next_pipe != NULL) {
+    pipe = next_pipe;
+    next_pipe = pipe->next;
+    cdev_del (&pipe->dev_cdev);
+    device_destroy (drv->dev_class, pipe->dev_num);
+    memunmap (pipe->dmar_va);
+
+#ifdef USE_IRQS
+    if (pipe->dma_irq > 0) {
+      free_irq (pipe->dma_irq, pipe);
+    }
+#endif
+
+    kfree (pipe);
+  }
+
+  unregister_chrdev_region (drv->dev_num, drv->pipes);
+  class_destroy (drv->dev_class);
 }
 // -------------------------------------------------------------------------
 
@@ -644,6 +679,8 @@ static int spif_pipes_init (struct device_node * pn, struct spif_drv_data * drv)
          int              cdev_major;
   struct spif_pipe_data * pipe;
   struct spif_pipe_data * next_pipe;
+         unsigned long    pmem_pa;
+         unsigned int     pmem_sz;
          int              rc;
          int              i;
 
@@ -674,6 +711,11 @@ static int spif_pipes_init (struct device_node * pn, struct spif_drv_data * drv)
   // character device major number is constant for all devices
   cdev_major = MAJOR (cdev_num);
 
+  // compute first pipe memory address and size
+  //NOTE: reserved memory is split between input and output pipes
+  pmem_pa = drv->rsvd_pa;
+  pmem_sz = drv->rsvd_sz / (2 * drv->pipes);
+
   // assemble pipes in a linked list
   next_pipe = NULL;
 
@@ -700,6 +742,8 @@ static int spif_pipes_init (struct device_node * pn, struct spif_drv_data * drv)
     // update pipe data
     cdev_num = MKDEV (cdev_major, i);
     pipe->dev_num = cdev_num;
+    pipe->rsvd_pa = pmem_pa;
+    pipe->rsvd_sz = pmem_sz;
 
     // create and initialise character device
     rc = spif_cdev_init (pipe, cdev_num, spif_class);
@@ -710,6 +754,9 @@ static int spif_pipes_init (struct device_node * pn, struct spif_drv_data * drv)
 
     // initialise the open mutex
     sema_init (&pipe->open_sem, 1);
+
+    // compute memory address for next pipe
+    pmem_pa = pmem_pa + pmem_sz;
 
     // update pipe list data
     pipe->next = next_pipe;
@@ -723,6 +770,7 @@ static int spif_pipes_init (struct device_node * pn, struct spif_drv_data * drv)
 
   // deal with initialisation errors here
 error4:
+  // undo current pipe
   memunmap (pipe->dmar_va);
 
 #ifdef USE_IRQS
@@ -735,6 +783,7 @@ error3:
   kfree (pipe);
 
 error2:
+  // undo previously allocated pipes
   while (next_pipe != NULL) {
     pipe = next_pipe;
     next_pipe = pipe->next;
@@ -840,25 +889,7 @@ static int spif_driver_remove (struct platform_device *pdev)
   drv = dev_get_drvdata (pdev_dev);
 
   // free and unregister all resources
-  next_pipe = drv->pipe_list;
-  while (next_pipe != NULL) {
-    pipe = next_pipe;
-    next_pipe = pipe->next;
-    cdev_del (&pipe->dev_cdev);
-    device_destroy (drv->dev_class, pipe->dev_num);
-    memunmap (pipe->dmar_va);
-
-#ifdef USE_IRQS
-    if (pipe->dma_irq > 0) {
-      free_irq (pipe->dma_irq, pipe);
-    }
-#endif
-
-    kfree (pipe);
-  }
-
-  unregister_chrdev_region (drv->dev_num, drv->pipes);
-  class_destroy (drv->dev_class);
+  spif_pipes_remove (drv);
 
   memunmap (drv->apbr_va);
 
