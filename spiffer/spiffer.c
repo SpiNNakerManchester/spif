@@ -24,7 +24,7 @@
 // spif support
 #include "spif_remote.h"
 
-// spiffer onstants and function prototypes
+// spiffer constants and function prototypes
 # include "spiffer.h"
 
 

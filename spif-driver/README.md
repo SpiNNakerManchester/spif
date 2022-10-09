@@ -31,7 +31,7 @@ The following node must be added to the device tree:
 
 The `dma0` resource corresponds to the first event-processing pipe. A `dma` resource must be included for every additional pipe.
 
-The driver expects to find 4 KB (per event-processing pipe) of reserved memory for its use. The reserved memory is platform-dependent. The following single-pipe device tree node is used for this purpose:
+The driver expects to find 4 KB (per event-processing pipe) of reserved memory for its use. The reserved memory is platform-dependent. The following device tree node is used for this purpose:
 
 ```
 / {
