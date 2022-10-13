@@ -109,12 +109,17 @@ MODULE_DEVICE_TABLE (of, spif_driver_of_match);
 #define SPIF_REG_WR          SPIF_OP_REQ(1)
 #define SPIF_STATUS_RD       SPIF_OP_REQ(2)
 #define SPIF_TRANSFER        SPIF_OP_REQ(3)
+#define SPIF_GET_OUTP        SPIF_OP_REQ(4)
 
 // DMA controller registers
-#define SPIF_DMAC_CR         0   // control
-#define SPIF_DMAC_SR         1   // status
-#define SPIF_DMAC_SA         6   // source
-#define SPIF_DMAC_LEN        10  // length
+#define SPIF_DMAC_CR         0   // input stream control
+#define SPIF_DMAC_SR         1   // input stream status
+#define SPIF_DMAC_SA         6   // input stream source
+#define SPIF_DMAC_LEN        10  // input stream length
+#define SPIF_DMAC_OCR        12  // output stream control
+#define SPIF_DMAC_OSR        13  // output stream status
+#define SPIF_DMAC_OSA        18  // output stream source
+#define SPIF_DMAC_OLEN       22  // output stream length
 
 // DMA controller commands/status
 #define SPIF_DMAC_RESET      0x00000004
@@ -130,30 +135,32 @@ MODULE_DEVICE_TABLE (of, spif_driver_of_match);
 // spif data types
 // -------------------------------------------------------------------------
 struct spif_pipe_data {
-         unsigned long    rsvd_pa;      // device memory address
-         unsigned int     rsvd_sz;      // device memory size
-         dev_t            dev_num;      // character device number
-  struct cdev             dev_cdev;     // pipe character device 
-         int              dev_open;     // device is open
-         void *           dmar_va;      // dma controller registers
-         int              dma_irq;      // dma controller interrupt
-         int              dma_init;     // dma controller at init state
-  struct semaphore        open_sem;     // grab for access to open
-  struct spif_drv_data *  drv_data;     // driver data
-  struct spif_pipe_data * next;         // linked list of pipes
+         unsigned long     pmem_pa;      // pipe memory address
+         unsigned int      pmem_sz;      // pipe memory size
+         dev_t             dev_num;      // character device number
+  struct cdev              dev_cdev;     // pipe character device
+         int               dev_open;     // device is open
+         void *            dmar_va;      // dma controller registers
+         int               dma_irq;      // dma controller interrupt
+         int               dma_init;     // dma controller at init state
+         int               outp_ready;   // output pipe contains data
+         wait_queue_head_t outp_queue;   // output pipe wait queue
+  struct semaphore         open_sem;     // grab for access to open
+  struct spif_drv_data *   drv_data;     // driver data
+  struct spif_pipe_data *  next;         // linked list of pipes
 };
 
 
 // private data required for operation and cleanup
 struct spif_drv_data {
-  struct class *          dev_class;    // device class
-         dev_t            dev_num;      // first device number
-         int              pipes;        // number of hw pipes
-         int              outps;        // number of hw output pipes
-  struct spif_pipe_data * pipe_list;    // start of pipe linked list
-         unsigned long    rsvd_pa;      // reserved memory address
-         unsigned int     rsvd_sz;      // reserved memory size
-         void *           apbr_va;      // spif registers address
+  struct class *           dev_class;    // device class
+         dev_t             dev_num;      // first device number
+         int               pipes;        // number of hw pipes
+         int               outps;        // number of hw output pipes
+  struct spif_pipe_data *  pipe_list;    // start of pipe linked list
+         unsigned long     rsvd_pa;      // reserved memory address
+         unsigned int      rsvd_sz;      // reserved memory size
+         void *            apbr_va;      // spif registers address
 };
 // -------------------------------------------------------------------------
 
@@ -192,18 +199,26 @@ static int spif_open (struct inode * ino, struct file * fp)
   // access driver data
   drv = pipe->drv_data;
 
-  // start the DMA controller - maybe enable interrupts
+  // configure the input DMA controller
   dma_regs = (int *) pipe->dmar_va;
   dma_cmd = SPIF_DMAC_RUN;
 
-  if (pipe->dma_irq > 0) {
-    dma_cmd |= SPIF_DMAC_IRQ_EN;
-  }
-
+  // start DMA controller
   iowrite32 (dma_cmd, (void *) &dma_regs[SPIF_DMAC_CR]);
 
   // write spif buffer physical address to DMA controller
-  iowrite32 ((uint) pipe->rsvd_pa, (void *) &dma_regs[SPIF_DMAC_SA]);
+  iowrite32 ((uint) pipe->pmem_pa, (void *) &dma_regs[SPIF_DMAC_SA]);
+
+  // configure the output DMA controller - if present
+  if (pipe->dma_irq > 0) {
+    dma_cmd |= SPIF_DMAC_IRQ_EN;
+
+    // start the output DMA controller - enable interrupts
+    iowrite32 (dma_cmd, (void *) &dma_regs[SPIF_DMAC_OCR]);
+
+    // write spif buffer physical address to DMA controller
+    iowrite32 (((uint) pipe->pmem_pa + pipe->pmem_sz), (void *) &dma_regs[SPIF_DMAC_OSA]);
+  }
 
   // mark the DMA controller at init state
   pipe->dma_init = 1;
@@ -321,6 +336,21 @@ static long spif_ioctl (struct file * fp, unsigned int req , unsigned long arg)
 
     return 0;
 
+  case SPIF_GET_OUTP:  // transfer SpiNNaker content to spif buffer
+    dma_regs = (int *) pipe->dmar_va;
+
+    // arg is transfer length in bytes
+    // write length to DMA controller length register to trigger transfer
+    iowrite32 ((uint) arg, (void *) &dma_regs[SPIF_DMAC_OLEN]);
+
+    // sleep until transfer complete
+    wait_event_interruptible (pipe->outp_queue, pipe->outp_ready);
+
+    // indicate that data has been transferred from pipe to memory
+    pipe->outp_ready = 0;
+
+    return 0;
+
   default:
 
     return -EINVAL;
@@ -341,7 +371,7 @@ static int spif_mmap (struct file * fp, struct vm_area_struct * vma)
 
   // check that the requested size fits
   vsize  = vma->vm_end - vma->vm_start;
-  if (vsize > pipe->rsvd_sz) {
+  if (vsize > pipe->pmem_sz) {
     return -EINVAL;
   }
 
@@ -351,7 +381,7 @@ static int spif_mmap (struct file * fp, struct vm_area_struct * vma)
   vma->vm_page_prot = pgprot_writecombine (vma->vm_page_prot);
 
   // request map
-  return remap_pfn_range (vma, vma->vm_start, __phys_to_pfn (pipe->rsvd_pa),
+  return remap_pfn_range (vma, vma->vm_start, __phys_to_pfn (pipe->pmem_pa),
                           vsize, vma->vm_page_prot);
 }
 
@@ -385,6 +415,10 @@ static irqreturn_t spif_irq_handler (int irq, void * p)
     // interrupt was not from this device
     return IRQ_NONE;
   }
+
+  // wake up whoever requested data
+  pipe->outp_ready = 1;
+  wake_up_interruptible (&(pipe->outp_queue));
 
   // clear interrupt
   iowrite32 (SPIF_DMAC_IRQ_CLR, (void *) &dma_regs[SPIF_DMAC_SR]);
@@ -601,6 +635,7 @@ static int spif_dmac_init (int pipe_num, struct device_node * pn,
   }
 
   // reset DMA controller - resets interrupts
+  //NOTE: any reset applies to input and output pipes!
   dma_regs = (int *) pipe->dmar_va;
   iowrite32 (SPIF_DMAC_RESET, (void *) &dma_regs[SPIF_DMAC_CR]);
 
@@ -738,11 +773,17 @@ static int spif_pipes_init (struct device_node * pn, struct spif_drv_data * drv)
       goto error3;
     }
 
+    // initialise wait queue - if output pipe
+    if (is_outp) {
+    	init_waitqueue_head (&(pipe->outp_queue));
+    	pipe->outp_ready = 0;
+    }
+
     // update pipe data
     cdev_num = MKDEV (cdev_major, i);
     pipe->dev_num = cdev_num;
-    pipe->rsvd_pa = pmem_pa;
-    pipe->rsvd_sz = pmem_sz;
+    pipe->pmem_pa = pmem_pa;
+    pipe->pmem_sz = pmem_sz;
 
     // create and initialise character device
     rc = spif_cdev_init (pipe, cdev_num, spif_class);
@@ -755,7 +796,7 @@ static int spif_pipes_init (struct device_node * pn, struct spif_drv_data * drv)
     sema_init (&pipe->open_sem, 1);
 
     // compute memory address for next pipe
-    pmem_pa = pmem_pa + pmem_sz;
+    pmem_pa = pmem_pa + (2 * pmem_sz);
 
     // update pipe list data
     pipe->next = next_pipe;
@@ -876,8 +917,6 @@ static int spif_driver_remove (struct platform_device *pdev)
 {
   struct device *         pdev_dev;
   struct spif_drv_data *  drv;
-  struct spif_pipe_data * pipe;
-  struct spif_pipe_data * next_pipe;
 
   // get driver data
   pdev_dev = &pdev->dev;
