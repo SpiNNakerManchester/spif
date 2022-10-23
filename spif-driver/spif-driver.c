@@ -110,6 +110,7 @@ MODULE_DEVICE_TABLE (of, spif_driver_of_match);
 #define SPIF_STATUS_RD       SPIF_OP_REQ(2)
 #define SPIF_TRANSFER        SPIF_OP_REQ(3)
 #define SPIF_GET_OUTP        SPIF_OP_REQ(4)
+#define SPIF_BUF_SIZE        SPIF_OP_REQ(5)
 
 // DMA controller registers
 #define SPIF_DMAC_CR         0   // input stream control
@@ -348,6 +349,12 @@ static long spif_ioctl (struct file * fp, unsigned int req , unsigned long arg)
 
     // indicate that data has been transferred from pipe to memory
     pipe->outp_ready = 0;
+
+    return 0;
+
+  case SPIF_BUF_SIZE:  // read pipe buffer size (in bytes)
+    // arg is address of return variable
+    __put_user (pipe->pmem_sz, (int *) arg);
 
     return 0;
 
