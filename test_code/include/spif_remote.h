@@ -204,9 +204,9 @@ void * spif_setup (uint pipe, uint buf_size)
 //
 // no return value
 //--------------------------------------------------------------------
-void spif_close (int pipe_fd)
+void spif_close (uint pipe)
 {
-  close (pipe_fd);
+  close (pipe_data[pipe].fd);
 }
 
 
@@ -267,6 +267,23 @@ int spif_transfer (int pipe_fd, int length)
 {
   // send request to spif and convey result
   return (ioctl (pipe_fd, SPIF_TRANSFER, (void *) (long) length));
+}
+
+
+//--------------------------------------------------------------------
+// wait for a transfer from SpiNNaker
+//
+// returns the length of the transfer (in bytes)
+//--------------------------------------------------------------------
+int spif_get_output (int pipe_fd, int length)
+{
+  // dummy is used to send requested length and receive actual length
+  dummy = length;
+
+  // send request to spif and convey result
+  ioctl (pipe_fd, SPIF_GET_OUTP, (void *) &dummy);
+
+  return (dummy);
 }
 
 

@@ -1,6 +1,6 @@
 //************************************************//
 //*                                              *//
-//*         spif UDP/USB/SPINN listener          *//
+//*       spif UDP/USB/SPiNNaker listener        *//
 //*                                              *//
 //* started automatically at boot time           *//
 //* exits with -1 if problems found              *//
@@ -40,7 +40,7 @@ pthread_mutex_t usb_mtx = PTHREAD_MUTEX_INITIALIZER;
 int pipe_num_in  = 0;
 int pipe_num_out = 0;
 
-int    pipe_dev[SPIF_HW_PIPES_NUM];
+int    pipe_fd[SPIF_HW_PIPES_NUM];
 uint * pipe_buf[SPIF_HW_PIPES_NUM];
 uint * pipe_out_buf[SPIF_HW_PIPES_NUM];
 
@@ -49,10 +49,6 @@ int udp_skt[SPIF_HW_PIPES_NUM];
 
 // USB listener
 usb_devs_t usb_devs;
-
-// log file
-//TODO: change to system/kernel log
-//FILE * lf;
 
 
 //--------------------------------------------------------------------
@@ -75,7 +71,7 @@ void spiffer_stop (int ec) {
     close (udp_skt[pipe]);
 
     // and close spif pipe
-    spif_close (pipe_dev[pipe]);
+    spif_close (pipe);
   }
 
   // say goodbye,
@@ -150,7 +146,7 @@ void * udp_listener (void * data) {
   fprintf (lf, "listening UDP %i-> pipe%i\n", UDP_PORT_BASE + pipe, pipe);
   (void) fflush (lf);
 
-  int    sp = pipe_dev[pipe];
+  int    sp = pipe_fd[pipe];
   uint * sb = pipe_buf[pipe];
   size_t ss = SPIFFER_BATCH_SIZE * sizeof (uint);
   int    us = udp_skt[pipe];
@@ -474,7 +470,7 @@ int usb_get_events (caerDeviceHandle dev, uint * buf) {
 void * usb_listener (void * data) {
   int pipe = (int) data;
 
-  int              sp = pipe_dev[pipe];
+  int              sp = pipe_fd[pipe];
   uint *           sb = pipe_buf[pipe];
   caerDeviceHandle ud = usb_devs.dev_hdl[pipe];
 
@@ -529,8 +525,8 @@ int spif_pipes_init (void) {
   size_t batch_size = SPIFFER_BATCH_SIZE * sizeof (uint);
 
   // try to open spif pipe 0
-  pipe_dev[0] = spif_open (0);
-  if (pipe_dev[0] == SPIFFER_ERROR) {
+  pipe_fd[0] = spif_open (0);
+  if (pipe_fd[0] == SPIFFER_ERROR) {
     fprintf (lf, "error: unable to open spif pipe0\n");
     return (SPIFFER_ERROR);
   }
@@ -558,8 +554,8 @@ int spif_pipes_init (void) {
   // open the rest of the pipes
   for (int pipe = 1; pipe < pipe_max_num; pipe++) {
     // open spif pipe
-    pipe_dev[pipe] = spif_open (pipe);
-    if (pipe_dev[pipe] == SPIFFER_ERROR) {
+    pipe_fd[pipe] = spif_open (pipe);
+    if (pipe_fd[pipe] == SPIFFER_ERROR) {
       fprintf (lf, "error: unable to open spif pipe%i\n", pipe);
       return (SPIFFER_ERROR);
     }
