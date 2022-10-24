@@ -340,12 +340,21 @@ static long spif_ioctl (struct file * fp, unsigned int req , unsigned long arg)
   case SPIF_GET_OUTP:  // transfer SpiNNaker content to spif buffer
     dma_regs = (int *) pipe->dmar_va;
 
-    // arg is transfer length in bytes
+    // arg is address of in/out variable
+    // coming in is requested transfer length in bytes
+    __get_user (data, (int *) arg);
+
     // write length to DMA controller length register to trigger transfer
-    iowrite32 ((uint) arg, (void *) &dma_regs[SPIF_DMAC_OLEN]);
+    iowrite32 ((uint) data, (void *) &dma_regs[SPIF_DMAC_OLEN]);
 
     // sleep until transfer complete
     wait_event_interruptible (pipe->outp_queue, pipe->outp_ready);
+
+    // read actual transfer length
+    data = ioread32 ((void *) &dma_regs[SPIF_DMAC_OLEN]);
+
+    // send the actual length back to user
+    __put_user (data, (int *) arg);
 
     // indicate that data has been transferred from pipe to memory
     pipe->outp_ready = 0;
@@ -378,7 +387,7 @@ static int spif_mmap (struct file * fp, struct vm_area_struct * vma)
 
   // check that the requested size fits
   vsize  = vma->vm_end - vma->vm_start;
-  if (vsize > pipe->pmem_sz) {
+  if (vsize > (2 * pipe->pmem_sz)) {
     return -EINVAL;
   }
 
