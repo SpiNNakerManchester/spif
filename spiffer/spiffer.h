@@ -12,22 +12,24 @@
 
 
 // constants
-#define SPIFFER_ERROR     -1
-#define SPIFFER_OK        0
-#define SPIF_BATCH_SIZE   256
-#define SPIF_NUM_PIPES    2
-#define UDP_PORT_BASE     3333
-#define USB_EVTS_PER_PKT  256
-#define USB_DISCOVER_CNT  SPIF_NUM_PIPES
+#define SPIFFER_VER_MAJ     0
+#define SPIFFER_VER_MIN     1
+#define SPIFFER_VER_PAT     0
+#define SPIFFER_ERROR      -1
+#define SPIFFER_OK         0
+#define SPIFFER_BATCH_SIZE 256
+#define UDP_PORT_BASE      3333
+#define USB_EVTS_PER_PKT   256
+#define USB_DISCOVER_CNT   SPIF_HW_PIPES_NUM
 
 
 // USB listener
 typedef char serial_t[9];
 
 typedef struct usb_devs {
-  int              dev_cnt;                  // number of connected USB devices
-  caerDeviceHandle dev_hdl[SPIF_NUM_PIPES];  // USB device handle
-  serial_t         dev_sn[SPIF_NUM_PIPES];   // USB device handle
+  int              dev_cnt;                     // number of connected USB devices
+  caerDeviceHandle dev_hdl[SPIF_HW_PIPES_NUM];  // USB device handle
+  serial_t         dev_sn[SPIF_HW_PIPES_NUM];   // USB device handle
 } usb_devs_t;
 
 

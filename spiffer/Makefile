@@ -5,7 +5,7 @@ USBCFLAGS += $(CFLAGS) -std=c11 -pedantic -Wall -Wextra -O2
 
 HFILES = $(INCLUDE_DIR)/spif.h $(INCLUDE_DIR)/spif_remote.h
 
-spiffer: spiffer.c
+spiffer: spiffer.c $(HFILES)
 	gcc $(USBCFLAGS) -o spiffer spiffer.c -D_DEFAULT_SOURCE=1 -lcaer -lpthread
 
 install: spiffer 99-spiffer.rules spiffer.service

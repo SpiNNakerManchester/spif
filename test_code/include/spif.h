@@ -51,4 +51,23 @@
 //--------------------------------------------------------------------
 
 
+//--------------------------------------------------------------------
+// spif configuration register field masks and shifts
+//--------------------------------------------------------------------
+#define SPIF_SEC_CODE         0x5ec00000
+#define SPIF_SEC_MSK          0xfff00000
+#define SPIF_HS_MSK           0x00010000
+#define SPIF_PAT_VER_MSK      0x000000ff
+#define SPIF_MIN_VER_MSK      0x0000ff00
+#define SPIF_MAJ_VER_MSK      0x00ff0000
+#define SPIF_PIPES_MSK        0x0f000000
+#define SPIF_OUTPS_MSK        0xf0000000
+#define SPIF_PAT_VER_SHIFT    0
+#define SPIF_MIN_VER_SHIFT    8
+#define SPIF_MAJ_VER_SHIFT    16
+#define SPIF_PIPES_SHIFT      24
+#define SPIF_OUTPS_SHIFT      28
+//--------------------------------------------------------------------
+
+
 #endif /* __SPIF_H__ */

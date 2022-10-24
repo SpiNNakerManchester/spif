@@ -7,8 +7,8 @@
 //*                                              *//
 //************************************************//
 
-#ifndef __SPIF_DRV_H__
-#define __SPIF_DRV_H__
+#ifndef __SPIF_REMOTE_H__
+#define __SPIF_REMOTE_H__
 
 #include <stdlib.h>
 
@@ -48,13 +48,29 @@
 #define SPIF_REG_WR          SPIF_OP_REQ(1)
 #define SPIF_STATUS_RD       SPIF_OP_REQ(2)
 #define SPIF_TRANSFER        SPIF_OP_REQ(3)
+#define SPIF_GET_OUTP        SPIF_OP_REQ(4)
+#define SPIF_BUF_SIZE        SPIF_OP_REQ(5)
 // ---------------------------------
 
 
 // ---------------------------------
 // spif file descriptor associated with spif device
-static int spif_fd;
-static int dummy;    // convenient place holder
+struct pipe_data {
+  int    fd;        // pipe device file descriptor
+  void * buf_iva;   // input buffer (virtual) address
+  void * buf_ova;   // output buffer (virtual) address
+  uint   buf_size;  // pipe buffer size
+};
+
+static struct pipe_data pipe_data[SPIF_HW_PIPES_NUM];
+
+// convenient place holder
+static int dummy;
+
+// log file
+//TODO: change to system/kernel log
+static FILE * lf;
+
 // ---------------------------------
 
 
@@ -70,53 +86,91 @@ int spif_open (uint pipe)
   (void) sprintf (fname, "/dev/spif%u", pipe);
 
   // open spif device
-  spif_fd = open (fname, O_RDWR | O_SYNC);
-  if (spif_fd == -1) {
+  int fd = open (fname, O_RDWR | O_SYNC);
+  if (fd == -1) {
     switch (errno) {
     case ENOENT:
-      printf ("spif error: no spif device\n");
+      fprintf (lf, "spif error: no spif device\n");
       break;
     case EBUSY:
-      printf ("spif error: spif device busy\n");
+      fprintf (lf, "spif error: spif device busy\n");
       break;
     case ENODEV:
-      printf ("spif error: no connection to SpiNNaker\n");
+      fprintf (lf, "spif error: no connection to SpiNNaker\n");
       break;
     default:
-      printf ("spif error: [%s]\n", strerror (errno));
+      fprintf (lf, "spif error: [%s]\n", strerror (errno));
     }
+
+    return (-1);
   }
 
-  return spif_fd;
+  // get device buffer size
+  (void) ioctl (fd, SPIF_BUF_SIZE, (void *) &dummy);
+
+  // map input buffer to user space
+  void * iva = mmap (
+    NULL, dummy, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+
+  if (iva == MAP_FAILED) {
+    fprintf (lf, "spif error: unable to map spif buffer [%s]\n", strerror (errno));
+    close (fd);
+    return (-1);
+  }
+
+  // map output buffer to user space
+  void * ova = mmap (
+    NULL, dummy, PROT_READ | PROT_WRITE, MAP_SHARED, fd, dummy);
+
+  if (iva == MAP_FAILED) {
+    fprintf (lf, "spif error: unable to map spif buffer [%s]\n", strerror (errno));
+    close (fd);
+    return (-1);
+  }
+
+  // keep pipe state to service future requests
+  pipe_data[pipe].fd       = fd;
+  pipe_data[pipe].buf_iva  = iva;
+  pipe_data[pipe].buf_ova  = ova;
+  pipe_data[pipe].buf_size = dummy;
+
+  return fd;
 }
 
 
 //--------------------------------------------------------------------
-// request a spif buffer associated with a pipe
+// request a spif input buffer associated with a pipe
 //
 // returns NULL if error
 //--------------------------------------------------------------------
-void * spif_get_buffer (uint spif_fd, int buf_size)
+void * spif_get_buffer (uint pipe, uint buf_size)
 {
   // check requested buffer size
-  if (buf_size > SPIF_BUF_MAX_SIZE) {
-    printf ("spif error: buffer size exceeds maximum\n");
+  if (buf_size > pipe_data[pipe].buf_size) {
+    fprintf (lf, "spif error: requested buffer size exceeds capacity\n");
     return (NULL);
   }
 
-  // map spif memory into user-space buffer 
-  void * buffer = mmap (
-    NULL, SPIF_BUF_MAX_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
-    spif_fd, 0
-    );
+  // return previously mapped address
+  return (pipe_data[pipe].buf_iva);
+}
 
-  if (buffer == MAP_FAILED) {
-    printf ("spif error: unable to map spif buffer [%s]\n", strerror (errno));
-    close (spif_fd);
+
+//--------------------------------------------------------------------
+// request a spif output buffer associated with a pipe
+//
+// returns NULL if error
+//--------------------------------------------------------------------
+void * spif_get_output_buffer (uint pipe, uint buf_size)
+{
+  // check requested buffer size
+  if (buf_size > pipe_data[pipe].buf_size) {
+    fprintf (lf, "spif error: requested buffer size exceeds capacity\n");
     return (NULL);
   }
 
-  return (buffer);
+  // return previously mapped address
+  return (pipe_data[pipe].buf_ova);
 }
 
 
@@ -125,7 +179,7 @@ void * spif_get_buffer (uint spif_fd, int buf_size)
 //
 // returns NULL if error
 //--------------------------------------------------------------------
-void * spif_setup (uint pipe, int buf_size)
+void * spif_setup (uint pipe, uint buf_size)
 {
   // open spif device
   if (spif_open (pipe) == -1) {
@@ -133,11 +187,11 @@ void * spif_setup (uint pipe, int buf_size)
   }
 
   // get spif buffer (mapped into user space memory)
-  void * buffer = spif_get_buffer (spif_fd, buf_size);
+  void * buffer = spif_get_buffer (pipe, buf_size);
 
   if (buffer == MAP_FAILED) {
-    printf ("spif error: unable to map spif buffer [%s]\n", strerror (errno));
-    close (spif_fd);
+    fprintf (lf, "spif error: unable to map spif buffer [%s]\n", strerror (errno));
+    close (pipe_data[pipe].fd);
     return (NULL);
   }
 
@@ -150,9 +204,9 @@ void * spif_setup (uint pipe, int buf_size)
 //
 // no return value
 //--------------------------------------------------------------------
-void spif_close (int spif_fd)
+void spif_close (int pipe_fd)
 {
-  close (spif_fd);
+  close (pipe_fd);
 }
 
 
@@ -168,7 +222,7 @@ int spif_read_reg (unsigned int reg)
 
   // send request to spif and convey result
   //NOTE: ioctl never fails with this request
-  (void) ioctl (spif_fd, req, (void *) &dummy);
+  (void) ioctl (pipe_data[0].fd, req, (void *) &dummy);
 
   return dummy;
 }
@@ -184,7 +238,7 @@ void spif_write_reg (unsigned int reg, int val)
 
   // send request to spif
   //NOTE: ioctl never fails with this request
-  (void) ioctl (spif_fd, req, (void *) (long) val);
+  (void) ioctl (pipe_data[0].fd, req, (void *) (long) val);
 }
 // ---------------------------------
 
@@ -194,11 +248,11 @@ void spif_write_reg (unsigned int reg, int val)
 //
 // returns 0 if spif idle (no ongoing transfer)
 //--------------------------------------------------------------------
-int spif_busy (int spif_fd)
+int spif_busy (int pipe_fd)
 {
   // send request to spif and convey result
   //NOTE: ioctl never fails with this request
-  (void) ioctl (spif_fd, SPIF_STATUS_RD, (void *) &dummy);
+  (void) ioctl (pipe_fd, SPIF_STATUS_RD, (void *) &dummy);
 
   return dummy;
 }
@@ -209,10 +263,10 @@ int spif_busy (int spif_fd)
 //
 // returns 0 if transfer succeeds
 //--------------------------------------------------------------------
-int spif_transfer (int spif_fd, int length)
+int spif_transfer (int pipe_fd, int length)
 {
   // send request to spif and convey result
-  return (ioctl (spif_fd, SPIF_TRANSFER, (void *) (long) length));
+  return (ioctl (pipe_fd, SPIF_TRANSFER, (void *) (long) length));
 }
 
 
@@ -221,12 +275,12 @@ int spif_transfer (int spif_fd, int length)
 //
 // returns 0 if request succeeds
 //--------------------------------------------------------------------
-int spif_req (unsigned int req, int * val)
+int spif_req (int pipe, unsigned int req, int * val)
 {
   // send request to spif and convey result
-  int rc = ioctl (spif_fd, req, (void *) val);
+  int rc = ioctl (pipe_data[pipe].fd, req, (void *) val);
   if (rc == -1) {
-    printf ("spif error: spif request %d failed [%s]\n", req, strerror (errno));
+    fprintf (lf, "spif error: spif request %d failed [%s]\n", req, strerror (errno));
     return (-1);
   }
 
@@ -234,4 +288,4 @@ int spif_req (unsigned int req, int * val)
 }
 
 
-#endif /* __SPIF_DRV_H__ */
+#endif /* __SPIF_REMOTE_H__ */
