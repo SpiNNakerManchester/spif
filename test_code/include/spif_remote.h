@@ -75,7 +75,12 @@ static FILE * lf;
 
 
 //--------------------------------------------------------------------
-// opens requested spif device for access
+// opens requested spif pipe for access
+//
+// opens associated spif device
+// gets pipe buffer size
+// maps pipe input and output buffers to user space
+// keeps pipe data in static memory
 //
 // returns -1 if error
 //--------------------------------------------------------------------
@@ -90,16 +95,16 @@ int spif_open (uint pipe)
   if (fd == -1) {
     switch (errno) {
     case ENOENT:
-      fprintf (lf, "spif error: no spif device\n");
+      fprintf (lf, "error: no spif device\n");
       break;
     case EBUSY:
-      fprintf (lf, "spif error: spif device busy\n");
+      fprintf (lf, "error: spif device busy\n");
       break;
     case ENODEV:
-      fprintf (lf, "spif error: no connection to SpiNNaker\n");
+      fprintf (lf, "error: no connection to SpiNNaker\n");
       break;
     default:
-      fprintf (lf, "spif error: [%s]\n", strerror (errno));
+      fprintf (lf, "error: [%s]\n", strerror (errno));
     }
 
     return (-1);
@@ -108,25 +113,20 @@ int spif_open (uint pipe)
   // get device buffer size
   (void) ioctl (fd, SPIF_BUF_SIZE, (void *) &dummy);
 
-  // map input buffer to user space
+  // map pipe memory buffer to user space
+  //NOTE: input buffer is located at beginning of pipe memory
   void * iva = mmap (
-    NULL, dummy, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    NULL, 2 * dummy, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
   if (iva == MAP_FAILED) {
-    fprintf (lf, "spif error: unable to map spif buffer [%s]\n", strerror (errno));
+    fprintf (lf, "error: unable to map spif pipe memory [%s]\n", strerror (errno));
     close (fd);
     return (-1);
   }
 
   // map output buffer to user space
-  void * ova = mmap (
-    NULL, dummy, PROT_READ | PROT_WRITE, MAP_SHARED, fd, dummy);
-
-  if (iva == MAP_FAILED) {
-    fprintf (lf, "spif error: unable to map spif buffer [%s]\n", strerror (errno));
-    close (fd);
-    return (-1);
-  }
+  //NOTE: output buffer is located after input buffer
+  void * ova = (void *) ((int) iva + dummy);
 
   // keep pipe state to service future requests
   pipe_data[pipe].fd       = fd;
@@ -165,7 +165,7 @@ void * spif_get_output_buffer (uint pipe, uint buf_size)
 {
   // check requested buffer size
   if (buf_size > pipe_data[pipe].buf_size) {
-    fprintf (lf, "spif error: requested buffer size exceeds capacity\n");
+    fprintf (lf, "error: requested buffer size exceeds capacity\n");
     return (NULL);
   }
 
@@ -190,7 +190,7 @@ void * spif_setup (uint pipe, uint buf_size)
   void * buffer = spif_get_buffer (pipe, buf_size);
 
   if (buffer == MAP_FAILED) {
-    fprintf (lf, "spif error: unable to map spif buffer [%s]\n", strerror (errno));
+    fprintf (lf, "error: unable to map pipe memory [%s]\n", strerror (errno));
     close (pipe_data[pipe].fd);
     return (NULL);
   }
@@ -280,7 +280,7 @@ int spif_req (int pipe, unsigned int req, int * val)
   // send request to spif and convey result
   int rc = ioctl (pipe_data[pipe].fd, req, (void *) val);
   if (rc == -1) {
-    fprintf (lf, "spif error: spif request %d failed [%s]\n", req, strerror (errno));
+    fprintf (lf, "error: spif request %d failed [%s]\n", req, strerror (errno));
     return (-1);
   }
 

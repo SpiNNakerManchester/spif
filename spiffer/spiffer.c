@@ -1,6 +1,6 @@
 //************************************************//
 //*                                              *//
-//*          spif UDP/USB listener               *//
+//*         spif UDP/USB/SPINN listener          *//
 //*                                              *//
 //* started automatically at boot time           *//
 //* exits with -1 if problems found              *//
@@ -37,8 +37,12 @@ pthread_t       listener[SPIF_HW_PIPES_NUM];
 pthread_mutex_t usb_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 // spif pipe data
+int pipe_num_in  = 0;
+int pipe_num_out = 0;
+
 int    pipe_dev[SPIF_HW_PIPES_NUM];
 uint * pipe_buf[SPIF_HW_PIPES_NUM];
+uint * pipe_out_buf[SPIF_HW_PIPES_NUM];
 
 // UDP listener
 int udp_skt[SPIF_HW_PIPES_NUM];
@@ -57,7 +61,8 @@ usb_devs_t usb_devs;
 //--------------------------------------------------------------------
 void spiffer_stop (int ec) {
   // shutdown spif pipes,
-  for (int pipe = 0; pipe < SPIF_HW_PIPES_NUM; pipe++) {
+  int pipe_max_num = (pipe_num_in >= pipe_num_out) ? pipe_num_in : pipe_num_out;
+  for (int pipe = 0; pipe < pipe_max_num; pipe++) {
     // shutdown listener,
     (void) pthread_cancel (listener[pipe]);
     pthread_join (listener[pipe], NULL);
@@ -93,7 +98,7 @@ void spiffer_stop (int ec) {
 // returns SPIFFER_ERROR if problems found
 //--------------------------------------------------------------------
 int udp_init (void) {
-  for (int pipe = 0; pipe < SPIF_HW_PIPES_NUM; pipe++) {
+  for (int pipe = 0; pipe < pipe_num_in; pipe++) {
     int eth_port = UDP_PORT_BASE + pipe;
 
     // create UDP socket,
@@ -122,7 +127,7 @@ int udp_init (void) {
   }
 
   // start UDP listeners
-  for (int pipe = 0; pipe < SPIF_HW_PIPES_NUM; pipe++) {
+  for (int pipe = 0; pipe < pipe_num_in; pipe++) {
     (void) pthread_create (&listener[pipe], NULL, udp_listener, (void *) pipe);
   }
 
@@ -272,7 +277,7 @@ int usb_discover_devs (int discon_dev) {
   serial_t         dvn[USB_DISCOVER_CNT];
 
   // shutdown listeners and connected USB devices
-  for (int pipe = 0; pipe < SPIF_HW_PIPES_NUM; pipe++) {
+  for (int pipe = 0; pipe < pipe_num_in; pipe++) {
     // shutdown listener,
     (void) pthread_cancel (listener[pipe]);
     pthread_join (listener[pipe], NULL);
@@ -325,7 +330,7 @@ int usb_discover_devs (int discon_dev) {
   usb_sort (ndd, dvn, sorted);
 
   // configure devices,
-  while ((ncd < ndd) && (nsd < SPIF_HW_PIPES_NUM)) {
+  while ((ncd < ndd) && (nsd < pipe_num_in)) {
     int sdv = sorted[ncd];
 
     if (usb_dev_config (sdv, dvh[ncd]) == SPIFFER_ERROR) {
@@ -386,7 +391,7 @@ void usb_survey_devs (void * data) {
   }
 
   // and start UDP listeners on the rest of the pipes
-  for (int pipe = ndd; pipe < SPIF_HW_PIPES_NUM; pipe++) {
+  for (int pipe = ndd; pipe < pipe_num_in; pipe++) {
     (void) pthread_create (&listener[pipe], NULL, udp_listener, (void *) pipe);
   }
 
@@ -509,9 +514,6 @@ int usb_init (void) {
   // initialise USB device count
   usb_devs.dev_cnt = 0;
 
-  // check if any USB devices are connected
-  //lap usb_survey_devs ((void *) -1);
-
   return (SPIFFER_OK);
 }
 //--------------------------------------------------------------------
@@ -526,15 +528,45 @@ int spif_pipes_init (void) {
   // spif data batch size - also buffer size
   size_t batch_size = SPIFFER_BATCH_SIZE * sizeof (uint);
 
-  // open spif pipes and get corresponding buffer
-  for (uint pipe = 0; pipe < SPIF_HW_PIPES_NUM; pipe++) {
+  // try to open spif pipe 0
+  pipe_dev[0] = spif_open (0);
+  if (pipe_dev[0] == SPIFFER_ERROR) {
+    fprintf (lf, "error: unable to open spif pipe0\n");
+    return (SPIFFER_ERROR);
+  }
+
+  // report hardware version number and number of event pipes
+  int spif_ver = spif_read_reg (SPIF_VERSION);
+  pipe_num_in  = (spif_ver & SPIF_PIPES_MSK) >> SPIF_PIPES_SHIFT;
+  pipe_num_out = (spif_ver & SPIF_OUTPS_MSK) >> SPIF_OUTPS_SHIFT;
+  fprintf (lf,
+    "spif interface found [hw version %d.%d.%d - event pipes: in/%d out/%d]\n",
+    (spif_ver & SPIF_MAJ_VER_MSK) >> SPIF_MAJ_VER_SHIFT,
+    (spif_ver & SPIF_MIN_VER_MSK) >> SPIF_MIN_VER_SHIFT,
+    (spif_ver & SPIF_PAT_VER_MSK) >> SPIF_PAT_VER_SHIFT,
+    pipe_num_in,
+    pipe_num_out
+    );
+
+  // check that hw and sw number of pipes are compatible
+  int pipe_max_num = (pipe_num_in >= pipe_num_out) ? pipe_num_in : pipe_num_out;
+  if (pipe_max_num > SPIF_HW_PIPES_NUM) {
+    fprintf (lf, "error: incompatible number of hw and sw pipes\n");
+    return (SPIFFER_ERROR);
+  }
+
+  // open the rest of the pipes
+  for (int pipe = 1; pipe < pipe_max_num; pipe++) {
     // open spif pipe
     pipe_dev[pipe] = spif_open (pipe);
     if (pipe_dev[pipe] == SPIFFER_ERROR) {
       fprintf (lf, "error: unable to open spif pipe%i\n", pipe);
       return (SPIFFER_ERROR);
     }
+  }
 
+  // set up input buffers
+  for (int pipe = 0; pipe < pipe_num_in; pipe++) {
     // get pipe buffer
     pipe_buf[pipe] = (uint *) spif_get_buffer (pipe, batch_size);
     if (pipe_buf[pipe] == NULL) {
@@ -543,16 +575,15 @@ int spif_pipes_init (void) {
     }
   }
 
-  // report hardware version number and number of event pipes
-  int spif_ver = spif_read_reg (SPIF_VERSION);
-  fprintf (lf,
-    "spif interface found [hw version %d.%d.%d - event pipes: in/%d out/%d]\n",
-    (spif_ver & SPIF_MAJ_VER_MSK) >> SPIF_MAJ_VER_SHIFT,
-    (spif_ver & SPIF_MIN_VER_MSK) >> SPIF_MIN_VER_SHIFT,
-    (spif_ver & SPIF_PAT_VER_MSK) >> SPIF_PAT_VER_SHIFT,
-    (spif_ver & SPIF_PIPES_MSK)   >> SPIF_PIPES_SHIFT,
-    (spif_ver & SPIF_OUTPS_MSK)   >> SPIF_OUTPS_SHIFT
-    );
+  // set up output buffers
+  for (int pipe = 0; pipe < pipe_num_out; pipe++) {
+    // get pipe buffer
+    pipe_out_buf[pipe] = (uint *) spif_get_output_buffer (pipe, batch_size);
+    if (pipe_out_buf[pipe] == NULL) {
+      fprintf (lf, "error: failed to get output buffer for spif pipe%i\n", pipe);
+      return (SPIFFER_ERROR);
+    }
+  }
 
   return (SPIFFER_OK);
 }
