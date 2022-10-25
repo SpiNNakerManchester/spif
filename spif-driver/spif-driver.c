@@ -431,14 +431,8 @@ static irqreturn_t spif_irq_handler (int irq, void * p)
   pipe = (struct spif_pipe_data *) p;
   dma_regs = (int *) pipe->dmar_va;
 
-  // check if need to service (shared) interrupt
-  if ((ioread32 ((void *) &dma_regs[SPIF_DMAC_SR]) & SPIF_DMAC_IRQ_SET) == 0) {
-    // interrupt was not from this device
-    return IRQ_NONE;
-  }
-
   // clear interrupt
-  iowrite32 (SPIF_DMAC_IRQ_CLR, (void *) &dma_regs[SPIF_DMAC_SR]);
+  iowrite32 (SPIF_DMAC_IRQ_CLR, (void *) &dma_regs[SPIF_DMAC_OSR]);
 
   // and wake up whoever requested the transfer
   pipe->outp_ready = 1;
