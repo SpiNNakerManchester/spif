@@ -253,7 +253,12 @@ static int spif_release (struct inode * ino, struct file * fp)
   dma_regs = (int *) pipe->dmar_va;
   iowrite32 (SPIF_DMAC_STOP, (void *) &dma_regs[SPIF_DMAC_CR]);
 
-  // mark as unsed to allow new accesses
+  // stop the output DMA controller - if present
+  if (pipe->dma_irq > 0) {
+    iowrite32 (SPIF_DMAC_STOP, (void *) &dma_regs[SPIF_DMAC_OCR]);
+  }
+
+  // mark as unused to allow new accesses
   pipe->dev_open = 0;
 
   // release mutex
@@ -348,16 +353,16 @@ static long spif_ioctl (struct file * fp, unsigned int req , unsigned long arg)
     iowrite32 ((uint) data, (void *) &dma_regs[SPIF_DMAC_OLEN]);
 
     // sleep until transfer complete
-    wait_event_interruptible (pipe->outp_queue, pipe->outp_ready);
+    wait_event_interruptible (pipe->outp_queue, pipe->outp_ready != 0);
+
+    // mark pipe as not ready
+    pipe->outp_ready = 0;
 
     // read actual transfer length
     data = ioread32 ((void *) &dma_regs[SPIF_DMAC_OLEN]);
 
     // send the actual length back to user
     __put_user (data, (int *) arg);
-
-    // indicate that data has been transferred from pipe to memory
-    pipe->outp_ready = 0;
 
     return 0;
 
@@ -432,12 +437,12 @@ static irqreturn_t spif_irq_handler (int irq, void * p)
     return IRQ_NONE;
   }
 
-  // wake up whoever requested data
-  pipe->outp_ready = 1;
-  wake_up_interruptible (&(pipe->outp_queue));
-
   // clear interrupt
   iowrite32 (SPIF_DMAC_IRQ_CLR, (void *) &dma_regs[SPIF_DMAC_SR]);
+
+  // and wake up whoever requested the transfer
+  pipe->outp_ready = 1;
+  wake_up_interruptible (&(pipe->outp_queue));
 
   return IRQ_HANDLED;
 }
