@@ -42,6 +42,24 @@ void spiffer_stop (int ec);
 
 
 //--------------------------------------------------------------------
+// setup SpiNNaker output through spif
+//--------------------------------------------------------------------
+int spiNNaker_init (void);
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// receive events from SpiNNaker through spif
+//
+// expects event to arrive in spif format - no mapping is done
+//
+// terminated as a result of signal servicing
+//--------------------------------------------------------------------
+void * spiNNaker_listener (void * data);
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
 // setup Ethernet UDP servers to listen for events
 // create and bind on socket
 //

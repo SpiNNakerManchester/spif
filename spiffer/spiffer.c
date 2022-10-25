@@ -34,6 +34,7 @@ struct sigaction signal_cfg;
 
 // threads
 pthread_t       listener[SPIF_HW_PIPES_NUM];
+pthread_t       out_listener[SPIF_HW_PIPES_NUM];
 pthread_mutex_t usb_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 // spif pipe data
@@ -43,6 +44,9 @@ int pipe_num_out = 0;
 int    pipe_fd[SPIF_HW_PIPES_NUM];
 uint * pipe_buf[SPIF_HW_PIPES_NUM];
 uint * pipe_out_buf[SPIF_HW_PIPES_NUM];
+
+// SpiNNaker listener
+FILE * of;
 
 // UDP listener
 int udp_skt[SPIF_HW_PIPES_NUM];
@@ -56,9 +60,8 @@ usb_devs_t usb_devs;
 // caused by systemd request or error condition
 //--------------------------------------------------------------------
 void spiffer_stop (int ec) {
-  // shutdown spif pipes,
-  int pipe_max_num = (pipe_num_in >= pipe_num_out) ? pipe_num_in : pipe_num_out;
-  for (int pipe = 0; pipe < pipe_max_num; pipe++) {
+  // shutdown input pipes,
+  for (int pipe = 0; pipe < pipe_num_in; pipe++) {
     // shutdown listener,
     (void) pthread_cancel (listener[pipe]);
     pthread_join (listener[pipe], NULL);
@@ -67,10 +70,21 @@ void spiffer_stop (int ec) {
     (void) caerDeviceDataStop (usb_devs.dev_hdl[pipe]);
     (void) caerDeviceClose (&usb_devs.dev_hdl[pipe]);
 
-    // close UDP port,
+    // and close UDP port
     close (udp_skt[pipe]);
+  }
 
-    // and close spif pipe
+  // shutdown output pipes,
+  for (int pipe = 0; pipe < pipe_num_out; pipe++) {
+    // shutdown listener,
+    (void) pthread_cancel (out_listener[pipe]);
+    pthread_join (out_listener[pipe], NULL);
+  }
+
+  // close all pipes,
+  int pipe_max_num = (pipe_num_in >= pipe_num_out) ? pipe_num_in : pipe_num_out;
+  for (int pipe = 0; pipe < pipe_max_num; pipe++) {
+    // close spif pipe
     spif_close (pipe);
   }
 
@@ -83,6 +97,61 @@ void spiffer_stop (int ec) {
   fclose (lf);
 
   exit (ec);
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// setup SpiNNaker output through spif
+//--------------------------------------------------------------------
+int spiNNaker_init (void) {
+  of = fopen ("/tmp/spiffer_out.txt", "w");
+  if (of == NULL) {
+    fprintf (lf, "error: cannot open output file\n");
+    return (SPIFFER_ERROR);
+  }
+
+  // start SpiNNaker listeners
+  for (int pipe = 0; pipe < pipe_num_out; pipe++) {
+    (void) pthread_create (&out_listener[pipe], NULL,
+			   spiNNaker_listener, (void *) pipe);
+  }
+
+  return (SPIFFER_OK);
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// receive events from SpiNNaker through spif
+//
+// expects event to arrive in spif format - no mapping is done
+//
+// terminated as a result of signal servicing
+//--------------------------------------------------------------------
+void * spiNNaker_listener (void * data) {
+  int pipe = (int) data;
+
+  // announce that listener is ready
+  fprintf (lf, "listening SpiNNaker -> outpipe%i\n", pipe);
+  (void) fflush (lf);
+
+  int    sp = pipe_fd[pipe];
+  uint * sb = pipe_out_buf[pipe];
+  size_t ss = SPIFFER_BATCH_SIZE * sizeof (uint);
+
+  // get event batches from SpiNNaker
+  while (1) {
+    // trigger a transfer from SpiNNaker (blocking),
+    int rcv_bytes = spif_get_output (sp, ss);
+
+    // copy data to output file
+    int num_events = rcv_bytes / sizeof (uint);
+    for (int e = 0; e < num_events; e++) {
+      fprintf (of, "0x%08x\n", sb[e]);
+    }
+    (void) fflush (of);
+  }
 }
 //--------------------------------------------------------------------
 
@@ -667,6 +736,11 @@ int main (int argc, char *argv[])
 
   // open spif pipes and set up buffers,
   if (spif_pipes_init () == SPIFFER_ERROR) {
+    spiffer_stop (SPIFFER_ERROR);
+  }
+
+  // set up SpiNNaker listeners - one for every output pipe,
+  if (spiNNaker_init () == SPIFFER_ERROR) {
     spiffer_stop (SPIFFER_ERROR);
   }
 

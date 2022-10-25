@@ -1,5 +1,5 @@
 [Unit]
-Description=spif UDP/USB listening service
+Description=spif SpiNNaker/UDP/USB listening service
 
 [Service]
 Type=simple
