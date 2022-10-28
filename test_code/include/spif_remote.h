@@ -15,7 +15,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
-#include <errno.h>
 
 #include <sys/mman.h>
 #include <sys/ioctl.h>
@@ -54,7 +53,8 @@
 
 
 // ---------------------------------
-// spif file descriptor associated with spif device
+// spif pipe persitent data
+// ---------------------------------
 struct pipe_data {
   int    fd;        // pipe device file descriptor
   void * buf_iva;   // input buffer (virtual) address
@@ -64,13 +64,8 @@ struct pipe_data {
 
 static struct pipe_data pipe_data[SPIF_HW_PIPES_NUM];
 
-// convenient place holder
+// convenient static data place holder - to interact with kernel module
 static int dummy;
-
-// log file
-//TODO: change to system/kernel log
-static FILE * lf;
-
 // ---------------------------------
 
 
@@ -93,20 +88,6 @@ int spif_open (uint pipe)
   // open spif device
   int fd = open (fname, O_RDWR | O_SYNC);
   if (fd == -1) {
-    switch (errno) {
-    case ENOENT:
-      fprintf (lf, "error: no spif device\n");
-      break;
-    case EBUSY:
-      fprintf (lf, "error: spif device busy\n");
-      break;
-    case ENODEV:
-      fprintf (lf, "error: no connection to SpiNNaker\n");
-      break;
-    default:
-      fprintf (lf, "error: [%s]\n", strerror (errno));
-    }
-
     return (-1);
   }
 
@@ -119,7 +100,6 @@ int spif_open (uint pipe)
     NULL, 2 * dummy, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
   if (iva == MAP_FAILED) {
-    fprintf (lf, "error: unable to map spif pipe memory [%s]\n", strerror (errno));
     close (fd);
     return (-1);
   }
@@ -147,7 +127,6 @@ void * spif_get_buffer (uint pipe, uint buf_size)
 {
   // check requested buffer size
   if (buf_size > pipe_data[pipe].buf_size) {
-    fprintf (lf, "spif error: requested buffer size exceeds capacity\n");
     return (NULL);
   }
 
@@ -165,37 +144,11 @@ void * spif_get_output_buffer (uint pipe, uint buf_size)
 {
   // check requested buffer size
   if (buf_size > pipe_data[pipe].buf_size) {
-    fprintf (lf, "error: requested buffer size exceeds capacity\n");
     return (NULL);
   }
 
   // return previously mapped address
   return (pipe_data[pipe].buf_ova);
-}
-
-
-//--------------------------------------------------------------------
-// set up access to spif through requested pipe device
-//
-// returns NULL if error
-//--------------------------------------------------------------------
-void * spif_setup (uint pipe, uint buf_size)
-{
-  // open spif device
-  if (spif_open (pipe) == -1) {
-    return (NULL);
-  }
-
-  // get spif buffer (mapped into user space memory)
-  void * buffer = spif_get_buffer (pipe, buf_size);
-
-  if (buffer == MAP_FAILED) {
-    fprintf (lf, "error: unable to map pipe memory [%s]\n", strerror (errno));
-    close (pipe_data[pipe].fd);
-    return (NULL);
-  }
-
-  return (buffer);
 }
 
 
@@ -284,24 +237,6 @@ int spif_get_output (int pipe_fd, int length)
   ioctl (pipe_fd, SPIF_GET_OUTP, (void *) &dummy);
 
   return (dummy);
-}
-
-
-//--------------------------------------------------------------------
-// spif service request
-//
-// returns 0 if request succeeds
-//--------------------------------------------------------------------
-int spif_req (int pipe, unsigned int req, int * val)
-{
-  // send request to spif and convey result
-  int rc = ioctl (pipe_data[pipe].fd, req, (void *) val);
-  if (rc == -1) {
-    fprintf (lf, "error: spif request %d failed [%s]\n", req, strerror (errno));
-    return (-1);
-  }
-
-  return (rc);
 }
 
 
