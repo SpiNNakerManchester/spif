@@ -48,7 +48,8 @@ uint * pipe_buf[SPIF_HW_PIPES_NUM];
 uint * pipe_out_buf[SPIF_HW_PIPES_NUM];
 
 // SpiNNaker listener
-FILE * of;
+//NOTE: also listens to output client UDP ports for control messages
+int out_udp_skt[SPIF_HW_PIPES_NUM];
 
 // UDP listener
 int udp_skt[SPIF_HW_PIPES_NUM];
@@ -122,13 +123,42 @@ void spiffer_stop (int ec) {
 
 //--------------------------------------------------------------------
 // setup SpiNNaker output through spif
+// setup Ethernet UDP servers to listen for output control messages
+// create and bind on socket
+//
+// start SpiNNaker listener threads
+//
+// returns SPIFFER_ERROR if problems found
 //--------------------------------------------------------------------
 int spiNNaker_init (void) {
-  of = fopen ("/tmp/spiffer_out.txt", "w");
-  if (of == NULL) {
-    log_time ();
-    fprintf (lf, "error: cannot open output file\n");
-    return (SPIFFER_ERROR);
+  for (int pipe = 0; pipe < pipe_num_out; pipe++) {
+    int eth_port = UDP_PORT_BASE - (pipe + 1);
+
+    // create UDP socket,
+    int skt = socket (AF_INET, SOCK_DGRAM, 0);
+    if (skt == SPIFFER_ERROR) {
+      log_time ();
+      fprintf (lf, "error: failed to create socket for UDP port %i\n", eth_port);
+      return (SPIFFER_ERROR);
+    }
+
+    // configure server,
+    struct sockaddr_in srv_addr;
+    srv_addr.sin_family      = AF_INET;
+    srv_addr.sin_port        = htons (eth_port);
+    srv_addr.sin_addr.s_addr = INADDR_ANY;
+    bzero (&(srv_addr.sin_zero), 8);
+
+    // bind socket,
+    if (bind (skt, (struct sockaddr *) &srv_addr, sizeof (struct sockaddr)) == SPIFFER_ERROR) {
+      close (skt);
+      log_time ();
+      fprintf (lf, "error: failed to bind socket for UDP port %i\n", eth_port);
+      return (SPIFFER_ERROR);
+    }
+
+    //  and map socket to pipe
+    out_udp_skt[pipe] = skt;
   }
 
   // start SpiNNaker listeners
@@ -154,7 +184,28 @@ void * spiNNaker_listener (void * data) {
 
   // announce that listener is ready
   log_time ();
-  fprintf (lf, "listening SpiNNaker -> outpipe%i\n", pipe);
+  fprintf (lf, "listening outpipe%i -> UDP %i\n",
+	   pipe, UDP_PORT_BASE - (pipe + 1));
+  (void) fflush (lf);
+
+  struct sockaddr_in client_addr;
+  socklen_t client_addr_len;
+  client_addr_len = sizeof (struct sockaddr);
+
+  int us = out_udp_skt[pipe];
+  int ds = 256;
+  int dd[ds];
+
+  // wait for connection from output client
+  //NOTE: keep client IP address and UDP port
+  (void) recvfrom (us, dd, ds * sizeof (uint), 0,
+		   (struct sockaddr *) &client_addr,
+		   (socklen_t *) &client_addr_len);
+
+  // announce that output has started
+  log_time ();
+  fprintf (lf, "started outpipe%i -> UDP %i\n",
+	   pipe, UDP_PORT_BASE - (pipe + 1));
   (void) fflush (lf);
 
   int    sp = pipe_fd[pipe];
@@ -166,12 +217,9 @@ void * spiNNaker_listener (void * data) {
     // trigger a transfer from SpiNNaker (blocking),
     int rcv_bytes = spif_get_output (sp, ss);
 
-    // copy data to output file
-    int num_events = rcv_bytes / sizeof (uint);
-    for (int e = 0; e < num_events; e++) {
-      fprintf (of, "0x%08x\n", sb[e]);
-    }
-    (void) fflush (of);
+    // send data to output client
+    sendto (us, sb, rcv_bytes, 0,
+	    (struct sockaddr *) &client_addr, client_addr_len);
   }
 }
 //--------------------------------------------------------------------
@@ -180,6 +228,8 @@ void * spiNNaker_listener (void * data) {
 //--------------------------------------------------------------------
 // setup Ethernet UDP servers to listen for events
 // create and bind on socket
+//
+//  start UDP listener threads
 //
 // returns SPIFFER_ERROR if problems found
 //--------------------------------------------------------------------
