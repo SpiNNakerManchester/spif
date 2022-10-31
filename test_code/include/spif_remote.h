@@ -65,7 +65,10 @@ struct pipe_data {
 static struct pipe_data pipe_data[SPIF_HW_PIPES_NUM];
 
 // convenient static data place holder - to interact with kernel module
-static int dummy;
+static int open_dummy[SPIF_HW_PIPES_NUM];
+static int read_dummy[SPIF_HW_PIPES_NUM];
+static int busy_dummy[SPIF_HW_PIPES_NUM];
+static int out_dummy[SPIF_HW_PIPES_NUM];
 // ---------------------------------
 
 
@@ -92,12 +95,12 @@ int spif_open (uint pipe)
   }
 
   // get device buffer size
-  (void) ioctl (fd, SPIF_BUF_SIZE, (void *) &dummy);
+  (void) ioctl (fd, SPIF_BUF_SIZE, (void *) &(open_dummy[pipe]));
 
   // map pipe memory buffer to user space
   //NOTE: input buffer is located at beginning of pipe memory
-  void * iva = mmap (
-    NULL, 2 * dummy, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  void * iva = mmap (NULL, 2 * open_dummy[pipe],
+		     PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
   if (iva == MAP_FAILED) {
     close (fd);
@@ -106,13 +109,13 @@ int spif_open (uint pipe)
 
   // map output buffer to user space
   //NOTE: output buffer is located after input buffer
-  void * ova = (void *) ((int) iva + dummy);
+  void * ova = (void *) ((int) iva + open_dummy[pipe]);
 
   // keep pipe state to service future requests
   pipe_data[pipe].fd       = fd;
   pipe_data[pipe].buf_iva  = iva;
   pipe_data[pipe].buf_ova  = ova;
-  pipe_data[pipe].buf_size = dummy;
+  pipe_data[pipe].buf_size = open_dummy[pipe];
 
   return fd;
 }
@@ -168,30 +171,30 @@ void spif_close (uint pipe)
 //
 // returns read value
 //--------------------------------------------------------------------
-int spif_read_reg (unsigned int reg)
+int spif_read_reg (uint pipe, unsigned int reg)
 {
   // encode spif read register request
   unsigned int req = (reg << 16) | SPIF_REG_RD;
 
   // send request to spif and convey result
   //NOTE: ioctl never fails with this request
-  (void) ioctl (pipe_data[0].fd, req, (void *) &dummy);
+  (void) ioctl (pipe_data[pipe].fd, req, (void *) &(read_dummy[pipe]));
 
-  return dummy;
+  return read_dummy[pipe];
 }
 
 
 //--------------------------------------------------------------------
 // write spif register
 //--------------------------------------------------------------------
-void spif_write_reg (unsigned int reg, int val)
+void spif_write_reg (uint pipe, unsigned int reg, int val)
 {
   // encode spif read register request
   unsigned int req = (reg << 16) | SPIF_REG_WR;
 
   // send request to spif
   //NOTE: ioctl never fails with this request
-  (void) ioctl (pipe_data[0].fd, req, (void *) (long) val);
+  (void) ioctl (pipe_data[pipe].fd, req, (void *) (long) val);
 }
 // ---------------------------------
 
@@ -201,13 +204,13 @@ void spif_write_reg (unsigned int reg, int val)
 //
 // returns 0 if spif idle (no ongoing transfer)
 //--------------------------------------------------------------------
-int spif_busy (int pipe_fd)
+int spif_busy (uint pipe)
 {
   // send request to spif and convey result
   //NOTE: ioctl never fails with this request
-  (void) ioctl (pipe_fd, SPIF_STATUS_RD, (void *) &dummy);
+  (void) ioctl (pipe_data[pipe].fd, SPIF_STATUS_RD, (void *) &(busy_dummy[pipe]));
 
-  return dummy;
+  return busy_dummy[pipe];
 }
 
 
@@ -216,10 +219,10 @@ int spif_busy (int pipe_fd)
 //
 // returns 0 if transfer succeeds
 //--------------------------------------------------------------------
-int spif_transfer (int pipe_fd, int length)
+int spif_transfer (uint pipe, int length)
 {
   // send request to spif and convey result
-  return (ioctl (pipe_fd, SPIF_TRANSFER, (void *) (long) length));
+  return (ioctl (pipe_data[pipe].fd, SPIF_TRANSFER, (void *) (long) length));
 }
 
 
@@ -228,15 +231,15 @@ int spif_transfer (int pipe_fd, int length)
 //
 // returns the length of the transfer (in bytes)
 //--------------------------------------------------------------------
-int spif_get_output (int pipe_fd, int length)
+int spif_get_output (uint pipe, int length)
 {
   // dummy is used to send requested length and receive actual length
-  dummy = length;
+  out_dummy[pipe] = length;
 
   // send request to spif and convey result
-  ioctl (pipe_fd, SPIF_GET_OUTP, (void *) &dummy);
+  ioctl (pipe_data[pipe].fd, SPIF_GET_OUTP, (void *) &(out_dummy[pipe]));
 
-  return (dummy);
+  return (out_dummy[pipe]);
 }
 
 

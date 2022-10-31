@@ -215,7 +215,7 @@ void * spiNNaker_listener (void * data) {
   // get event batches from SpiNNaker
   while (1) {
     // trigger a transfer from SpiNNaker (blocking),
-    int rcv_bytes = spif_get_output (sp, ss);
+    int rcv_bytes = spif_get_output (pipe, ss);
 
     // send data to output client
     sendto (us, sb, rcv_bytes, 0,
@@ -301,12 +301,12 @@ void * udp_listener (void * data) {
     int rcv_bytes = recv (us, (void *) sb, ss, 0);
 
     // trigger a transfer to SpiNNaker,
-    spif_transfer (sp, rcv_bytes);
+    spif_transfer (pipe, rcv_bytes);
 
     // and wait until spif finishes the transfer
     //NOTE: report if waiting for too long!
     int wc = 0;
-    while (spif_busy (sp)) {
+    while (spif_busy (pipe)) {
       wc++;
       if (wc < 0) {
         log_time ();
@@ -634,12 +634,12 @@ void * usb_listener (void * data) {
     int rcv_bytes = usb_get_events (ud, sb);
 
     // trigger a transfer to SpiNNaker
-    spif_transfer (sp, rcv_bytes);
+    spif_transfer (pipe, rcv_bytes);
 
     // wait until spif finishes the current transfer
     //NOTE: report when waiting too long!
     int wc = 0;
-    while (spif_busy (sp)) {
+    while (spif_busy (pipe)) {
       wc++;
       if (wc < 0) {
         log_time ();
@@ -699,7 +699,7 @@ int spif_pipes_init (void) {
   }
 
   // report hardware version number and number of event pipes
-  int spif_ver = spif_read_reg (SPIF_VERSION);
+  int spif_ver = spif_read_reg (0, SPIF_VERSION);
   pipe_num_in  = (spif_ver & SPIF_PIPES_MSK) >> SPIF_PIPES_SHIFT;
   pipe_num_out = (spif_ver & SPIF_OUTPS_MSK) >> SPIF_OUTPS_SHIFT;
   log_time ();
