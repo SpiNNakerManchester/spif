@@ -353,7 +353,10 @@ static long spif_ioctl (struct file * fp, unsigned int req , unsigned long arg)
     iowrite32 ((uint) data, (void *) &dma_regs[SPIF_DMAC_OLEN]);
 
     // sleep until transfer complete
-    wait_event_interruptible (pipe->outp_queue, pipe->outp_ready != 0);
+    if ((wait_event_interruptible_timeout (pipe->outp_queue, pipe->outp_ready != 0, 10 * HZ)) == 0) {
+      __put_user (0, (int *) arg);
+      return 0;
+    }
 
     // mark pipe as not ready
     pipe->outp_ready = 0;
