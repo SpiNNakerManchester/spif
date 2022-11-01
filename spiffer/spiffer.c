@@ -208,7 +208,6 @@ void * spiNNaker_listener (void * data) {
 	   pipe, UDP_PORT_BASE - (pipe + 1));
   (void) fflush (lf);
 
-  int    sp = pipe_fd[pipe];
   uint * sb = pipe_out_buf[pipe];
   size_t ss = SPIFFER_BATCH_SIZE * sizeof (uint);
 
@@ -216,6 +215,12 @@ void * spiNNaker_listener (void * data) {
   while (1) {
     // trigger a transfer from SpiNNaker (blocking),
     int rcv_bytes = spif_get_output (pipe, ss);
+
+    // check for cancellation if zero bytes
+    if (rcv_bytes == 0) {
+      pthread_testcancel ();
+      continue;
+    }
 
     // send data to output client
     sendto (us, sb, rcv_bytes, 0,
@@ -289,7 +294,6 @@ void * udp_listener (void * data) {
   fprintf (lf, "listening UDP %i-> pipe%i\n", UDP_PORT_BASE + pipe, pipe);
   (void) fflush (lf);
 
-  int    sp = pipe_fd[pipe];
   uint * sb = pipe_buf[pipe];
   size_t ss = SPIFFER_BATCH_SIZE * sizeof (uint);
   int    us = udp_skt[pipe];
@@ -620,7 +624,6 @@ int usb_get_events (caerDeviceHandle dev, uint * buf) {
 void * usb_listener (void * data) {
   int pipe = (int) data;
 
-  int              sp = pipe_fd[pipe];
   uint *           sb = pipe_buf[pipe];
   caerDeviceHandle ud = usb_devs.dev_hdl[pipe];
 
