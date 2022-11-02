@@ -22,6 +22,10 @@
 #define USB_EVTS_PER_PKT   256
 #define USB_DISCOVER_CNT   SPIF_HW_PIPES_NUM
 
+//Spif output commands
+#define SPIFFER_OUT_START  0x5ec00051
+#define SPIFFER_OUT_STOP   0x5ec00050
+
 
 // USB listener
 typedef char serial_t[9];
@@ -77,6 +81,15 @@ int udp_init (void);
 // terminated as a result of signal servicing
 //--------------------------------------------------------------------
 void * udp_listener (void * data);
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// receive output commands through Ethernet UDP port
+//
+// terminated as a result of signal servicing
+//--------------------------------------------------------------------
+void * out_udp_listener (void * data);
 //--------------------------------------------------------------------
 
 
