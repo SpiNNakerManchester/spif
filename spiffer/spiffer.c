@@ -355,11 +355,11 @@ void * out_udp_listener (void * data) {
     uint num_cmds = rcv_bytes / sizeof (uint);
     for (uint cmd = 0; cmd < num_cmds; cmd++) {
       switch (dd[cmd]) {
-      case SPIFFER_OUT_START:
+      case SPIF_OUT_START:
         out_start[pipe] = 1;
         fprintf (lf, "starting outpipe%i\n", pipe);
         break;
-      case SPIFFER_OUT_STOP:
+      case SPIF_OUT_STOP:
         out_start[pipe] = 0;
         fprintf (lf, "stopping outpipe%i\n", pipe);
         break;

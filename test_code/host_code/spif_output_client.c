@@ -18,9 +18,7 @@
 #include <netdb.h>
 #include <string.h>
 
-
-#define SPIF_OUT_START    0x5ec00051
-#define SPIF_OUT_STOP     0x5ec00050
+#include "spif.h"
 
 #define EVT_BATCH_SIZE    256
 
