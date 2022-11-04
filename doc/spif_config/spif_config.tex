@@ -422,6 +422,22 @@
 \subsection{Event Output Control}
 
 
+\begin{center}
+	\rowcolors {1}{ blue!25 }{ blue!25 }
+	\begin{tabularx}{\textwidth}{| l X |}
+		\hline
+		\textbf{notes:} & $\bullet$ output pipe connected to SpiNNaker chip(0, 0), port 5 (south).   \\%
+		& $\bullet$ SpiNNaker packets are distilled into events. Packet payloads are ignored.        \\%
+		& $\bullet$ output events are grouped in UDP frames.                                         \\%
+		& $\bullet$ a frame is triggered whenever the length is reached or a periodic tick is hit.   \\%
+		& $\bullet$ SpiNNaker output is off by default.                                              \\%
+		& $\bullet$ a peripheral must send a message to spif (UDP port 3332) to start output.        \\%
+		& $\bullet$ when output is off all output packets are thrown away.                           \\%
+		\hline
+	\end{tabularx}
+\end{center}
+
+
 \begin{table}[!ht]
 	\rowcolors {1}{}{ \tblc }
 	\begin{center}
