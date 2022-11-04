@@ -18,8 +18,8 @@
 % --------------------------------------------------------------------------
 % define useful variables
 % --------------------------------------------------------------------------
-\def\myversion{Version 0.0.3}
-\def\mydate{17 September 2022}
+\def\myversion{Version 0.1.0}
+\def\mydate{04 November 2022}
 
 \def\bcw{5mm}
 \def\ncw{45mm}
@@ -228,8 +228,8 @@
 		\textbf{reply\_key}                  & 02                         & (0x02)                         & r/w                 & routing key for read replies \\%
 		\textbf{in\_drop\_wait}              & 03                         & (0x03)                         & r/w                 & input wait-before-drop count \\%
 		\textbf{out\_drop\_wait}             & 04                         & (0x04)                         & r/w                 & output wait-before-drop count \\%
-		\textbf{out\_frame\_period}          & 05                         & (0x05)                         & r/w                 & event frame transmission period \\%
-		\textbf{out\_frame\_size}            & 06                         & (0x06)                         & r/w                 & event frame size \\%
+		\textbf{out\_tick}                   & 05                         & (0x05)                         & r/w                 & event transmission period (in $\mu$S)\\%
+		\textbf{out\_len}                    & 06                         & (0x06)                         & r/w                 & event frame length (in events) \\%
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}05-13   & \cellcolor{gray!25}(0x05-0x0d) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\textbf{status}                      & 14                         & (0x0e)                         & r                   & HSSL interface status \\%
 		\textbf{version}                     & 15                         & (0x0f)                         & r                   & spif hardware version number \\%
@@ -285,8 +285,8 @@
 		\textbf{reply\_key}                  & \ttfamily{32b} & \ttfamily{0xfffffd00} & \\%
 		\textbf{in\_drop\_wait}              & \ttfamily{32b} & \ttfamily{32}         & 512 for no drops in worst-case traffic \\%
 		\textbf{out\_drop\_wait}             & \ttfamily{32b} & \ttfamily{0}          & \\%
-		\textbf{out\_frame\_period}          & \ttfamily{32b} & \ttfamily{1000}       & period in microseconds \\%
-		\textbf{out\_frame\_size}            & \ttfamily{10b} & \ttfamily{256}        & maximum number of events in a frame \\%
+		\textbf{out\_tick}                   & \ttfamily{32b} & \ttfamily{1000}       & period in $\mu$seconds \\%
+		\textbf{out\_len}                    & \ttfamily{10b} & \ttfamily{256}        & maximum number of events in a frame \\%
 		\textbf{status}                      & \ttfamily{32b} & \ttfamily{0x5ec0ffff} & {\small [19:18] FPGA/[17:16] handshake/[15:0] IDSI}\\%
 		\textbf{version}                     & \ttfamily{28b} &                       & {\small [31:28] outputs/[27:24] input pipes/[23:0] version}\\%
 		\textbf{ir\_key [15:0]}              & \ttfamily{32b} & \ttfamily{0x00000000} & match all by default \\%
@@ -334,7 +334,7 @@
 
 \begin{figure}[!ht]
 	\centering
-	\begin{minipage}{0.95\columnwidth}
+	\begin{minipage}{0.75\columnwidth}
 		\begin{algorithm}[H]
 			\caption{event filtering pseudocode}
 			\begin{algorithmic}[1]
@@ -416,6 +416,50 @@
 
 
 \clearpage
+\section{Event Output}
+
+
+\subsection{Event Output Control}
+
+
+\begin{table}[!ht]
+	\rowcolors {1}{}{ \tblc }
+	\begin{center}
+		\begin{tabular}{| l l l |}
+			\hline
+			\textbf{command}           & \textbf{value}               & \textbf{comment}                    \\%
+			\hline
+			\hline
+			\textbf{SPIF\_OUT\_START}  & \ttfamily{0x5ec10001}        & start SpiNNaker output              \\%
+			\textbf{SPIF\_OUT\_STOP}   & \ttfamily{0x5ec10000}        & stop SpiNNaker output               \\%
+			\textbf{SPIF\_OUT\_TICK}   & \ttfamily{0x5ec20000 + tick} & set output transmission period (in $\mu$seconds)     \\%
+			\textbf{SPIF\_OUT\_LEN}    & \ttfamily{0x5ec40000 * len}  & set output frame length (in events) \\%
+			\hline
+		\end{tabular}
+		\caption{Event output control commands}
+	\end{center}
+	\label{tab:map_regs}
+\end{table}
+
+
+\subsection{Distilling Scheme}
+
+
+\begin{figure}[!ht]
+	\centering
+	\begin{minipage}{0.5\columnwidth}
+		\begin{algorithm}[H]
+			\caption{event distilling pseudocode}
+			\begin{algorithmic}[1]
+				\State event $=$ packet\_key
+			\end{algorithmic}
+			\label{alg:filter}
+		\end{algorithm}
+	\end{minipage}
+\end{figure}
+
+
+\clearpage
 \section{Interface test environment}
 
 
@@ -435,6 +479,7 @@
 	\item 0.0.1 - 03/07/2021 - lap - initial draft - comments to {\itshape luis.plana@manchester.ac.uk}
 	\item 0.0.2 - 03/09/2021 - lap - added event processing pipe information.
 	\item 0.0.3 - 07/09/2021 - lap - added event filtering information.
+	\item 0.1.0 - 04/11/2022 - lap - added event output information.
 \end{itemize}
 
 
