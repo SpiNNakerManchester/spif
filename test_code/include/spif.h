@@ -30,8 +30,8 @@
 #define SPIF_REPLY_KEY        2
 #define SPIF_IN_DROP_WAIT     3
 #define SPIF_OUT_DROP_WAIT    4
-#define SPIF_OUT_FRM_PERIOD   5
-#define SPIF_OUT_FRM_SIZE     6
+#define SPIF_OUT_TICK         5
+#define SPIF_OUT_LEN          6
 #define SPIF_STATUS           14
 #define SPIF_VERSION          15
 #define SPIF_ROUTER_KEY       16    // section of SPIF_ROUTER_NUM registers
@@ -73,10 +73,13 @@
 //--------------------------------------------------------------------
 // spif output control commands
 //--------------------------------------------------------------------
-#define SPIF_OUT_START        0x5ec10001
+#define SPIF_OUT_START        0x5ec00000
 #define SPIF_OUT_STOP         0x5ec10000
 #define SPIF_OUT_SET_TICK     0x5ec20000
 #define SPIF_OUT_SET_LEN      0x5ec40000
+
+#define SPIF_OUT_CMD_MASK     0xffff0000
+#define SPIF_OUT_VAL_MASK     0x0000ffff
 //--------------------------------------------------------------------
 
 

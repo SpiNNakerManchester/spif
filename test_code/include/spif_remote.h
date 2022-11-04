@@ -215,6 +215,36 @@ int spif_busy (uint pipe)
 
 
 //--------------------------------------------------------------------
+// set spif output event tick
+//--------------------------------------------------------------------
+void spif_set_out_tick (uint pipe, int val)
+{
+  // encode spif read register request
+  unsigned int req = (SPIF_OUT_TICK << 16) | SPIF_REG_WR;
+
+  // send request to spif
+  //NOTE: ioctl never fails with this request
+  (void) ioctl (pipe_data[pipe].fd, req, (void *) (long) val);
+}
+// ---------------------------------
+
+
+//--------------------------------------------------------------------
+// set spif output event frame length
+//--------------------------------------------------------------------
+void spif_set_out_len (uint pipe, int val)
+{
+  // encode spif read register request
+  unsigned int req = (SPIF_OUT_LEN << 16) | SPIF_REG_WR;
+
+  // send request to spif
+  //NOTE: ioctl never fails with this request
+  (void) ioctl (pipe_data[pipe].fd, req, (void *) (long) val);
+}
+// ---------------------------------
+
+
+//--------------------------------------------------------------------
 // start a transfer to SpiNNaker
 //
 // returns 0 if transfer succeeds

@@ -351,10 +351,12 @@ void * out_udp_listener (void * data) {
                               (socklen_t *) &client_addr_len[pipe]);
 
     // execute received output commands
-    log_time ();
     uint num_cmds = rcv_bytes / sizeof (uint);
-    for (uint cmd = 0; cmd < num_cmds; cmd++) {
-      switch (dd[cmd]) {
+    for (uint i = 0; i < num_cmds; i++) {
+      uint cmd = dd[i] & SPIF_OUT_CMD_MASK;
+      uint val = dd[i] & SPIF_OUT_VAL_MASK;
+      log_time ();
+      switch (cmd) {
       case SPIF_OUT_START:
         out_start[pipe] = 1;
         fprintf (lf, "starting outpipe%i\n", pipe);
@@ -362,6 +364,14 @@ void * out_udp_listener (void * data) {
       case SPIF_OUT_STOP:
         out_start[pipe] = 0;
         fprintf (lf, "stopping outpipe%i\n", pipe);
+        break;
+      case SPIF_OUT_SET_TICK:
+        spif_set_out_tick (pipe, val);
+        fprintf (lf, "setting outpipe%i tick to %i\n", pipe, val);
+        break;
+      case SPIF_OUT_SET_LEN:
+        spif_set_out_len (pipe, val);
+        fprintf (lf, "setting outpipe%i frame length to %i\n", pipe, val);
         break;
       default:
         fprintf (lf, "warning: unknown output command received UDP %i\n",
