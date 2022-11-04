@@ -120,9 +120,11 @@ int main (int argc, char * argv[])
     exit (-1);
   }
 
-  // send start command to spif
-  evt_data[0] = SPIF_OUT_START;
-  uint bs = sendto (evt_socket, evt_data, sizeof (uint),
+  // set output parameters and start
+  evt_data[0] = SPIF_OUT_SET_LEN + 128;
+  evt_data[1] = SPIF_OUT_SET_TICK + 500;
+  evt_data[2] = SPIF_OUT_START;
+  uint bs = sendto (evt_socket, evt_data, 3 * sizeof (uint),
         0, (struct sockaddr *) &server_addr, sizeof (struct sockaddr));
 
   if (bs < 0) {
