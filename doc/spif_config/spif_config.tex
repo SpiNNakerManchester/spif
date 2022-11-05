@@ -423,8 +423,21 @@
 
 
 \begin{center}
+	\rowcolors {1}{}{ \tblc }
+	\begin{tabular}{| l l l |}
+		\hline
+		\textbf{command}           & \textbf{value}               & textbf{comment}                    \\%
+		\hline
+		\hline
+		\textbf{SPIF\_OUT\_START}  & \ttfamily{0x5ec10001}        & start SpiNNaker output              \\%
+		\textbf{SPIF\_OUT\_STOP}   & \ttfamily{0x5ec10000}        & stop SpiNNaker output               \\%
+		\textbf{SPIF\_OUT\_TICK}   & \ttfamily{0x5ec20000 + tick} & set output transmission period (in $\mu$seconds)     \\%
+		\textbf{SPIF\_OUT\_LEN}    & \ttfamily{0x5ec40000 * len}  & set output frame length (in events) \\%
+		\hline
+	\end{tabular}
+
 	\rowcolors {1}{ blue!25 }{ blue!25 }
-	\begin{tabularx}{\textwidth}{| l X |}
+	\begin{tabularx}{1.04\textwidth}{| l X |}
 		\hline
 		\textbf{notes:} & $\bullet$ output pipe connected to SpiNNaker chip(0, 0), port 5 (south).   \\%
 		& $\bullet$ SpiNNaker packets are distilled into events. Packet payloads are ignored.        \\%
@@ -438,26 +451,6 @@
 \end{center}
 
 
-\begin{table}[!ht]
-	\rowcolors {1}{}{ \tblc }
-	\begin{center}
-		\begin{tabular}{| l l l |}
-			\hline
-			\textbf{command}           & \textbf{value}               & \textbf{comment}                    \\%
-			\hline
-			\hline
-			\textbf{SPIF\_OUT\_START}  & \ttfamily{0x5ec10001}        & start SpiNNaker output              \\%
-			\textbf{SPIF\_OUT\_STOP}   & \ttfamily{0x5ec10000}        & stop SpiNNaker output               \\%
-			\textbf{SPIF\_OUT\_TICK}   & \ttfamily{0x5ec20000 + tick} & set output transmission period (in $\mu$seconds)     \\%
-			\textbf{SPIF\_OUT\_LEN}    & \ttfamily{0x5ec40000 * len}  & set output frame length (in events) \\%
-			\hline
-		\end{tabular}
-		\caption{Event output control commands}
-	\end{center}
-	\label{tab:map_regs}
-\end{table}
-
-
 \subsection{Distilling Scheme}
 
 
@@ -469,7 +462,7 @@
 			\begin{algorithmic}[1]
 				\State event $=$ packet\_key
 			\end{algorithmic}
-			\label{alg:filter}
+			\label{alg:distiller}
 		\end{algorithm}
 	\end{minipage}
 \end{figure}
