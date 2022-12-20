@@ -1,6 +1,6 @@
 //************************************************//
 //*                                              *//
-//* transmit data to UDP server and get it back  *//
+//* simple SpiNNaker peripheral output client    *//
 //*                                              *//
 //* exits with -1 if problems found              *//
 //*                                              *//
@@ -60,7 +60,6 @@ int setup_eth_udp_cli (char * eth_serv, int eth_port) {
 //--------------------------------------------------------------------
 // setup raw event data stream
 // - open event file
-// - seek to first raw data after header
 //
 // returns -1 if problems found
 //--------------------------------------------------------------------
