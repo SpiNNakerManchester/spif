@@ -9,11 +9,11 @@
 // -------------------------------------------------------------------------
 // DETAILS
 //  Created on       : 21 Oct 2020
-//  Last modified on : Tue  7 Sep 17:35:31 BST 2021
+//  Last modified on : Sun  2 Oct 17:47:23 CEST 2022
 //  Last modified by : lap
 // -------------------------------------------------------------------------
 // COPYRIGHT
-//  Copyright (c) The University of Manchester, 2020-2021.
+//  Copyright (c) The University of Manchester, 2020-2022.
 //  SpiNNaker Project
 //  Advanced Processor Technologies Group
 //  School of Computer Science
@@ -29,7 +29,10 @@
 `timescale 1ps/1ps
 module hssl_reg_bank
 #(
-    parameter HW_NUM_PIPES = 1
+    parameter HW_VERSION   = 0,
+    parameter HW_NUM_PIPES = 1,
+    parameter HW_NUM_OUTPS = 1,
+    parameter TARGET_FPGA  = 0
 )
 (
   input  wire                       clk,
@@ -56,9 +59,6 @@ module hssl_reg_bank
   input  wire    [`NUM_DCREGS - 1:0] ctr_cnt_in,
 
   // status signals
-  input  wire  [`HW_VER_BITS - 1:0] hw_version_in,
-  input  wire [`HW_PIPE_BITS - 1:0] hw_pipe_num_in,
-  input  wire [`HW_FPGA_BITS - 1:0] fpga_model_in,
   input  wire                       hs_complete_in,
   input  wire                       hs_mismatch_in,
   input  wire [`HW_SNTL_BITS - 1:0] idsi_in,
@@ -73,6 +73,10 @@ module hssl_reg_bank
   // wait values for packet dropping
   output wire                [31:0] input_wait_out,
   output wire                [31:0] output_wait_out,
+
+  // event frame parameters
+  output wire                [31:0] output_tick_out,
+  output wire                 [9:0] output_size_out,
 
   // input router interface
   output reg                 [31:0] reg_rt_key_out   [`NUM_RTREGS - 1:0],
@@ -131,6 +135,8 @@ module hssl_reg_bank
   localparam REPLY_KEY_REG  = 2;
   localparam IN_WAIT_REG    = 3;
   localparam OUT_WAIT_REG   = 4;
+  localparam OUT_TICK_REG   = 5;
+  localparam OUT_SIZE_REG   = 6;
 
   // not real registers - collect signals
   localparam STATUS_REG     = 14;
@@ -141,7 +147,9 @@ module hssl_reg_bank
   localparam RESERVED_DEF   = BAD_REG;
   localparam REPLY_KEY_DEF  = 32'hffff_fd00;  // remote reply routing key
   localparam IN_WAIT_DEF    = 32;
-  localparam OUT_WAIT_DEF   = 32;
+  localparam OUT_WAIT_DEF   = 0;
+  localparam OUT_TICK_DEF   = 1000;
+  localparam OUT_SIZE_DEF   = 256;
 
   localparam RT_KEY_DEF     = 32'hffff_ffff;  // force a miss
   localparam RT_MSK_DEF     = 32'h0000_0000;
@@ -165,6 +173,8 @@ module hssl_reg_bank
   assign reply_key_out   = reg_hssl_int[REPLY_KEY_REG];
   assign input_wait_out  = reg_hssl_int[IN_WAIT_REG];
   assign output_wait_out = reg_hssl_int[OUT_WAIT_REG];
+  assign output_tick_out = reg_hssl_int[OUT_TICK_REG];
+  assign output_size_out = reg_hssl_int[OUT_SIZE_REG];
 
   // APB register access
   wire                  apb_read  = apb_psel_in && !apb_pwrite_in;
@@ -223,6 +233,8 @@ module hssl_reg_bank
         reg_hssl_int[REPLY_KEY_REG] <= REPLY_KEY_DEF;
         reg_hssl_int[IN_WAIT_REG]   <= IN_WAIT_DEF;
         reg_hssl_int[OUT_WAIT_REG]  <= OUT_WAIT_DEF;
+        reg_hssl_int[OUT_TICK_REG]  <= OUT_TICK_DEF;
+        reg_hssl_int[OUT_SIZE_REG]  <= OUT_SIZE_DEF;
         reg_rt_key_out              <= '{NUM_RTREGS {RT_KEY_DEF}};
         reg_rt_mask_out             <= '{NUM_RTREGS {RT_MSK_DEF}};
         reg_rt_route_out            <= '{NUM_RTREGS {RT_RTE_DEF}};
@@ -269,9 +281,9 @@ module hssl_reg_bank
         IFCAS_SEC: if (apb_reg < NUM_IFREGS)
                      apb_prdata_out <= reg_hssl_int[apb_reg];
                    else if (apb_reg == STATUS_REG)
-                     apb_prdata_out <= {12'h5ec, fpga_model_in, hs_mismatch_in, hs_complete_in, idsi_in};
+                     apb_prdata_out <= {12'h5ec, TARGET_FPGA, hs_mismatch_in, hs_complete_in, idsi_in};
                    else if (apb_reg == HW_VER_REG)
-                     apb_prdata_out <= {4'h0, hw_pipe_num_in, hw_version_in};
+                     apb_prdata_out <= {HW_NUM_OUTPS, HW_NUM_PIPES, HW_VERSION};
                    else
                      apb_prdata_out <= BAD_REG;
 

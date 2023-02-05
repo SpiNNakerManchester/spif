@@ -100,7 +100,7 @@ void start_spif (uint a, uint b)
   spif_set_mapper_field_shift (1, 2, MPF_SHIFT_2);
   spif_set_mapper_field_shift (1, 3, MPF_SHIFT_3);
 
-  // ajust peripheral input wait-before-drop value
+  // adjust peripheral input wait-before-drop value
   spif_set_input_drop_wait (PKT_DROP_WAIT);
 }
 

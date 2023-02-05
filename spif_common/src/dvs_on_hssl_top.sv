@@ -12,11 +12,11 @@
 // -------------------------------------------------------------------------
 // DETAILS
 //  Created on       : 21 Oct 2020
-//  Last modified on : Tue  7 Sep 17:35:31 BST 2021
+//  Last modified on : Sun  2 Oct 17:47:23 CEST 2022
 //  Last modified by : lap
 // -------------------------------------------------------------------------
 // COPYRIGHT
-//  Copyright (c) The University of Manchester, 2020-2021.
+//  Copyright (c) The University of Manchester, 2020-2022.
 //  SpiNNaker Project
 //  Advanced Processor Technologies Group
 //  School of Computer Science
@@ -81,6 +81,7 @@ module dvs_on_hssl_top
   // use local parameters for consistent definitions
   localparam HW_VERSION      = `SPIF_VER_NUM;
   localparam HW_NUM_PIPES    = `SPIF_NUM_PIPES;
+  localparam HW_NUM_OUTPS    = `SPIF_NUM_OUTPS;
   localparam TARGET_FPGA     = `FPGA_MODEL;
   localparam HW_SNTL_BITS    = `HW_SNTL_BITS;
 
@@ -153,6 +154,10 @@ module dvs_on_hssl_top
   wire [31:0] rtr_drop_wait_int;
   wire [31:0] prx_drop_wait_int;
 
+  // - event frame parameters
+  wire [31:0] output_tick_int;
+  wire  [9:0] output_size_int;
+
   //  - packet routing table
   wire               [31:0] rt_key_int   [NUM_RTREGS - 1:0];
   wire               [31:0] rt_mask_int  [NUM_RTREGS - 1:0];
@@ -175,6 +180,7 @@ module dvs_on_hssl_top
 
   //  - diagnostic counter signals
   wire   [NUM_DCREGS - 1:0] ctr_cnt_int;
+  wire                      out_drp_cnt_int;
   wire                [1:0] prx_cnt_int;
   wire                [1:0] rt_cnt_int;
 
@@ -316,6 +322,12 @@ module dvs_on_hssl_top
   wire        axi_evt_vld_int  [HW_NUM_PIPES - 1:0];
   wire        axi_evt_rdy_int  [HW_NUM_PIPES - 1:0];
 
+  wire [31:0] out_evt_data_int;
+  wire  [3:0] out_evt_keep_int;
+  wire        out_evt_last_int;
+  wire        out_evt_vld_int;
+  wire        out_evt_rdy_int;
+
   proc_sys ps (
       .peripheral_reset_0       (ps_peripheral_reset_0_int)
     , .pl_clk0_0                (ps_pl_clk0_int)
@@ -333,6 +345,14 @@ module dvs_on_hssl_top
     , .APB_M_0_pslverr          (apb_pslverr_int)
     , .APB_M_0_pwdata           (apb_pwdata_int)
     , .APB_M_0_pwrite           (apb_pwrite_int)
+
+      // AXI stream interface from output pipe
+    , .AXI_STR_RXD_0_tdata      (out_evt_data_int)
+    , .AXI_STR_RXD_0_tkeep      (out_evt_keep_int)
+    , .AXI_STR_RXD_0_tlast      (out_evt_last_int)
+    , .AXI_STR_RXD_0_tvalid     (out_evt_vld_int)
+    , .AXI_STR_RXD_0_tready     (out_evt_rdy_int)
+    , .s2mm_prmry_reset_out_n_0 ()
 
       // AXI stream interface to first event processing pipe
     , .AXI_STR_TXD_0_tdata      (axi_evt_data_int[0])
@@ -416,15 +436,19 @@ module dvs_on_hssl_top
   //---------------------------------------------------------------
   // register bank (APB peripheral)
   //---------------------------------------------------------------
-  // assemble counter enable signals together
-  assign ctr_cnt_int[0] = prx_cnt_int[0];  // peripheral output pkts
-  assign ctr_cnt_int[1] = prx_cnt_int[1];  // config pkts
-  assign ctr_cnt_int[2] = rt_cnt_int[0];   // dropped input pkts
-  assign ctr_cnt_int[3] = rt_cnt_int[1];   // peripheral input pkts
+  // assemble counter enable signals
+  assign ctr_cnt_int[0] = out_drp_cnt_int;  // dropped output pkts
+  assign ctr_cnt_int[1] = prx_cnt_int[0];   // peripheral output pkts
+  assign ctr_cnt_int[2] = rt_cnt_int[0];    // dropped input pkts
+  assign ctr_cnt_int[3] = rt_cnt_int[1];    // peripheral input pkts
+  assign ctr_cnt_int[4] = prx_cnt_int[1];   // config pkts
 
   hssl_reg_bank
   #(
-      .HW_NUM_PIPES    (HW_NUM_PIPES)
+      .HW_VERSION       (HW_VERSION)
+    , .HW_NUM_PIPES     (HW_NUM_PIPES)
+    , .HW_NUM_OUTPS     (HW_NUM_OUTPS)
+    , .TARGET_FPGA      (TARGET_FPGA)
     )
   rb (
       .clk              (axi_clk_int)
@@ -450,9 +474,6 @@ module dvs_on_hssl_top
     , .ctr_cnt_in       (ctr_cnt_int)
 
       // status signals
-    , .hw_version_in    (HW_VERSION)
-    , .hw_pipe_num_in   (HW_NUM_PIPES)
-    , .fpga_model_in    (TARGET_FPGA)
     , .hs_complete_in   (hi_handshake_complete_int)
     , .hs_mismatch_in   (hi_version_mismatch_int)
     , .idsi_in          (hi_idsi_int)
@@ -466,6 +487,10 @@ module dvs_on_hssl_top
 
     , .input_wait_out   (rtr_drop_wait_int)
     , .output_wait_out  (prx_drop_wait_int)
+
+      // event frames
+    , .output_tick_out  (output_tick_int)
+    , .output_size_out  (output_size_int)
 
       // input router
     , .reg_rt_key_out   (rt_key_int)
@@ -667,6 +692,10 @@ module dvs_on_hssl_top
   wire                     rxp_vld_int;
   wire                     rxp_rdy_int; 
 
+  wire [PACKET_BITS - 1:0] per_data_int;
+  wire                     per_vld_int;
+  wire                     per_rdy_int; 
+
   // processes packets received from the HSSL channel
   pkt_receiver prx (
       .clk                (hi_clk_int)
@@ -692,14 +721,36 @@ module dvs_on_hssl_top
     , .dcp_rdy_in         (dcp_rdy_int)
 
     // peripheral output packet
-    //NOTE: currently always ready to avoid backpressure!
-    //TODO: implement peripheral output packet processing
-    , .per_data_out       ()
-    , .per_vld_out        ()
-    , .per_rdy_in         (1'b1)
+    , .per_data_out       (per_data_int)
+    , .per_vld_out        (per_vld_int)
+    , .per_rdy_in         (per_rdy_int)
 
       // packet counters
     , .prx_cnt_out        (prx_cnt_int)
+    );
+
+  evt_dispatcher ed (
+      .clk                (hi_clk_int)
+    , .reset              (hi_reset_int)
+
+      // incoming peripheral output packets
+    , .pkt_data_in        (per_data_int)
+    , .pkt_vld_in         (per_vld_int)
+    , .pkt_rdy_out        (per_rdy_int)
+
+      // event frame parameters
+    , .output_tick_in     (output_tick_int)
+    , .output_size_in     (output_size_int)
+
+      // outgoing peripheral output events
+    , .evt_data_out       (out_evt_data_int)
+    , .evt_keep_out       (out_evt_keep_int)
+    , .evt_last_out       (out_evt_last_int)
+    , .evt_vld_out        (out_evt_vld_int)
+    , .evt_rdy_in         (out_evt_rdy_int)
+
+    // packet counters
+    , .out_drp_cnt_out    (out_drp_cnt_int)
     );
   //---------------------------------------------------------------
 

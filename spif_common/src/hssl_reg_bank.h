@@ -59,9 +59,9 @@
 //---------------------------------------------------------------
 // number of registers by type
 //---------------------------------------------------------------
-`define NUM_IFREGS       5
+`define NUM_IFREGS       7
 `define NUM_RTREGS       16
-`define NUM_DCREGS       4
+`define NUM_DCREGS       5
 `define NUM_MPREGS_PIPE  4
 `define NUM_MPREGS       (`NUM_MPREGS_PIPE * HW_NUM_PIPES)
 `define NUM_FLREGS_PIPE  8

@@ -317,7 +317,7 @@ void spif_reset_counters ()
   // clear spif diagnostic packet counters
   for (uint i = 0; i < SPIF_DCREGS_NUM; i++) {
      while (!spin1_send_mc_packet (
-             RCFG_KEY | SPIF_COUNT_OUT + i,
+             RCFG_KEY | SPIF_COUNT_OUT_DROP + i,
              0,
              WITH_PAYLOAD)
            );

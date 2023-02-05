@@ -9,11 +9,11 @@
 // -------------------------------------------------------------------------
 // DETAILS
 //  Created on       : 28 Mar 2021
-//  Last modified on : Sun 28 Mar 18:13:01 BST 2021
+//  Last modified on : Sun  2 Oct 17:47:23 CEST 2022
 //  Last modified by : $Author: plana $
 // -------------------------------------------------------------------------
 // COPYRIGHT
-//  Copyright (c) The University of Manchester, 2021.
+//  Copyright (c) The University of Manchester, 2021-2022.
 //  SpiNNaker Project
 //  Advanced Processor Technologies Group
 //  School of Computer Science
@@ -28,6 +28,7 @@
 //---------------------------------------------------------------
 `define HW_VER_BITS    24
 `define HW_PIPE_BITS   4
+`define HW_OUTP_BITS   4
 `define HW_FPGA_BITS   2
 //---------------------------------------------------------------
 
@@ -35,8 +36,9 @@
 // hardware version
 // semantic versioning [MM = major, mm = minor, pp = patch]
 //---------------------------------------------------------------
-`define SPIF_VER_STR      "0.0.1"
-`define SPIF_VER_NUM      `HW_VER_BITS'h000001  // 24'hMMmmpp
+`define SPIF_VER_STR      "0.1.0"
+`define SPIF_VER_NUM      `HW_VER_BITS'h000100  // 24'hMMmmpp
+//---------------------------------------------------------------
 
 //---------------------------------------------------------------
 // number of parallel event-processing pipelines
@@ -47,6 +49,13 @@
 `define PIPE1
 `undef  PIPE2
 `undef  PIPE3
+//---------------------------------------------------------------
+
+//---------------------------------------------------------------
+// number of output pipelines
+//NOTE: currently only 1 output pipe is supported
+//---------------------------------------------------------------
+`define SPIF_NUM_OUTPS    `HW_OUTP_BITS'd1
 //---------------------------------------------------------------
 
 //---------------------------------------------------------------

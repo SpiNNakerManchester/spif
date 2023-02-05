@@ -12,22 +12,28 @@
 
 
 // constants
-#define SPIFFER_ERROR     -1
-#define SPIFFER_OK        0
-#define SPIF_BATCH_SIZE   256
-#define SPIF_NUM_PIPES    2
-#define UDP_PORT_BASE     3333
-#define USB_EVTS_PER_PKT  256
-#define USB_DISCOVER_CNT  SPIF_NUM_PIPES
+#define SPIFFER_VER_MAJ     0
+#define SPIFFER_VER_MIN     1
+#define SPIFFER_VER_PAT     0
+#define SPIFFER_ERROR      -1
+#define SPIFFER_OK         0
+#define SPIFFER_BATCH_SIZE 256
+#define UDP_PORT_BASE      3333
+#define USB_EVTS_PER_PKT   256
+#define USB_DISCOVER_CNT   SPIF_HW_PIPES_NUM
+
+//Spif output commands
+#define SPIFFER_OUT_START  0x5ec00051
+#define SPIFFER_OUT_STOP   0x5ec00050
 
 
 // USB listener
 typedef char serial_t[9];
 
 typedef struct usb_devs {
-  int              dev_cnt;                  // number of connected USB devices
-  caerDeviceHandle dev_hdl[SPIF_NUM_PIPES];  // USB device handle
-  serial_t         dev_sn[SPIF_NUM_PIPES];   // USB device handle
+  int              dev_cnt;                     // number of connected USB devices
+  caerDeviceHandle dev_hdl[SPIF_HW_PIPES_NUM];  // USB device handle
+  serial_t         dev_sn[SPIF_HW_PIPES_NUM];   // USB device handle
 } usb_devs_t;
 
 
@@ -36,6 +42,24 @@ typedef struct usb_devs {
 // caused by systemd request or error condition
 //--------------------------------------------------------------------
 void spiffer_stop (int ec);
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// setup SpiNNaker output through spif
+//--------------------------------------------------------------------
+int spiNNaker_init (void);
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// receive events from SpiNNaker through spif
+//
+// expects event to arrive in spif format - no mapping is done
+//
+// terminated as a result of signal servicing
+//--------------------------------------------------------------------
+void * spiNNaker_listener (void * data);
 //--------------------------------------------------------------------
 
 
@@ -57,6 +81,15 @@ int udp_init (void);
 // terminated as a result of signal servicing
 //--------------------------------------------------------------------
 void * udp_listener (void * data);
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// receive output commands through Ethernet UDP port
+//
+// terminated as a result of signal servicing
+//--------------------------------------------------------------------
+void * out_udp_listener (void * data);
 //--------------------------------------------------------------------
 
 
