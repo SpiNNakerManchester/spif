@@ -20,17 +20,7 @@
 #define OUT_LINK           SOUTH
 
 // throttle packet injection
-//#define THROTTLE           1000000
-//#define THROTTLE           473000
-//#define THROTTLE           473
-#define THROTTLE           68  // reference (ok)     --  2.20
-//#define THROTTLE           55  // master_09011815    -- v2.67 (3.34)
-//#define THROTTLE           55  // scrambler_28010900 -- v2.67
-//#define THROTTLE           55  // bw-sync1_08011840  -- v2.67 (3.34)
-//#define THROTTLE           50  // bw-sync_08011800   --  2.92
-//#define THROTTLE           46  // bw-async2_09011155 -- v3.15 (3.34)
-//#define THROTTLE           43  // bw-async_09011130  --  3.34
-//#define THROTTLE           43  // bw-sync2_08012015  --  3.34
+#define THROTTLE           7
 //#define THROTTLE           0
 
 // keep track of spif counters read
@@ -131,6 +121,8 @@ void send_pkts (uint a, uint b)
     while (!(cc[CC_TCR] & 0x10000000));  // tx not full
     cc[CC_TXKEY] = PER_KEY | (pv++ & ~PER_MSK);
     sent_pkts++;
+
+    for (uint i = 0; i < THROTTLE; i++);
   }
 }
 

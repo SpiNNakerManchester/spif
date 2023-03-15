@@ -1,5 +1,5 @@
 sp 0 0
-sw 70000000 100
+sw 70000000 400
 sw 70000004 deadbeef
 
 app_load fire_out.aplx . 1 19
