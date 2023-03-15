@@ -1,0 +1,14 @@
+sp 0 0
+sw 70000000 100
+sw 70000004 deadbeef
+
+app_load fire_out.aplx . 1 19
+
+sleep 1
+app_sig all 19 sync0
+
+# wait for test to finish
+sleep 3
+
+# check reported results
+ps d
