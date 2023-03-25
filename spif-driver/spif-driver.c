@@ -64,7 +64,7 @@ MODULE_DEVICE_TABLE (of, spif_driver_of_match);
 // driver ioctl unreserved magic number (seq 0xf0 - 0xff)
 #define SPIF_IOCTL_TYPE      'i'
 #define SPIF_IOCTL_SEQ       0xf0
-#define SPIF_NUM_REGS        128
+#define SPIF_NUM_REGS        256
 
 // device file permissions (r/w for user, group and others)
 #define SPIF_DEV_MODE        ((umode_t) (S_IRUGO | S_IWUGO))
