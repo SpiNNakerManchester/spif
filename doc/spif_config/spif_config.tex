@@ -312,8 +312,8 @@
 		\textbf{config\_pkt\_cnt}            & \ttfamily{32b} & \ttfamily{0x00000000} & write 0 to reset \\%
 		\textbf{mp0\_key}                    & \ttfamily{32b} & \ttfamily{0x00000000} & no adequate default value - requires setup \\%
 		\textbf{mp1\_key}                    & \ttfamily{32b} & \ttfamily{0x00000000} & no adequate default value - requires setup \\%
-		\textbf{mp0\_fld\_mask [3:0]}        & \ttfamily{32b} & \ttfamily{0x00000000} & mapping off by default (mask = 0)          \\%
-		\textbf{mp1\_fld\_mask [3:0]}        & \ttfamily{32b} & \ttfamily{0x00000000} & mapping off by default (mask = 0)          \\%
+		\textbf{mp0\_fld\_mask [3:0]}        & \ttfamily{32b} & \ttfamily{0x00000000} & mapping off by default                     \\%
+		\textbf{mp1\_fld\_mask [3:0]}        & \ttfamily{32b} & \ttfamily{0x00000000} & mapping off by default                     \\%
 		\textbf{mp0\_fld\_shift [3:0]}       & \ttfamily{~6b} & \ttfamily{0}          & negative value indicates left shift        \\%
 		\textbf{mp1\_fld\_shift [3:0]}       & \ttfamily{~6b} & \ttfamily{0}          & negative value indicates left shift        \\%
 		\textbf{mp0\_fld\_limit [3:0]}       & \ttfamily{32b} & \ttfamily{0xffffffff} & drop event if field $>$ limit (must be aligned)  \\%
@@ -322,9 +322,9 @@
 		\textbf{fl1\_value [7:0]}            & \ttfamily{32b} & \ttfamily{0xffffffff} & drop event if value $=$ event \& mask      \\%
 		\textbf{fl0\_mask [7:0]}             & \ttfamily{32b} & \ttfamily{0x00000000} & drop event if value $=$ event \& mask      \\%
 		\textbf{fl1\_mask [7:0]}             & \ttfamily{32b} & \ttfamily{0x00000000} & drop event if value $=$ event \& mask      \\%
-		\textbf{dist\_key [5:0]}             & \ttfamily{32b} & \ttfamily{0x00000000} & distiller [5:0] off by default (mask = 0)  \\%
-		\textbf{dist\_mask [5:0]}            & \ttfamily{32b} & \ttfamily{0x00000000} & distiller [5:0] off by default (mask = 0) \\%
-		\textbf{dist\_shift [5:0]}           & \ttfamily{32b} & \ttfamily{0x00000000} & distiller [5:0] off by default (mask = 0) \\%
+		\textbf{dist\_key [5:0]}             & \ttfamily{32b} & \ttfamily{0x00000000} & distiller [5:0] off by default             \\%
+		\textbf{dist\_mask [5:0]}            & \ttfamily{32b} & \ttfamily{0xffffffff} & distiller [5:0] off by default             \\%
+		\textbf{dist\_shift [5:0]}           & \ttfamily{32b} & \ttfamily{0x00000000} & distiller [5:0] off by default             \\%
 		\hline
 	\end{tabularx}
 

@@ -202,6 +202,10 @@ module hssl_reg_bank
   // detect simultaneous APB and packet writes
   wire reg_wr_cflt = apb_read && prx_write;
 
+  // detect a soft reset
+  wire is_soft_reset = ((prx_write && (prx_sec == IFCAS_SEC) && (prx_reg == SOFT_RES_REG)) ||
+                        (apb_write && (apb_sec == IFCAS_SEC) && (apb_reg == SOFT_RES_REG)));
+
   // APB status
   // delay APB if simultaneous APB and packet writes
   always @ (posedge clk or negedge resetn)
@@ -261,8 +265,7 @@ module hssl_reg_bank
       end
     else
       // SOFT_RES_REG is not a real register - restore default values
-      if ((prx_write && (prx_sec == IFCAS_SEC) && (prx_reg == SOFT_RES_REG)) ||
-          (apb_write && (apb_sec == IFCAS_SEC) && (apb_reg == SOFT_RES_REG)))
+      if (is_soft_reset)
         begin
           reg_hssl_int[HSSL_STOP_REG] <= HSSL_STOP_DEF;
           reg_hssl_int[REPLY_KEY_REG] <= REPLY_KEY_DEF;
