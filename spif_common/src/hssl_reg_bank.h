@@ -54,6 +54,9 @@
 `define MPLMT_SEC        `SEC_BITS'd8   // mapper field limits
 `define FLVAL_SEC        `SEC_BITS'd9   // filter values
 `define FLMSK_SEC        `SEC_BITS'd11  // filter masks
+`define DSKEY_SEC        `SEC_BITS'd13  // distiller keys
+`define DSMSK_SEC        `SEC_BITS'd14  // distiller masks
+`define DSSFT_SEC        `SEC_BITS'd15  // distiller shifts
 //---------------------------------------------------------------
 
 //---------------------------------------------------------------
@@ -66,6 +69,7 @@
 `define NUM_MPREGS       (`NUM_MPREGS_PIPE * HW_NUM_PIPES)
 `define NUM_FLREGS_PIPE  8
 `define NUM_FLREGS       (`NUM_FLREGS_PIPE * HW_NUM_PIPES)
+`define NUM_DSREGS       6
 //---------------------------------------------------------------
 
 //---------------------------------------------------------------
@@ -87,6 +91,7 @@
 //---------------------------------------------------------------
 `define RTRTE_BITS       3
 `define MPSFT_BITS       6
+`define DSSFT_BITS       5
 //---------------------------------------------------------------
 
 `endif

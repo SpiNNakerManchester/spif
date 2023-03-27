@@ -91,7 +91,12 @@ module hssl_reg_bank
 
   // filter
   output reg                 [31:0] reg_fl_val_out [`NUM_FLREGS - 1:0],
-  output reg                 [31:0] reg_fl_msk_out [`NUM_FLREGS - 1:0]
+  output reg                 [31:0] reg_fl_msk_out [`NUM_FLREGS - 1:0],
+
+  // distiller
+  output reg                 [31:0] reg_ds_key_out [`NUM_DSREGS - 1:0],
+  output reg                 [31:0] reg_ds_msk_out [`NUM_DSREGS - 1:0],
+  output reg    [`DSSFT_BITS - 1:0] reg_ds_sft_out [`NUM_DSREGS - 1:0]
 );
 
 
@@ -101,6 +106,7 @@ module hssl_reg_bank
   localparam NUM_DCREGS     = `NUM_DCREGS;
   localparam NUM_MPREGS     = `NUM_MPREGS;
   localparam NUM_FLREGS     = `NUM_FLREGS;
+  localparam NUM_DSREGS     = `NUM_DSREGS;
 
   // registers are associated by type in sections of 16 registers
   localparam SEC_BITS       = `SEC_BITS;
@@ -122,6 +128,9 @@ module hssl_reg_bank
   localparam MPLMT_SEC      = `MPLMT_SEC;  // mapper field limits
   localparam FLVAL_SEC      = `FLVAL_SEC;  // filter values
   localparam FLMSK_SEC      = `FLMSK_SEC;  // filter masks
+  localparam DSKEY_SEC      = `DSKEY_SEC;  // filter masks
+  localparam DSMSK_SEC      = `DSMSK_SEC;  // filter masks
+  localparam DSSFT_SEC      = `DSSFT_SEC;  // filter masks
 
   localparam BAD_REG        = `BAD_REG;
 
@@ -131,7 +140,7 @@ module hssl_reg_bank
 
   // general purpose registers
   localparam HSSL_STOP_REG  = 0;
-  localparam RESERVED_REG   = 1;
+  localparam SOFT_RES_REG   = 1;
   localparam REPLY_KEY_REG  = 2;
   localparam IN_WAIT_REG    = 3;
   localparam OUT_WAIT_REG   = 4;
@@ -144,7 +153,6 @@ module hssl_reg_bank
 
   // register default values
   localparam HSSL_STOP_DEF  = 1'b0;
-  localparam RESERVED_DEF   = BAD_REG;
   localparam REPLY_KEY_DEF  = 32'hffff_fd00;  // remote reply routing key
   localparam IN_WAIT_DEF    = 32;
   localparam OUT_WAIT_DEF   = 0;
@@ -162,6 +170,10 @@ module hssl_reg_bank
 
   localparam FL_VAL_DEF     = 32'hffff_ffff;
   localparam FL_MSK_DEF     = 32'h0000_0000;
+
+  localparam DS_KEY_DEF     = 32'h0000_0000;
+  localparam DS_MSK_DEF     = 32'hffff_ffff;
+  localparam DS_SFT_DEF     = `DSSFT_BITS'd0;
 
   //---------------------------------------------------------------
   // internal signals
@@ -229,24 +241,49 @@ module hssl_reg_bank
     if (resetn == 0)
       begin
         reg_hssl_int[HSSL_STOP_REG] <= HSSL_STOP_DEF;
-        reg_hssl_int[RESERVED_REG]  <= RESERVED_DEF;
         reg_hssl_int[REPLY_KEY_REG] <= REPLY_KEY_DEF;
         reg_hssl_int[IN_WAIT_REG]   <= IN_WAIT_DEF;
         reg_hssl_int[OUT_WAIT_REG]  <= OUT_WAIT_DEF;
         reg_hssl_int[OUT_TICK_REG]  <= OUT_TICK_DEF;
         reg_hssl_int[OUT_SIZE_REG]  <= OUT_SIZE_DEF;
-        reg_rt_key_out              <= '{NUM_RTREGS {RT_KEY_DEF}};
-        reg_rt_mask_out             <= '{NUM_RTREGS {RT_MSK_DEF}};
-        reg_rt_route_out            <= '{NUM_RTREGS {RT_RTE_DEF}};
+        reg_rt_key_out              <= '{NUM_RTREGS   {RT_KEY_DEF}};
+        reg_rt_mask_out             <= '{NUM_RTREGS   {RT_MSK_DEF}};
+        reg_rt_route_out            <= '{NUM_RTREGS   {RT_RTE_DEF}};
         reg_mp_key_out              <= '{HW_NUM_PIPES {MP_KEY_DEF}};
-        reg_mp_fmsk_out             <= '{NUM_MPREGS {MP_MSK_DEF}};
-        reg_mp_fsft_out             <= '{NUM_MPREGS {MP_SFT_DEF}};
-        reg_mp_flmt_out             <= '{NUM_MPREGS {MP_LMT_DEF}};
-        reg_fl_val_out              <= '{NUM_FLREGS {FL_VAL_DEF}};
-        reg_fl_msk_out              <= '{NUM_FLREGS {FL_MSK_DEF}};
+        reg_mp_fmsk_out             <= '{NUM_MPREGS   {MP_MSK_DEF}};
+        reg_mp_fsft_out             <= '{NUM_MPREGS   {MP_SFT_DEF}};
+        reg_mp_flmt_out             <= '{NUM_MPREGS   {MP_LMT_DEF}};
+        reg_fl_val_out              <= '{NUM_FLREGS   {FL_VAL_DEF}};
+        reg_fl_msk_out              <= '{NUM_FLREGS   {FL_MSK_DEF}};
+        reg_ds_key_out              <= '{NUM_DSREGS   {DS_KEY_DEF}};
+        reg_ds_msk_out              <= '{NUM_DSREGS   {DS_MSK_DEF}};
+        reg_ds_sft_out              <= '{NUM_DSREGS   {DS_SFT_DEF}};
       end
     else
-      if (prx_write)
+      // SOFT_RES_REG is not a real register - restore default values
+      if ((prx_write && (prx_sec == IFCAS_SEC) && (prx_reg == SOFT_RES_REG)) ||
+          (apb_write && (apb_sec == IFCAS_SEC) && (apb_reg == SOFT_RES_REG)))
+        begin
+          reg_hssl_int[HSSL_STOP_REG] <= HSSL_STOP_DEF;
+          reg_hssl_int[REPLY_KEY_REG] <= REPLY_KEY_DEF;
+          reg_hssl_int[IN_WAIT_REG]   <= IN_WAIT_DEF;
+          reg_hssl_int[OUT_WAIT_REG]  <= OUT_WAIT_DEF;
+          reg_hssl_int[OUT_TICK_REG]  <= OUT_TICK_DEF;
+          reg_hssl_int[OUT_SIZE_REG]  <= OUT_SIZE_DEF;
+          reg_rt_key_out              <= '{NUM_RTREGS   {RT_KEY_DEF}};
+          reg_rt_mask_out             <= '{NUM_RTREGS   {RT_MSK_DEF}};
+          reg_rt_route_out            <= '{NUM_RTREGS   {RT_RTE_DEF}};
+          reg_mp_key_out              <= '{HW_NUM_PIPES {MP_KEY_DEF}};
+          reg_mp_fmsk_out             <= '{NUM_MPREGS   {MP_MSK_DEF}};
+          reg_mp_fsft_out             <= '{NUM_MPREGS   {MP_SFT_DEF}};
+          reg_mp_flmt_out             <= '{NUM_MPREGS   {MP_LMT_DEF}};
+          reg_fl_val_out              <= '{NUM_FLREGS   {FL_VAL_DEF}};
+          reg_fl_msk_out              <= '{NUM_FLREGS   {FL_MSK_DEF}};
+          reg_ds_key_out              <= '{NUM_DSREGS   {DS_KEY_DEF}};
+          reg_ds_msk_out              <= '{NUM_DSREGS   {DS_MSK_DEF}};
+          reg_ds_sft_out              <= '{NUM_DSREGS   {DS_SFT_DEF}};
+        end
+      else if (prx_write)
         case (prx_sec)
           IFCAS_SEC: reg_hssl_int[prx_reg]     <= prx_wdata_in;
           RTKEY_SEC: reg_rt_key_out[prx_reg]   <= prx_wdata_in;
@@ -258,6 +295,9 @@ module hssl_reg_bank
           MPLMT_SEC: reg_mp_flmt_out[prx_reg]  <= prx_wdata_in;
           FLVAL_SEC: reg_fl_val_out[prx_reg]   <= prx_wdata_in;
           FLMSK_SEC: reg_fl_msk_out[prx_reg]   <= prx_wdata_in;
+          DSKEY_SEC: reg_ds_key_out[prx_reg]   <= prx_wdata_in;
+          DSMSK_SEC: reg_ds_msk_out[prx_reg]   <= prx_wdata_in;
+          DSSFT_SEC: reg_ds_sft_out[prx_reg]   <= prx_wdata_in;
         endcase
       else if (apb_write)
         case (apb_sec)
@@ -271,6 +311,9 @@ module hssl_reg_bank
           MPLMT_SEC: reg_mp_flmt_out[apb_reg]  <= apb_pwdata_in;
           FLVAL_SEC: reg_fl_val_out[apb_reg]   <= apb_pwdata_in;
           FLMSK_SEC: reg_fl_msk_out[apb_reg]   <= apb_pwdata_in;
+          DSKEY_SEC: reg_ds_key_out[apb_reg]   <= apb_pwdata_in;
+          DSMSK_SEC: reg_ds_msk_out[apb_reg]   <= apb_pwdata_in;
+          DSSFT_SEC: reg_ds_sft_out[apb_reg]   <= apb_pwdata_in;
         endcase
 
   // APB register reads
@@ -334,6 +377,21 @@ module hssl_reg_bank
 
         FLMSK_SEC: if (apb_reg < NUM_FLREGS)
                      apb_prdata_out <= reg_fl_msk_out[apb_reg];
+                   else
+                     apb_prdata_out <= BAD_REG;
+
+        DSKEY_SEC: if (apb_reg < NUM_DSREGS)
+                     apb_prdata_out <= reg_ds_key_out[apb_reg];
+                   else
+                     apb_prdata_out <= BAD_REG;
+
+        DSMSK_SEC: if (apb_reg < NUM_DSREGS)
+                     apb_prdata_out <= reg_ds_msk_out[apb_reg];
+                   else
+                     apb_prdata_out <= BAD_REG;
+
+        DSSFT_SEC: if (apb_reg < NUM_DSREGS)
+                     apb_prdata_out <= reg_ds_sft_out[apb_reg];
                    else
                      apb_prdata_out <= BAD_REG;
 
