@@ -97,9 +97,11 @@ module dvs_on_hssl_top
   localparam NUM_MPREGS      = `NUM_MPREGS;
   localparam NUM_FLREGS_PIPE = `NUM_FLREGS_PIPE;
   localparam NUM_FLREGS      = `NUM_FLREGS;
+  localparam NUM_DSREGS      = `NUM_DSREGS;
 
   localparam MPSFT_BITS      = `MPSFT_BITS;
   localparam RTRTE_BITS      = `RTRTE_BITS;
+  localparam DSSFT_BITS      = `DSSFT_BITS;
 
 
   //---------------------------------------------------------------
@@ -172,6 +174,11 @@ module dvs_on_hssl_top
   //  - event filter registers
   wire               [31:0] fl_val_int [NUM_FLREGS - 1:0];
   wire               [31:0] fl_msk_int [NUM_FLREGS - 1:0];
+
+  //  - event filter registers
+  wire               [31:0] ds_key_int [NUM_DSREGS - 1:0];
+  wire               [31:0] ds_msk_int [NUM_DSREGS - 1:0];
+  wire   [DSSFT_BITS - 1:0] ds_sft_int [NUM_DSREGS - 1:0];
 
   // - packet receiver interface
   wire [REG_ADR_BITS - 1:0] prx_addr_int;
@@ -506,6 +513,11 @@ module dvs_on_hssl_top
     // event filter
     , .reg_fl_val_out   (fl_val_int)
     , .reg_fl_msk_out   (fl_msk_int)
+
+    // event distiller
+    , .reg_ds_key_out   (ds_key_int)
+    , .reg_ds_msk_out   (ds_msk_int)
+    , .reg_ds_sft_out   (ds_sft_int)
     );
   //---------------------------------------------------------------
 
@@ -737,6 +749,11 @@ module dvs_on_hssl_top
     , .pkt_data_in        (per_data_int)
     , .pkt_vld_in         (per_vld_int)
     , .pkt_rdy_out        (per_rdy_int)
+
+    // event distiller
+    , .ds_key_in          (ds_key_int)
+    , .ds_msk_in          (ds_msk_int)
+    , .ds_sft_in          (ds_sft_int)
 
       // event frame parameters
     , .output_tick_in     (output_tick_int)

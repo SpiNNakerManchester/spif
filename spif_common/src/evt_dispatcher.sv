@@ -42,6 +42,11 @@ module evt_dispatcher
   input  wire                       pkt_vld_in,
   output reg                        pkt_rdy_out,
 
+  // event distiller registers 
+  input  reg                 [31:0] ds_key_in [`NUM_DSREGS - 1:0],
+  input  reg                 [31:0] ds_msk_in [`NUM_DSREGS - 1:0],
+  input  reg    [`DSSFT_BITS - 1:0] ds_sft_in [`NUM_DSREGS - 1:0],
+
   // event frame parameters
   input  wire  [TCK_CNT_BITS - 1:0] output_tick_in,
   input  wire  [EVT_CNT_BITS - 1:0] output_size_in,
@@ -66,6 +71,9 @@ module evt_dispatcher
   localparam PKT_KEY_BIT  = 8;
   localparam PKT_PLD_BIT  = PKT_KEY_BIT + PKT_KEY_SZ;
 
+  localparam PKT_DIS_SZ   = 3;
+  localparam PKT_DIS_BIT  = 5;
+
   // counters
   localparam US_CLK_CNT  = (75 - 1);
   localparam US_CNT_BITS = 32;
@@ -77,12 +85,13 @@ module evt_dispatcher
   //---------------------------------------------------------------
   // interface status bits
   reg        pkt_available;
-  reg [31:0] pkt_event;
+  reg [31:0] pkt_event [`NUM_DSREGS - 1:0];
 
+  reg [31:0] new_event;
   reg evt_busy;
 
   // ready-to-go event used to dispatch frame
-  reg [31:0] rtg_data;
+  reg [31:0] rtg_event;
   reg        rtg_rdy;
 
   // control and status
@@ -110,10 +119,15 @@ module evt_dispatcher
 
   //---------------------------------------------------------------
   // distill an event from the incoming packet
-  //NOTE: in the current implementation the packet key is the event
   //---------------------------------------------------------------
+  genvar i;
+  generate
+    for (i = 0; i < `NUM_DSREGS; i = i + 1)
+      assign pkt_event[i] = ds_key_in[i] | ((pkt_data_in[PKT_KEY_BIT +: PKT_KEY_SZ] & ds_msk_in[i]) >> ds_sft_in[i]);
+  endgenerate
+
   always_comb
-    pkt_event = pkt_data_in[PKT_KEY_BIT +: PKT_KEY_SZ];
+    new_event = pkt_event[pkt_data_in[PKT_DIS_BIT +: PKT_DIS_SZ]];
   //---------------------------------------------------------------
 
   //---------------------------------------------------------------
@@ -124,7 +138,7 @@ module evt_dispatcher
   always @ (posedge clk)
     casex ({pkt_available, rtg_rdy, snd_frame})
       3'b1x0,
-      3'b11x: rtg_data <= pkt_event; 
+      3'b11x: rtg_event <= new_event; 
     endcase
 
   always @ (posedge clk or posedge reset)
@@ -154,9 +168,9 @@ module evt_dispatcher
   // keep track of credit per frame (i.e., free frame slots)
   always @ (posedge clk or posedge reset)
     if (reset)
-      frm_cnt <= output_size_in;
+      frm_cnt <= 0;
     else
-      if (snd_frame)
+      if (snd_frame || (frm_cnt == 0))
         // new frame - get full credit
         frm_cnt <= output_size_in;
       else if (snd_event)
@@ -179,7 +193,7 @@ module evt_dispatcher
   //NOTE: this is a periodic tick -- do not stall!
   always @ (posedge clk or posedge reset)
     if (reset)
-      tck_cnt <= output_tick_in;
+      tck_cnt <= 0;
     else
       if (tck_cnt == 0)
         tck_cnt <= output_tick_in;
@@ -193,8 +207,8 @@ module evt_dispatcher
   always @ (posedge clk)
     casex ({rtg_rdy, snd_frame, snd_event})
       3'bxx1,
-      3'b11x: evt_data_out <= rtg_data;
-      3'b01x: evt_data_out <= pkt_event;
+      3'b11x: evt_data_out <= rtg_event;
+      3'b01x: evt_data_out <= new_event;
     endcase
 
   always @ (posedge clk)

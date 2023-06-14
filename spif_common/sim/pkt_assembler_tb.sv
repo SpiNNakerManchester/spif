@@ -56,6 +56,7 @@ module pkt_assembler_tb ();
   reg                [31:0] mp_key_tb;
   reg                [31:0] field_msk_tb [NUM_MREGS - 1:0];
   reg                 [5:0] field_sft_tb [NUM_MREGS - 1:0];
+  reg                [31:0] field_lmt_tb [NUM_MREGS - 1:0];
 
   reg                [31:0] evt_data_tb;
   reg                       evt_vld_tb;
@@ -70,17 +71,15 @@ module pkt_assembler_tb ();
   // dut: packet router
   //---------------------------------------------------------------
   pkt_assembler
-  #(
-      .NUM_MREGS          (NUM_MREGS)
-    )
   dut (
       .clk                (clk_dut)
     , .reset              (reset_dut)
 
       // mapper data from register bank
     , .mp_key_in          (mp_key_tb)
-    , .field_msk_in       (field_msk_tb)
-    , .field_sft_in       (field_sft_tb)
+    , .mp_fld_msk_in      (field_msk_tb)
+    , .mp_fld_sft_in      (field_sft_tb)
+    , .mp_fld_lmt_in      (field_lmt_tb)
 
       // incoming events
     , .evt_data_in        (evt_data_tb)
@@ -114,12 +113,16 @@ module pkt_assembler_tb ();
         mp_key_tb       <= 32'd0;
         field_msk_tb[0] <= 32'd0;
         field_sft_tb[0] <= 32'd0;
+        field_lmt_tb[0] <= 32'hffff_ffff;
         field_msk_tb[1] <= 32'd0;
         field_sft_tb[1] <= 32'd0;
+        field_lmt_tb[1] <= 32'hffff_ffff;
         field_msk_tb[2] <= 32'd0;
         field_sft_tb[2] <= 32'd0;
+        field_lmt_tb[2] <= 32'hffff_ffff;
         field_msk_tb[3] <= 32'd0;
         field_sft_tb[3] <= 32'd0;
+        field_lmt_tb[3] <= 32'hffff_ffff;
       end
     else
     begin

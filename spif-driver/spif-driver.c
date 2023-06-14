@@ -58,13 +58,13 @@ MODULE_DEVICE_TABLE (of, spif_driver_of_match);
 // -------------------------------------------------------------------------
 // spif constants
 // -------------------------------------------------------------------------
-#define SPIF_DRV_VERSION     "0.1.0"
+#define SPIF_DRV_VERSION     "0.2.0"
 #define SPIF_DRV_NAME        "spif"
 
 // driver ioctl unreserved magic number (seq 0xf0 - 0xff)
 #define SPIF_IOCTL_TYPE      'i'
 #define SPIF_IOCTL_SEQ       0xf0
-#define SPIF_NUM_REGS        128
+#define SPIF_NUM_REGS        256
 
 // device file permissions (r/w for user, group and others)
 #define SPIF_DEV_MODE        ((umode_t) (S_IRUGO | S_IWUGO))

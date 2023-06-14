@@ -18,8 +18,8 @@
 % --------------------------------------------------------------------------
 % define useful variables
 % --------------------------------------------------------------------------
-\def\myversion{Version 0.1.0}
-\def\mydate{04 November 2022}
+\def\myversion{Version 0.2.0}
+\def\mydate{23 March 2023}
 
 \def\bcw{5mm}
 \def\ncw{45mm}
@@ -157,8 +157,8 @@
 			\hline
 			\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}00     & \cellcolor{gray!25}(0x00)       & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 			\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}01     & \cellcolor{gray!25}(0x01)       & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
-			\textbf{p\_key}                      & 02                        & (0x02)                          & w                   & route packets to peripheral device             \\%
-			\textbf{p\_mask}                     & 03                        & (0x03)                          & w                   & route packets to peripheral device             \\%
+			\cellcolor{pink!25}\textbf{p\_key}   & \cellcolor{pink!25}02     & \cellcolor{pink!25}(0x02)       & \cellcolor{pink!25}w& \cellcolor{pink!25}alias for xp\_key [0] (deprecated)  \\%
+			\cellcolor{pink!25}\textbf{p\_mask}  & \cellcolor{pink!25}03     & \cellcolor{pink!25}(0x03)       & \cellcolor{pink!25}w& \cellcolor{pink!25}alias for xp\_mask [0] (deprecated) \\%
 			\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}04-11  & \cellcolor{gray!25} (0x04-0x0b) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 			\textbf{lc\_key}                     & 12                        & (0x0c)                          & w                   & \small{route packets to spiNNlink configuration} \\%
 			\textbf{lc\_mask}                    & 13                        & (0x0d)                          & w                   & \small{route packets to spiNNlink configuration} \\%
@@ -166,7 +166,11 @@
 			\textbf{rc\_mask}                    & 15                        & (0x0f)                          & w                   & route packets to spif configuration   \\%
 			\textbf{stop}                        & 16                        & (0x10)                          & w                   & stop peripheral input packets         \\%
 			\textbf{start}                       & 17                        & (0x11)                          & w                   & allow peripheral input packets         \\%
-			\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}18-127 & \cellcolor{gray!25} (0x12-0x7f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+			\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}18-31  & \cellcolor{gray!25} (0x12-0x1f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+			\textbf{xp\_key} [5:0]               & 32-37                     & (0x20-0x25)                     & w                   & route packets to peripheral device             \\%
+			\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}38-47  & \cellcolor{gray!25} (0x26-0x2f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+			\textbf{xp\_mask} [5:0]              & 48-53                     & (0x30-0x35)                     & w                   & route packets to peripheral device             \\%
+			\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}54-127 & \cellcolor{gray!25} (0x36-0x7f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 			\hline
 		\end{tabularx}
 		\caption{spiNNlink configuration registers}
@@ -186,14 +190,16 @@
 		\textbf{name}      & \textbf{size}  & \textbf{default}      & \textbf{comment}                            \\%
 		\hline
 		\hline
-		\textbf{p\_key}    & \ttfamily{32b}  & \ttfamily{0xffffffff} &  no packets routed to peripheral by default \\%
-		\textbf{p\_mask}   & \ttfamily{32b}  & \ttfamily{0x00000000} &  no packets routed to peripheral by default \\%
-		\textbf{lc\_key}   & \ttfamily{32b}  & \ttfamily{0xfffffe00} &  lc\_key and lc\_mask updated atomically    \\%
-		\textbf{lc\_mask}  & \ttfamily{32b}  & \ttfamily{0xffffff00} &  write lc\_mask first then lc\_key          \\%
-		\textbf{rc\_key}   & \ttfamily{32b}  & \ttfamily{0xffffff00} &                                             \\%
-		\textbf{rc\_mask}  & \ttfamily{32b}  & \ttfamily{0xffffff00} &                                             \\%
-		\textbf{stop}      & \ttfamily{~1b}  & stop (0)              &  writing any value stops peripheral input   \\%
-		\textbf{start}     & \ttfamily{~1b}  & stop (0)              &  writing any value starts peripheral input  \\%
+		\cellcolor{pink!25}\textbf{p\_key}    & \cellcolor{pink!25}\ttfamily{32b}  & \cellcolor{pink!25}\ttfamily{0xffffffff} &  \cellcolor{pink!25}no packets routed to peripheral by default \\%
+		\cellcolor{pink!25}\textbf{p\_mask}   & \cellcolor{pink!25}\ttfamily{32b}  & \cellcolor{pink!25}\ttfamily{0x00000000} &  \cellcolor{pink!25}no packets routed to peripheral by default \\%
+		\textbf{lc\_key}         & \ttfamily{32b}  & \ttfamily{0xfffffe00} &  lc\_key and lc\_mask updated atomically    \\%
+		\textbf{lc\_mask}        & \ttfamily{32b}  & \ttfamily{0xffffff00} &  write lc\_mask first then lc\_key          \\%
+		\textbf{rc\_key}         & \ttfamily{32b}  & \ttfamily{0xffffff00} &                                             \\%
+		\textbf{rc\_mask}        & \ttfamily{32b}  & \ttfamily{0xffffff00} &                                             \\%
+		\textbf{stop}            & \ttfamily{~1b}  & stop (0)              &  writing any value stops peripheral input   \\%
+		\textbf{start}           & \ttfamily{~1b}  & stop (0)              &  writing any value starts peripheral input  \\%
+		\textbf{xp\_key} [5:0]   & \ttfamily{32b}  & \ttfamily{0xffffffff} &  no packets routed to peripheral by default \\%
+		\textbf{xp\_mask} [5:0]  & \ttfamily{32b}  & \ttfamily{0x00000000} &  no packets routed to peripheral by default \\%
 		\hline
 	\end{tabularx}
 	
@@ -224,13 +230,13 @@
 		\hline
 		\hline
 		\textbf{control}                     & 00                         & (0x00)                         & r/w                 & HSSL interface control \\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}01      & \cellcolor{gray!25}(0x01) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\textbf{soft\_reset}                 & 01                         & (0x01)                         & w                   & restore register default values\\%
 		\textbf{reply\_key}                  & 02                         & (0x02)                         & r/w                 & routing key for read replies \\%
 		\textbf{in\_drop\_wait}              & 03                         & (0x03)                         & r/w                 & input wait-before-drop count \\%
 		\textbf{out\_drop\_wait}             & 04                         & (0x04)                         & r/w                 & output wait-before-drop count \\%
 		\textbf{out\_tick}                   & 05                         & (0x05)                         & r/w                 & event transmission period (in $\mu$S)\\%
 		\textbf{out\_len}                    & 06                         & (0x06)                         & r/w                 & event frame length (in events) \\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}05-13   & \cellcolor{gray!25}(0x05-0x0d) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}07-13   & \cellcolor{gray!25}(0x07-0x0d) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\textbf{status}                      & 14                         & (0x0e)                         & r                   & HSSL interface status \\%
 		\textbf{version}                     & 15                         & (0x0f)                         & r                   & spif hardware version number \\%
 		\textbf{ir\_key [15:0]}              & 16-31                      & (0x10-0x1f)                    & r/w                 & keys to route input packets \\%
@@ -241,7 +247,7 @@
 		\textbf{in\_dropped\_pkt\_cnt}       & 66                         & (0x42)                         & r/w                 & count dropped input packets \\%
 		\textbf{in\_periph\_pkt\_cnt}        & 67                         & (0x43)                         & r/w                 & count periph input packets\\%
 		\textbf{config\_pkt\_cnt}            & 68                         & (0x44)                         & r/w                 & count config packets \\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}68-79   & \cellcolor{gray!25}(0x44-0x4f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}69-79   & \cellcolor{gray!25}(0x45-0x4f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\textbf{mp0\_key}                    & 80                         & (0x50)                         & r/w                 & routing key for event mapper0 \\%
 		\textbf{mp1\_key}                    & 81                         & (0x51)                         & r/w                 & mapper1 - used if event pipes$>$1 \\%
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}82-95   & \cellcolor{gray!25}(0x52-0x5f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
@@ -250,7 +256,7 @@
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}104-111 & \cellcolor{gray!25}(0x68-0x6f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\textbf{mp0\_fld\_shift [3:0]}       & 112-115                    & (0x70-0x73)                    & r/w                 & field shifts for event mapper0  \\%
 		\textbf{mp1\_fld\_shift [3:0]}       & 116-119                    & (0x74-0x77)                    & r/w                 & mapper1 - used if event pipes$>$1  \\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}110-127 & \cellcolor{gray!25}(0x78-0x7f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}120-127 & \cellcolor{gray!25}(0x78-0x7f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\textbf{mp0\_fld\_limit [3:0]}       & 128-131                    & (0x80-0x83)                    & r/w                 & field limits for event mapper0  \\%
 		\textbf{mp1\_fld\_limit [3:0]}       & 132-135                    & (0x84-0x87)                    & r/w                 & mapper1 - used if event pipes$>$1  \\%
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}136-143 & \cellcolor{gray!25}(0x88-0x8f) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
@@ -259,7 +265,13 @@
 		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}160-175 & \cellcolor{gray!25}(0xa0-0xaf) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
 		\textbf{fl0\_mask [7:0]}             & 176-183                    & (0xb0-0xb7)                    & r/w                 & masks for event filter0  \\%
 		\textbf{fl1\_mask [7:0]}             & 184-191                    & (0xb8-0xbf)                    & r/w                 & filter1 - used if event pipes$>$1  \\%
-		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}192-255 & \cellcolor{gray!25}(0xc0-0xff) & \cellcolor{gray!25} & \cellcolor{gray!25}\\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}192-207 & \cellcolor{gray!25}(0xc0-0xcf) & \cellcolor{gray!25} & \cellcolor{gray!25}  \\%
+		\textbf{dist\_key [5:0]}             & 208-213                    & (0xd0-0xd5)                    & r/w                 & distiller key [5:0]  \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}214-223 & \cellcolor{gray!25}(0xd6-0xdf) & \cellcolor{gray!25} & \cellcolor{gray!25}  \\%
+		\textbf{dist\_mask [5:0]}            & 224-229                    & (0xe0-0xe5)                    & r/w                 & distiller mask [5:0] \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}230-239 & \cellcolor{gray!25}(0xe6-0xef) & \cellcolor{gray!25} & \cellcolor{gray!25}  \\%
+		\textbf{dist\_shift [5:0]}           & 240-245                    & (0xf0-0xf5)                    & r/w                 & distiller right shift [5:0] \\%
+		\cellcolor{gray!25}\textbf{reserved} & \cellcolor{gray!25}246-255 & \cellcolor{gray!25}(0xf6-0xff) & \cellcolor{gray!25} & \cellcolor{gray!25}  \\%
 		\hline
 	\end{tabularx}
 	\caption{spif configuration registers}
@@ -278,10 +290,11 @@
 	%		\renewcommand{\arraystretch}{1.2}
 	\begin{tabularx}{\textwidth}{| p{37mm} p{6mm} p{20mm} X |}
 		\hline
-		\textbf{name}                        & \textbf{size} & \textbf{default}      & \textbf{comment} \\%
+		\textbf{name}                        & \textbf{size}  & \textbf{default}      & \textbf{comment} \\%
 		\hline
 		\hline
 		\textbf{control}                     & \ttfamily{~1b} & \ttfamily{0}          & [0] stop events into SpiNNaker \\%
+		\textbf{soft\_reset}                 &                &                       & any write restores default values \\%
 		\textbf{reply\_key}                  & \ttfamily{32b} & \ttfamily{0xfffffd00} & \\%
 		\textbf{in\_drop\_wait}              & \ttfamily{32b} & \ttfamily{32}         & 512 for no drops in worst-case traffic \\%
 		\textbf{out\_drop\_wait}             & \ttfamily{32b} & \ttfamily{0}          & \\%
@@ -299,8 +312,8 @@
 		\textbf{config\_pkt\_cnt}            & \ttfamily{32b} & \ttfamily{0x00000000} & write 0 to reset \\%
 		\textbf{mp0\_key}                    & \ttfamily{32b} & \ttfamily{0x00000000} & no adequate default value - requires setup \\%
 		\textbf{mp1\_key}                    & \ttfamily{32b} & \ttfamily{0x00000000} & no adequate default value - requires setup \\%
-		\textbf{mp0\_fld\_mask [3:0]}        & \ttfamily{32b} & \ttfamily{0x00000000} & mapping off by default (mask = 0)          \\%
-		\textbf{mp1\_fld\_mask [3:0]}        & \ttfamily{32b} & \ttfamily{0x00000000} & mapping off by default (mask = 0)          \\%
+		\textbf{mp0\_fld\_mask [3:0]}        & \ttfamily{32b} & \ttfamily{0x00000000} & mapping off by default                     \\%
+		\textbf{mp1\_fld\_mask [3:0]}        & \ttfamily{32b} & \ttfamily{0x00000000} & mapping off by default                     \\%
 		\textbf{mp0\_fld\_shift [3:0]}       & \ttfamily{~6b} & \ttfamily{0}          & negative value indicates left shift        \\%
 		\textbf{mp1\_fld\_shift [3:0]}       & \ttfamily{~6b} & \ttfamily{0}          & negative value indicates left shift        \\%
 		\textbf{mp0\_fld\_limit [3:0]}       & \ttfamily{32b} & \ttfamily{0xffffffff} & drop event if field $>$ limit (must be aligned)  \\%
@@ -309,6 +322,9 @@
 		\textbf{fl1\_value [7:0]}            & \ttfamily{32b} & \ttfamily{0xffffffff} & drop event if value $=$ event \& mask      \\%
 		\textbf{fl0\_mask [7:0]}             & \ttfamily{32b} & \ttfamily{0x00000000} & drop event if value $=$ event \& mask      \\%
 		\textbf{fl1\_mask [7:0]}             & \ttfamily{32b} & \ttfamily{0x00000000} & drop event if value $=$ event \& mask      \\%
+		\textbf{dist\_key [5:0]}             & \ttfamily{32b} & \ttfamily{0x00000000} & distiller [5:0] off by default             \\%
+		\textbf{dist\_mask [5:0]}            & \ttfamily{32b} & \ttfamily{0xffffffff} & distiller [5:0] off by default             \\%
+		\textbf{dist\_shift [5:0]}           & \ttfamily{32b} & \ttfamily{0x00000000} & distiller [5:0] off by default             \\%
 		\hline
 	\end{tabularx}
 
@@ -320,6 +336,7 @@
 		                & $\bullet$ \textbf{handshake} 00 = unconnected / 01 = connected / 10 = mismatch. \\%
 		                & $\bullet$ \textbf{version} [23:16] major / [15:8] minor / [7:0] patch.          \\%
 		                & $\bullet$ \textbf{filters} can drop hot pixels, timestamps and such.            \\%
+		                & $\bullet$ \textbf{distiller[i]} applies to packets routed by \textbf{xp\_key[i]/xp\_mask[i]}. \\%
 		\hline
 	\end{tabularx}
 \end{center}
@@ -416,7 +433,7 @@
 
 
 \clearpage
-\section{Event Output}
+\section{Distilling SpiNNaker packets to output events}
 
 
 \subsection{Event Output Control}
@@ -432,7 +449,7 @@
 		\textbf{SPIF\_OUT\_START}  & \ttfamily{0x5ec10001}        & start SpiNNaker output              \\%
 		\textbf{SPIF\_OUT\_STOP}   & \ttfamily{0x5ec10000}        & stop SpiNNaker output               \\%
 		\textbf{SPIF\_OUT\_TICK}   & \ttfamily{0x5ec20000 + tick} & set output transmission period (in $\mu$seconds)     \\%
-		\textbf{SPIF\_OUT\_LEN}    & \ttfamily{0x5ec40000 * len}  & set output frame length (in events) \\%
+		\textbf{SPIF\_OUT\_LEN}    & \ttfamily{0x5ec40000 + len}  & set output frame length (in events) \\%
 		\hline
 	\end{tabular}
 
@@ -445,7 +462,7 @@
 		& $\bullet$ a frame is triggered whenever the length is reached or a periodic tick is hit.   \\%
 		& $\bullet$ SpiNNaker output is off by default.                                              \\%
 		& $\bullet$ a peripheral must send a message to spif (UDP port 3332) to start output.        \\%
-		& $\bullet$ when output is off all output packets are thrown away.                           \\%
+		& $\bullet$ when output is off all received output packets are dropped.                      \\%
 		\hline
 	\end{tabularx}
 \end{center}
@@ -456,11 +473,16 @@
 
 \begin{figure}[!ht]
 	\centering
-	\begin{minipage}{0.5\columnwidth}
+	\begin{minipage}{\columnwidth}
 		\begin{algorithm}[H]
-			\caption{event distilling pseudocode}
+			\caption{SpiNNaker packet to event distilling pseudocode}
 			\begin{algorithmic}[1]
-				\State event $=$ packet\_key
+				\For {i in [0 .. 5]}
+					\If {packet routed by xp\_key[i]/xp\_mask[i]}
+						\State temp = (packet\_key \textbf{AND} dist\_mask[i]) \textbf{RIGHT\_SHIFT} dist\_shift[i]
+						\State event = temp \textbf{OR} dist\_key[i]
+					\EndIf
+				\EndFor
 			\end{algorithmic}
 			\label{alg:distiller}
 		\end{algorithm}
@@ -488,7 +510,8 @@
 	\item 0.0.1 - 03/07/2021 - lap - initial draft - comments to {\itshape luis.plana@manchester.ac.uk}
 	\item 0.0.2 - 03/09/2021 - lap - added event processing pipe information.
 	\item 0.0.3 - 07/09/2021 - lap - added event filtering information.
-	\item 0.1.0 - 04/11/2022 - lap - added event output information.
+	\item 0.1.0 - 04/11/2022 - lap - updated event output functionality.
+	\item 0.2.0 - 22/03/2023 - lap - updated peripheral routing and distiller functionality.
 \end{itemize}
 
 
