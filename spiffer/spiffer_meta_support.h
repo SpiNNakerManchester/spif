@@ -6,8 +6,8 @@
 //*                                              *//
 //************************************************//
 
-#ifndef __SPIF_META_H__
-#define __SPIF_META_H__
+#ifndef __spiffer_meta_H__
+#define __spiffer_meta_H__
 
 
 #include "metavision/sdk/base/events/event_cd.h"
@@ -31,7 +31,7 @@ int spif_transfer (uint pipe, int length);
 //
 // returns the number of discovered devices (0 on error)
 //--------------------------------------------------------------------
-int spif_meta_discover_devs (void);
+int spiffer_meta_discover_devs (void);
 //--------------------------------------------------------------------
 
 
@@ -40,8 +40,8 @@ int spif_meta_discover_devs (void);
 //
 // terminated as a result of signal servicing
 //--------------------------------------------------------------------
-void * spif_meta_usb_listener (void * data);
+void * spiffer_meta_usb_listener (void * data);
 //--------------------------------------------------------------------
 
 
-#endif /* __SPIF_META_H__ */
+#endif /* __spiffer_meta_H__ */

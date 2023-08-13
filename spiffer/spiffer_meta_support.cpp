@@ -25,7 +25,7 @@ extern FILE * lf;
 //
 // returns the number of discovered devices (0 on error)
 //--------------------------------------------------------------------
-int spif_meta_discover_devs (void) {
+int spiffer_meta_discover_devs (void) {
   // number of discovered devices
   int ndd = 0;
 
@@ -85,7 +85,7 @@ int spif_meta_discover_devs (void) {
 //
 // terminated as a result of signal servicing
 //--------------------------------------------------------------------
-void * spif_meta_usb_listener (void * data) {
+void * spiffer_meta_usb_listener (void * data) {
   int pipe = *((int *) data);
 
   uint *                               sb = pipe_buf[pipe];

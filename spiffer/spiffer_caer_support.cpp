@@ -31,13 +31,14 @@ extern FILE * lf;
 //
 // returns SPIFFER_OK on success or SPIFFER_ERROR on error
 //--------------------------------------------------------------------
-int spif_caer_config_dev (caerDeviceHandle dh) {
+int spiffer_caer_config_dev (caerDeviceHandle dh) {
   // send the default configuration before using the device
   bool rc = caerDeviceSendDefaultConfig (dh);
 
   if (!rc) {
     log_time ();
     fprintf (lf, "error: failed to send camera default configuration\n");
+    (void) fflush (lf);
     return (SPIFFER_ERROR);
   }
 
@@ -50,12 +51,14 @@ int spif_caer_config_dev (caerDeviceHandle dh) {
   if (!rc) {
     log_time ();
     fprintf (lf, "error: failed to set camera container packet number\n");
+    (void) fflush (lf);
     return (SPIFFER_ERROR);
   }
 
   if (!rc) {
     log_time ();
     fprintf (lf, "error: failed to start camera data transmission\n");
+    (void) fflush (lf);
     return (SPIFFER_ERROR);
   }
 
@@ -67,6 +70,7 @@ int spif_caer_config_dev (caerDeviceHandle dh) {
   if (!rc) {
     log_time ();
     fprintf (lf, "error: failed to set blocking mode\n");
+    (void) fflush (lf);
     return (SPIFFER_ERROR);
   }
 
@@ -80,7 +84,7 @@ int spif_caer_config_dev (caerDeviceHandle dh) {
 //
 // returns the number of discovered devices (0 on error)
 //--------------------------------------------------------------------
-int spif_caer_discover_devs (void) {
+int spiffer_caer_discover_devs (void) {
   // number of discovered devices
   int ndd = 0;
 
@@ -105,7 +109,7 @@ int spif_caer_discover_devs (void) {
       struct caer_davis_info davis_info = caerDavisInfoGet (dh);
 
       // configure device
-      if (spif_caer_config_dev (dh) == SPIFFER_ERROR) {
+      if (spiffer_caer_config_dev (dh) == SPIFFER_ERROR) {
         // on error close device
         (void) caerDeviceClose (&dh);
 
@@ -145,6 +149,7 @@ int spif_caer_discover_devs (void) {
 
   log_time ();
   fprintf (lf, "discovered %i Inivation device%c\n", ndd, ndd == 1 ? ' ' : 's');
+  (void) fflush (lf);
 
   free(discovered);
   return (ndd);
@@ -222,7 +227,7 @@ int usb_get_events (caerDeviceHandle dev, uint * buf) {
 //
 // terminated as a result of signal servicing
 //--------------------------------------------------------------------
-void * spif_caer_usb_listener (void * data) {
+void * spiffer_caer_usb_listener (void * data) {
   int dev  = *((int *) data);
   int pipe = usb_devs.params[dev].pipe;
 

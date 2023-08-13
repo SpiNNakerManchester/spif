@@ -15,17 +15,17 @@
 
 
 //TODO: remove! these are only for the benefit of the editor
-#define LIBCAER_SUPPORT    1
-#define METAVISION_SUPPORT 1
+#define CAER_SUPPORT 1
+#define META_SUPPORT 1
 
 // Inivation camera support
-#ifdef LIBCAER_SUPPORT
+#ifdef CAER_SUPPORT
 #include <libcaer/libcaer.h>
 #include <libcaer/devices/davis.h>
 #endif
 
 // Prophesee camera support
-#ifdef METAVISION_SUPPORT
+#ifdef META_SUPPORT
 #include "metavision/sdk/base/events/event_cd.h"
 #include <metavision/hal/device/device_discovery.h>
 #include <metavision/hal/device/device.h>
@@ -66,10 +66,10 @@ typedef struct dev_params {
   int                                 pipe;
   device_type_t                       type;
   serial_t                            sn;
-#ifdef LIBCAER_SUPPORT
+#ifdef CAER_SUPPORT
   caerDeviceHandle                    caer_hdl;
 #endif
-#ifdef METAVISION_SUPPORT
+#ifdef META_SUPPORT
   std::unique_ptr<Metavision::Device> meta_hdl;
 #endif
 } device_params_t;

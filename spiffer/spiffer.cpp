@@ -33,12 +33,12 @@
 # include "spiffer.h"
 
 // event camera support
-#ifdef LIBCAER_SUPPORT
+#ifdef CAER_SUPPORT
 #include "spiffer_caer_support.h"
 #endif
 
 // Prophesee camera support
-#ifdef METAVISION_SUPPORT
+#ifdef META_SUPPORT
 #include "spiffer_meta_support.h"
 #endif
 
@@ -106,7 +106,7 @@ void spiffer_stop (int ec) {
     pthread_join (listener[pipe], NULL);
 
     // shutdown USB device,
-#ifdef LIBCAER_SUPPORT
+#ifdef CAER_SUPPORT
     (void) caerDeviceDataStop (usb_devs.params[pipe].caer_hdl);
     (void) caerDeviceClose (&usb_devs.params[pipe].caer_hdl);
 #endif
@@ -458,14 +458,14 @@ void usb_discover_devs (int discon_pipe) {
   // start from a clean state
   usb_devs.cnt = 0;
 
-#ifdef LIBCAER_SUPPORT
+#ifdef CAER_SUPPORT
   // find Inivation devices
-  spif_caer_discover_devs ();
+  spiffer_caer_discover_devs ();
 #endif
 
-#ifdef METAVISION_SUPPORT
+#ifdef META_SUPPORT
   // find prophesee devices
-  spif_meta_discover_devs ();
+  spiffer_meta_discover_devs ();
 #endif
 
   if (usb_devs.cnt > 0) {
@@ -496,12 +496,12 @@ void usb_survey_devs (void * data) {
   // start USB listeners on discovered devices
   for (int dv = 0; dv < usb_devs.cnt; dv++) {
     if (usb_devs.params[dv].type == CAER) {
-#ifdef LIBCAER_SUPPORT
-      (void) pthread_create (&listener[usb_devs.params[dv].pipe], NULL, spif_caer_usb_listener, (void *) &int_to_ptr[dv]);
+#ifdef CAER_SUPPORT
+      (void) pthread_create (&listener[usb_devs.params[dv].pipe], NULL, spiffer_caer_usb_listener, (void *) &int_to_ptr[dv]);
 #endif
     } else if (usb_devs.params[dv].type == META) {
-#ifdef METAVISION_SUPPORT
-      (void) pthread_create (&listener[usb_devs.params[dv].pipe], NULL, spif_meta_usb_listener, (void *) &int_to_ptr[dv]);
+#ifdef META_SUPPORT
+      (void) pthread_create (&listener[usb_devs.params[dv].pipe], NULL, spiffer_meta_usb_listener, (void *) &int_to_ptr[dv]);
 #endif
     } else {
         log_time ();
@@ -528,7 +528,7 @@ void usb_survey_devs (void * data) {
 // returns SPIFFER_OK on success or SPIFFER_ERROR on error
 //--------------------------------------------------------------------
 int usb_init (void) {
-#ifdef METAVISION_SUPPORT
+#ifdef META_SUPPORT
   // do not show Metavision warnings
   setenv("MV_LOG_LEVEL", "ERROR", 1);
 #endif

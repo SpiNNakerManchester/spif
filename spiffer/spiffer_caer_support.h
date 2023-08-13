@@ -6,8 +6,8 @@
 //*                                              *//
 //************************************************//
 
-#ifndef __SPIF_CAER_H__
-#define __SPIF_CAER_H__
+#ifndef __spiffer_caer_H__
+#define __spiffer_caer_H__
 
 
 #include <libcaer/libcaer.h>
@@ -29,7 +29,7 @@ int spif_transfer (uint pipe, int length);
 //
 // returns SPIFFER_OK on success or SPIFFER_ERROR on error
 //--------------------------------------------------------------------
-int spif_caer_config_dev (int pipe, caerDeviceHandle dh);
+int spiffer_caer_config_dev (int pipe, caerDeviceHandle dh);
 //--------------------------------------------------------------------
 
 
@@ -38,7 +38,7 @@ int spif_caer_config_dev (int pipe, caerDeviceHandle dh);
 //
 // returns the number of discovered devices (0 on error)
 //--------------------------------------------------------------------
-int spif_caer_discover_devs (void);
+int spiffer_caer_discover_devs (void);
 //--------------------------------------------------------------------
 
 
@@ -55,7 +55,7 @@ int spif_caer_discover_devs (void);
 //
 // returns the number of events in the batch
 //--------------------------------------------------------------------
-int spif_caer_usb_get_events (caerDeviceHandle dev, uint * buf);
+int spiffer_caer_usb_get_events (caerDeviceHandle dev, uint * buf);
 //--------------------------------------------------------------------
 
 
@@ -64,8 +64,8 @@ int spif_caer_usb_get_events (caerDeviceHandle dev, uint * buf);
 //
 // terminated as a result of signal servicing
 //--------------------------------------------------------------------
-void * spif_caer_usb_listener (void * data);
+void * spiffer_caer_usb_listener (void * data);
 //--------------------------------------------------------------------
 
 
-#endif /* __SPIF_CAER_H__ */
+#endif /* __spiffer_caer_H__ */
