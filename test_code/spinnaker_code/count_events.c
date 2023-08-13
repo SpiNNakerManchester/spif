@@ -61,6 +61,9 @@ void start_spif (uint a, uint b)
   (void) a;
   (void) b;
 
+  // (soft) reset spif
+  spif_soft_reset ();
+
   // clear all spif packet counters
   spif_reset_counters ();
 

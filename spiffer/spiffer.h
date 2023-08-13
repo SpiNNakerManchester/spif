@@ -1,9 +1,12 @@
 //************************************************//
 //*                                              *//
-//*          spif UDP/USB listener               *//
+//*       spif UDP/USB/SPiNNaker listener        *//
 //*                                              *//
-//*                                              *//
+//* includes support for Inivation cameras       *//
 //* lap - 09/03/2022                             *//
+//*                                              *//
+//* added (C++) support for Prophesee cameras    *//
+//* lap - 11/08/2023                             *//
 //*                                              *//
 //************************************************//
 
@@ -11,9 +14,30 @@
 #define __SPIFFER_H__
 
 
+//TODO: remove! these are only for the benefit of the editor
+#define LIBCAER_SUPPORT    1
+#define METAVISION_SUPPORT 1
+
+// Inivation camera support
+#ifdef LIBCAER_SUPPORT
+#include <libcaer/libcaer.h>
+#include <libcaer/devices/davis.h>
+#endif
+
+// Prophesee camera support
+#ifdef METAVISION_SUPPORT
+#include "metavision/sdk/base/events/event_cd.h"
+#include <metavision/hal/device/device_discovery.h>
+#include <metavision/hal/device/device.h>
+#include <metavision/hal/facilities/i_hw_identification.h>
+#include <metavision/hal/facilities/i_event_decoder.h>
+#include <metavision/hal/facilities/i_events_stream.h>
+#include <metavision/hal/facilities/i_events_stream_decoder.h>
+#endif
+
 // constants
 #define SPIFFER_VER_MAJ     0
-#define SPIFFER_VER_MIN     1
+#define SPIFFER_VER_MIN     2
 #define SPIFFER_VER_PAT     0
 #define SPIFFER_ERROR      -1
 #define SPIFFER_OK         0
@@ -26,15 +50,41 @@
 #define SPIFFER_OUT_START  0x5ec00051
 #define SPIFFER_OUT_STOP   0x5ec00050
 
+// log file
+//TODO: change name!
+static const char * log_name = "/tmp/spiffer.log";
 
-// USB listener
+// USB devices
 typedef char serial_t[9];
 
+typedef enum {
+  CAER,
+  META
+} device_type_t;
+
+typedef struct dev_params {
+  int                                 pipe;
+  device_type_t                       type;
+  serial_t                            sn;
+#ifdef LIBCAER_SUPPORT
+  caerDeviceHandle                    caer_hdl;
+#endif
+#ifdef METAVISION_SUPPORT
+  std::unique_ptr<Metavision::Device> meta_hdl;
+#endif
+} device_params_t;
+
 typedef struct usb_devs {
-  int              dev_cnt;                     // number of connected USB devices
-  caerDeviceHandle dev_hdl[SPIF_HW_PIPES_NUM];  // USB device handle
-  serial_t         dev_sn[SPIF_HW_PIPES_NUM];   // USB device handle
+  int              cnt;                         // number of connected USB devices
+  device_params_t  params[SPIF_HW_PIPES_NUM];   // USB device params
 } usb_devs_t;
+
+
+//--------------------------------------------------------------------
+// write current time to log file
+//--------------------------------------------------------------------
+void log_time (void);
+//--------------------------------------------------------------------
 
 
 //--------------------------------------------------------------------
@@ -94,20 +144,20 @@ void * out_udp_listener (void * data);
 
 
 //--------------------------------------------------------------------
+// attempt to configure USB device
+//
+// returns SPIFFER_OK on success or SPIFFER_ERROR on error
+//--------------------------------------------------------------------
+int usb_dev_config (int pipe);
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
 // sort USB devices by serial number
 //
 // no return value
 //--------------------------------------------------------------------
-void usb_sort (int ndv, serial_t * dvn, int * sorted);
-//--------------------------------------------------------------------
-
-
-//--------------------------------------------------------------------
-// attempt to open and configure USB device
-//
-// returns SPIFFER_OK on success or SPIFFER_ERROR on error
-//--------------------------------------------------------------------
-int usb_dev_config (int pipe, caerDeviceHandle dh);
+void usb_sort ();
 //--------------------------------------------------------------------
 
 
@@ -116,10 +166,8 @@ int usb_dev_config (int pipe, caerDeviceHandle dh);
 // sort devices by serial number for consistent mapping to spif pipes
 //
 // discon_dev = known disconnected USB device, -1 for unknown
-//
-// returns the number of discovered devices (0 on error)
 //--------------------------------------------------------------------
-int usb_discover_devs (int discon_dev);
+void usb_discover_devs (int discon_dev);
 //--------------------------------------------------------------------
 
 
@@ -148,7 +196,7 @@ void usb_survey_devs (void * data);
 //
 // returns the number of events in the batch
 //--------------------------------------------------------------------
-int usb_get_events (caerDeviceHandle dev, uint * buf);
+int usb_get_events ();
 //--------------------------------------------------------------------
 
 

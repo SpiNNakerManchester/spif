@@ -27,6 +27,7 @@
 // spif configuration registers
 //--------------------------------------------------------------------
 #define SPIF_CONTROL          0
+#define SPIF_SOFT_RESET       1
 #define SPIF_REPLY_KEY        2
 #define SPIF_IN_DROP_WAIT     3
 #define SPIF_OUT_DROP_WAIT    4

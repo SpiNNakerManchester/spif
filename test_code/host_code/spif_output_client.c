@@ -131,7 +131,7 @@ int main (int argc, char * argv[])
     exit (-1);
   }
 
-  // receive data from server and iterate over the entire event file
+  // receive data from server until expected number of events received
   uint events = 0;
   while (events < num_events) {
     // receive spif output data

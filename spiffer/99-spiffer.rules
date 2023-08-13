@@ -2,3 +2,6 @@
 ##
 ## Inivation cameras
 ACTION=="add", ATTR{idVendor}=="152a", RUN+="/usr/bin/pkill --signal SIGUSR1 spiffer"
+##
+## Prophesee cameras
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="04b4", ATTRS{idProduct}=="00f[4-5]", MODE="0666", RUN+="/usr/bin/pkill --signal SIGUSR1 spiffer"

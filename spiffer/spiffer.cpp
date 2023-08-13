@@ -5,23 +5,26 @@
 //* started automatically at boot time           *//
 //* exits with -1 if problems found              *//
 //*                                              *//
+//* includes support for Inivation cameras       *//
 //* lap - 09/03/2022                             *//
 //*                                              *//
+//* added (C++) support for Prophesee cameras    *//
+//* lap - 11/08/2023                             *//
+//*                                              *//
 //************************************************//
+
+#include <csignal>
+#include <ctime>
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
 
 #include <errno.h>
 #include <netinet/in.h>
 #include <pthread.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <time.h>
-#include <unistd.h>
 
-// Inivation camera support
-#include <libcaer/libcaer.h>
-#include <libcaer/devices/davis.h>
+#include <unistd.h>
 
 // spif support
 #include "spif_remote.h"
@@ -29,15 +32,25 @@
 // spiffer constants and function prototypes
 # include "spiffer.h"
 
+// event camera support
+#ifdef LIBCAER_SUPPORT
+#include "spiffer_caer_support.h"
+#endif
+
+// Prophesee camera support
+#ifdef METAVISION_SUPPORT
+#include "spiffer_meta_support.h"
+#endif
+
 
 //global variables
 // signals
 struct sigaction signal_cfg;
 
 // threads
-pthread_t       listener[SPIF_HW_PIPES_NUM];
-pthread_t       out_listener[SPIF_HW_PIPES_NUM];
-pthread_t       spinn_listener[SPIF_HW_PIPES_NUM];
+pthread_t listener[SPIF_HW_PIPES_NUM];
+pthread_t out_listener[SPIF_HW_PIPES_NUM];
+pthread_t spinn_listener[SPIF_HW_PIPES_NUM];
 
 // spif pipe data
 int pipe_num_in  = 0;
@@ -46,6 +59,9 @@ int pipe_num_out = 0;
 int    pipe_fd[SPIF_HW_PIPES_NUM];
 uint * pipe_buf[SPIF_HW_PIPES_NUM];
 uint * pipe_out_buf[SPIF_HW_PIPES_NUM];
+
+// used to pass integers as (void *)
+int int_to_ptr[SPIF_HW_PIPES_NUM];
 
 // SpiNNaker listener
 int out_start[SPIF_HW_PIPES_NUM];
@@ -58,13 +74,13 @@ int out_udp_skt[SPIF_HW_PIPES_NUM];
 struct sockaddr_in client_addr[SPIF_HW_PIPES_NUM];
 socklen_t          client_addr_len[SPIF_HW_PIPES_NUM];
 
-// USB listener
-usb_devs_t usb_devs;
+// USB devices
+usb_devs_t      usb_devs;
 pthread_mutex_t usb_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 // log file
 //TODO: change to system/kernel log
-static FILE * lf;
+FILE * lf;
 
 
 //--------------------------------------------------------------------
@@ -76,7 +92,6 @@ void log_time (void) {
   fprintf (lf, "[%.24s] ", ctime (&now));
 }
 //--------------------------------------------------------------------
-
 
 
 //--------------------------------------------------------------------
@@ -91,8 +106,10 @@ void spiffer_stop (int ec) {
     pthread_join (listener[pipe], NULL);
 
     // shutdown USB device,
-    (void) caerDeviceDataStop (usb_devs.dev_hdl[pipe]);
-    (void) caerDeviceClose (&usb_devs.dev_hdl[pipe]);
+#ifdef LIBCAER_SUPPORT
+    (void) caerDeviceDataStop (usb_devs.params[pipe].caer_hdl);
+    (void) caerDeviceClose (&usb_devs.params[pipe].caer_hdl);
+#endif
 
     // and close UDP port
     close (udp_skt[pipe]);
@@ -141,7 +158,7 @@ int spiNNaker_init (void) {
   // start SpiNNaker listeners
   for (int pipe = 0; pipe < pipe_num_out; pipe++) {
     (void) pthread_create (&spinn_listener[pipe], NULL,
-                           spiNNaker_listener, (void *) pipe);
+                           spiNNaker_listener, (void *) &int_to_ptr[pipe]);
   }
 
   return (SPIFFER_OK);
@@ -157,7 +174,7 @@ int spiNNaker_init (void) {
 // terminated as a result of signal servicing
 //--------------------------------------------------------------------
 void * spiNNaker_listener (void * data) {
-  int pipe = (int) data;
+  int pipe = *((int *) data);
 
   // announce that output has started
   log_time ();
@@ -233,7 +250,7 @@ int udp_init (void) {
 
   // start input UDP listeners
   for (int pipe = 0; pipe < pipe_num_in; pipe++) {
-    (void) pthread_create (&listener[pipe], NULL, udp_listener, (void *) pipe);
+//lap    (void) pthread_create (&listener[pipe], NULL, udp_listener, (void *) &int_to_ptr[pipe]);
   }
 
   // set up output command UDP servers
@@ -270,7 +287,7 @@ int udp_init (void) {
   // start output command UDP listeners
   for (int pipe = 0; pipe < pipe_num_out; pipe++) {
     (void) pthread_create (&out_listener[pipe], NULL,
-                           out_udp_listener, (void *) pipe);
+                           out_udp_listener, (void *) &int_to_ptr[pipe]);
   }
 
   return (SPIFFER_OK);
@@ -286,7 +303,7 @@ int udp_init (void) {
 // terminated as a result of signal servicing
 //--------------------------------------------------------------------
 void * udp_listener (void * data) {
-  int pipe = (int) data;
+  int pipe = *((int *) data);
 
   // announce that listener is ready
   log_time ();
@@ -329,7 +346,7 @@ void * udp_listener (void * data) {
 // terminated as a result of signal servicing
 //--------------------------------------------------------------------
 void * out_udp_listener (void * data) {
-  int pipe = (int) data;
+  int pipe = *((int *) data);
 
   // announce that listener is ready
   log_time ();
@@ -386,78 +403,34 @@ void * out_udp_listener (void * data) {
 
 
 //--------------------------------------------------------------------
-// attempt to configure USB device
-//
-// returns SPIFFER_OK on success or SPIFFER_ERROR on error
-//--------------------------------------------------------------------
-int usb_dev_config (int pipe, caerDeviceHandle dh) {
-  // send the default configuration before using the device
-  bool rc = caerDeviceSendDefaultConfig (dh);
-
-  if (!rc) {
-    log_time ();
-    fprintf (lf, "error: failed to send camera default configuration\n");
-    return (SPIFFER_ERROR);
-  }
-
-  // adjust number of events that a container packet can hold
-  rc = caerDeviceConfigSet (dh, CAER_HOST_CONFIG_PACKETS,
-                            CAER_HOST_CONFIG_PACKETS_MAX_CONTAINER_PACKET_SIZE,
-                            USB_EVTS_PER_PKT
-                            );
-
-  if (!rc) {
-    log_time ();
-    fprintf (lf, "error: failed to set camera container packet number\n");
-    return (SPIFFER_ERROR);
-  }
-
-  // turn on data transmission
-  rc = caerDeviceDataStart (dh, NULL, NULL, NULL, &usb_survey_devs, (void *) pipe);
-
-  if (!rc) {
-    log_time ();
-    fprintf (lf, "error: failed to start camera data transmission\n");
-    return (SPIFFER_ERROR);
-  }
-
-  // set spiffer data reception to blocking mode
-  rc = caerDeviceConfigSet (dh, CAER_HOST_CONFIG_DATAEXCHANGE,
-                            CAER_HOST_CONFIG_DATAEXCHANGE_BLOCKING, true
-                            );
-
-  if (!rc) {
-    log_time ();
-    fprintf (lf, "error: failed to set blocking mode\n");
-    return (SPIFFER_ERROR);
-  }
-
-  return (SPIFFER_OK);
-}
-//--------------------------------------------------------------------
-
-
-//--------------------------------------------------------------------
 // sort USB devices by serial number
 //
 // no return value
 //--------------------------------------------------------------------
-void usb_sort (int ndv, serial_t * dvn, int * sorted) {
-  // prepare to sort device serial numbers,
-  for (int dv = 0; dv < ndv; dv++) {
+void usb_sort () {
+  // create a sorted list of serial numbers,
+  int sorted[USB_DISCOVER_CNT];
+
+  // start with an unsorted list,
+  for (int dv = 0; dv < usb_devs.cnt; dv++) {
     sorted[dv] = dv;
   }
 
   // straightforward bubble sort - small number of devices!
-  for (int i = 0; i < (ndv - 1); i++) {
-    for (int j = 0; j < (ndv - i - 1); j++) {
-      if (strcmp (dvn[sorted[j]], dvn[sorted[j + 1]]) > 0) {
+  for (int i = 0; i < (usb_devs.cnt - 1); i++) {
+    for (int j = 0; j < (usb_devs.cnt - i - 1); j++) {
+      if (strcmp (usb_devs.params[sorted[j]].sn, usb_devs.params[sorted[j + 1]].sn) > 0) {
         // swap
         int temp      = sorted[j];
         sorted[j]     = sorted[j + 1];
         sorted[j + 1] = temp;
       }
     }
+  }
+
+  // associate each device, in sorted order, with a spif pipe
+  for (int dv = 0; dv < usb_devs.cnt; dv++) {
+    usb_devs.params[sorted[dv]].pipe = dv;
   }
 }
 //--------------------------------------------------------------------
@@ -467,114 +440,38 @@ void usb_sort (int ndv, serial_t * dvn, int * sorted) {
 // attempt to discover new devices connected to the USB bus
 // sort devices by serial number for consistent mapping to spif pipes
 //
-// discon_dev = known disconnected USB device, -1 for unknown
-//
-// returns the number of discovered devices (0 on error)
+// discon_pipe = pipe associated with disconnected USB device, -1 for unknown
 //--------------------------------------------------------------------
-int usb_discover_devs (int discon_dev) {
-  // number of discovered devices
-  int ndd = 0;
-
-  // number of devices with configuration attempts 
-  int ncd = 0;
-
-  // number of serviced devices
-  int nsd = 0;
-
-  // keep track of discovered device handles and serial numbers
-  caerDeviceHandle dvh[USB_DISCOVER_CNT];
-  serial_t         dvn[USB_DISCOVER_CNT];
-
-  // shutdown listeners and connected USB devices
+void usb_discover_devs (int discon_pipe) {
+  // shutdown listeners and any connected USB devices
   for (int pipe = 0; pipe < pipe_num_in; pipe++) {
     // shutdown listener,
     (void) pthread_cancel (listener[pipe]);
     pthread_join (listener[pipe], NULL);
 
-    // shutdown USB device,
-    if (pipe != discon_dev) {
-      (void) caerDeviceDataStop (usb_devs.dev_hdl[pipe]);
-      (void) caerDeviceClose (&usb_devs.dev_hdl[pipe]);
-      usb_devs.dev_hdl[pipe] = NULL;
+    // and shutdown USB device - if not disconnected
+    if (pipe != discon_pipe) {
+      //TODO: needs updating!
     }
   }
 
   // start from a clean state
-  usb_devs.dev_cnt = 0;
-  int dev_id = 1;
+  usb_devs.cnt = 0;
 
-  // discover devices by trying to open them
-  while (ndd < USB_DISCOVER_CNT) {
-    // try to open a new device and give it a device ID,
-    //TODO: update for other device types
-    caerDeviceHandle dh = caerDeviceOpen (dev_id, CAER_DEVICE_DAVIS, 0, 0, NULL);
+#ifdef LIBCAER_SUPPORT
+  // find Inivation devices
+  spif_caer_discover_devs ();
+#endif
 
-    if (dh == NULL) {
-      // no more devices available
-      break;
-    }
+#ifdef METAVISION_SUPPORT
+  // find prophesee devices
+  spif_meta_discover_devs ();
+#endif
 
-    // update device ID
-    dev_id++;
-
-    // remember device handle
-    dvh[ndd] = dh;
-
-    // remember device serial number
-    struct caer_davis_info davis_info = caerDavisInfoGet (dh);
-    (void) strcpy (dvn[ndd], davis_info.deviceSerialNumber);
-
-    ndd++;
+  if (usb_devs.cnt > 0) {
+    // sort discovered devices by serial number,
+    usb_sort ();
   }
-
-  log_time ();
-  fprintf (lf, "discovered %i USB device%c\n", ndd, ndd == 1 ? ' ' : 's');
-
-  // check if no devices found
-  if (ndd == 0) {
-    return (0);
-  }
-
-  // sort discovered devices by serial number,
-  int sorted[USB_DISCOVER_CNT];
-  usb_sort (ndd, dvn, sorted);
-
-  // configure devices,
-  while ((ncd < ndd) && (nsd < pipe_num_in)) {
-    int sdv = sorted[ncd];
-
-    if (usb_dev_config (sdv, dvh[ncd]) == SPIFFER_ERROR) {
-      // on error close device,
-      (void) caerDeviceClose (&dvh[ncd]);
-    } else {
-      // one more connected device
-      nsd++;
-
-      struct caer_davis_info davis_info = caerDavisInfoGet (dvh[ncd]);
-
-      // report camera info
-      log_time ();
-      fprintf (lf, "%s --- ID: %d, Master: %d, DVS X: %d, DVS Y: %d, Logic: %d.\n",
-               davis_info.deviceString, davis_info.deviceID, davis_info.deviceIsMaster,
-               davis_info.dvsSizeX, davis_info.dvsSizeY, davis_info.logicVersion
-               );
-
-      // update spiffer state
-      usb_devs.dev_cnt++;
-      usb_devs.dev_hdl[sdv] = dvh[ncd];
-      (void) strcpy (usb_devs.dev_sn[sdv], dvn[ncd]);
-    }
-
-    // and move to next device
-    ncd++;
-  }
-
-  // and close devices that will not be serviced
-  for (int d = ncd; d < ndd; d++) {
-    (void) caerDeviceClose (&dvh[d]);
-  }
-
-  return (nsd);
 }
 //--------------------------------------------------------------------
 
@@ -583,7 +480,7 @@ int usb_discover_devs (int discon_dev) {
 // survey USB devices
 // called at start up and on USB device connection and disconnection
 //
-// data = known disconnected USB device, -1 for unknown
+// data = pipe associated with disconnected USB device, -1 for unknown
 //
 // no return value
 //--------------------------------------------------------------------
@@ -591,19 +488,30 @@ void usb_survey_devs (void * data) {
   // grab the lock - keep other threads out
   pthread_mutex_lock (&usb_mtx);
 
-  int discon_dev = (int) data;
+  int discon_pipe = (data == NULL) ? -1 : *((int *) data);
 
   // try to discover supported USB devices
-  int ndd = usb_discover_devs (discon_dev);
+  usb_discover_devs (discon_pipe);
 
   // start USB listeners on discovered devices
-  for (int pipe = 0; pipe < ndd; pipe++) {
-    (void) pthread_create (&listener[pipe], NULL, usb_listener, (void *) pipe);
+  for (int dv = 0; dv < usb_devs.cnt; dv++) {
+    if (usb_devs.params[dv].type == CAER) {
+#ifdef LIBCAER_SUPPORT
+      (void) pthread_create (&listener[usb_devs.params[dv].pipe], NULL, spif_caer_usb_listener, (void *) &int_to_ptr[dv]);
+#endif
+    } else if (usb_devs.params[dv].type == META) {
+#ifdef METAVISION_SUPPORT
+      (void) pthread_create (&listener[usb_devs.params[dv].pipe], NULL, spif_meta_usb_listener, (void *) &int_to_ptr[dv]);
+#endif
+    } else {
+        log_time ();
+        fprintf (lf, "warning: ignoring unsupported camera type\n");
+    }
   }
 
   // and start UDP listeners on the rest of the pipes
-  for (int pipe = ndd; pipe < pipe_num_in; pipe++) {
-    (void) pthread_create (&listener[pipe], NULL, udp_listener, (void *) pipe);
+  for (int pipe = usb_devs.cnt; pipe < pipe_num_in; pipe++) {
+    (void) pthread_create (&listener[pipe], NULL, udp_listener, (void *) &int_to_ptr[pipe]);
   }
 
   // release the lock
@@ -615,116 +523,18 @@ void usb_survey_devs (void * data) {
 
 
 //--------------------------------------------------------------------
-// get a batch of events from USB device
-// map them to spif events with format:
-//
-//    [31] timestamp (0: present, 1: absent)
-// [30:16] 15-bit x coordinate
-//    [15] polarity
-//  [14:0] 15-bit y coordinate
-//
-// timestamps are ignored - time models itself
-//
-// returns the number of events in the batch
-//--------------------------------------------------------------------
-int usb_get_events (caerDeviceHandle dev, uint * buf) {
-  // keep track of the number of valid events received
-  uint evt_num = 0;
-
-  while (1) {
-    // this is a safe place to cancel this thread
-    pthread_testcancel ();
-
-    // get events from USB device
-    caerEventPacketContainer packetContainer = caerDeviceDataGet (dev);
-    if (packetContainer == NULL) {
-      continue;
-    }
-
-    // only interested in 'polarity' events
-    caerPolarityEventPacket polarity_packet = (caerPolarityEventPacket)
-      caerEventPacketContainerGetEventPacket (packetContainer, POLARITY_EVENT);
-
-    if (polarity_packet == NULL) {
-      continue;
-    }
-
-    // process all events in the packet
-    uint evts_in_pkt = caerEventPacketHeaderGetEventNumber(&(polarity_packet)->packetHeader);
-    for (uint i = 0; i < evts_in_pkt; i++) {
-      // get event polarity and coordinates
-      caerPolarityEventConst event = caerPolarityEventPacketGetEventConst (polarity_packet, i);
-      if (!caerPolarityEventIsValid (event)) {
-        continue;
-      }
-
-      bool     pol = caerPolarityEventGetPolarity (event);
-      uint16_t x   = caerPolarityEventGetX (event);
-      uint16_t y   = caerPolarityEventGetY (event);
-
-      // format event and store in buffer
-      buf[evt_num++] = 0x80000000 | (x << 16) | (pol << 15) | y;
-    }
-
-    // release packet container
-    caerEventPacketContainerFree (packetContainer);
-
-    if (evt_num) {
-      return (evt_num);
-    }
-  }
-}
-//--------------------------------------------------------------------
-
-
-//--------------------------------------------------------------------
-// receive events from a USB device and forward them to spif
-//
-// terminated as a result of signal servicing
-//--------------------------------------------------------------------
-void * usb_listener (void * data) {
-  int pipe = (int) data;
-
-  uint *           sb = pipe_buf[pipe];
-  caerDeviceHandle ud = usb_devs.dev_hdl[pipe];
-
-  log_time ();
-  fprintf (lf, "listening USB %s -> pipe%i\n", usb_devs.dev_sn[pipe], pipe);
-  (void) fflush (lf);
-
-  while (1) {
-    // get next batch of events
-    //NOTE: blocks until events are available
-    int rcv_bytes = usb_get_events (ud, sb);
-
-    // trigger a transfer to SpiNNaker
-    spif_transfer (pipe, rcv_bytes);
-
-    // wait until spif finishes the current transfer
-    //NOTE: report when waiting too long!
-    int wc = 0;
-    while (spif_busy (pipe)) {
-      wc++;
-      if (wc < 0) {
-        log_time ();
-        fprintf (lf, "warning: spif not responding\n");
-        (void) fflush (lf);
-        wc = 0;
-      }
-    }
-  }
-}
-//--------------------------------------------------------------------
-
-
-//--------------------------------------------------------------------
 // initialise USB device state
 //
 // returns SPIFFER_OK on success or SPIFFER_ERROR on error
 //--------------------------------------------------------------------
 int usb_init (void) {
-  // initialise USB device count
-  usb_devs.dev_cnt = 0;
+#ifdef METAVISION_SUPPORT
+  // do not show Metavision warnings
+  setenv("MV_LOG_LEVEL", "ERROR", 1);
+#endif
+
+  // discover USB devices
+  usb_survey_devs (NULL);
 
   return (SPIFFER_OK);
 }
@@ -785,6 +595,7 @@ int spif_pipes_init (void) {
   }
 
   // open the rest of the pipes
+  int_to_ptr[0] = 0;
   for (int pipe = 1; pipe < pipe_max_num; pipe++) {
     // open spif pipe
     pipe_fd[pipe] = spif_open (pipe);
@@ -793,6 +604,8 @@ int spif_pipes_init (void) {
       fprintf (lf, "error: unable to open spif pipe%i\n", pipe);
       return (SPIFFER_ERROR);
     }
+    int_to_ptr[pipe] = pipe;
+
   }
 
   // set up input buffers
@@ -845,6 +658,10 @@ int sig_init (void) {
     return (SPIFFER_ERROR);
   }
 
+  if (sigaction (SIGINT,  &signal_cfg, NULL) == SPIFFER_ERROR) {
+    return (SPIFFER_ERROR);
+  }
+
   return (sigaction (SIGTERM, &signal_cfg, NULL));
 }
 //--------------------------------------------------------------------
@@ -863,7 +680,7 @@ void sig_service (int signum) {
   switch (signum) {
     case SIGUSR1:
       // need to survey USB devices
-      usb_survey_devs ((void *) -1);
+      usb_survey_devs (NULL);
       break;
 
     case SIGUSR2:
@@ -892,7 +709,7 @@ int main (int argc, char *argv[])
 
   // open log file,
   //TODO: needs a permanent home
-  lf = fopen ("/tmp/spiffer.log", "a");
+  lf = fopen (log_name, "a");
   if (lf == NULL) {
     spiffer_stop (SPIFFER_ERROR);
   }
