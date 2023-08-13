@@ -62,6 +62,7 @@ check_files*.sh
 *.twr
 *.twx
 *.txt
+!CMakeLists.txt
 *.unroutes
 *.ut
 *.veo
