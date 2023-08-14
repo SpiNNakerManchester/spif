@@ -322,9 +322,9 @@
 		\textbf{fl1\_value [7:0]}            & \ttfamily{32b} & \ttfamily{0xffffffff} & drop event if value $=$ event \& mask      \\%
 		\textbf{fl0\_mask [7:0]}             & \ttfamily{32b} & \ttfamily{0x00000000} & drop event if value $=$ event \& mask      \\%
 		\textbf{fl1\_mask [7:0]}             & \ttfamily{32b} & \ttfamily{0x00000000} & drop event if value $=$ event \& mask      \\%
-		\textbf{dist\_key [5:0]}             & \ttfamily{32b} & \ttfamily{0x00000000} & distiller [5:0] off by default             \\%
-		\textbf{dist\_mask [5:0]}            & \ttfamily{32b} & \ttfamily{0xffffffff} & distiller [5:0] off by default             \\%
-		\textbf{dist\_shift [5:0]}           & \ttfamily{32b} & \ttfamily{0x00000000} & distiller [5:0] off by default             \\%
+		\textbf{dist\_key [5:0]}             & \ttfamily{32b} & \ttfamily{0x00000000} & distiller [5:0] pass-through by default             \\%
+		\textbf{dist\_mask [5:0]}            & \ttfamily{32b} & \ttfamily{0xffffffff} & distiller [5:0] pass-through by default             \\%
+		\textbf{dist\_shift [5:0]}           & \ttfamily{32b} & \ttfamily{0x00000000} & distiller [5:0] pass-through by default             \\%
 		\hline
 	\end{tabularx}
 
@@ -468,6 +468,7 @@
 \end{center}
 
 
+\vspace{5mm}
 \subsection{Distilling Scheme}
 
 
@@ -488,6 +489,11 @@
 		\end{algorithm}
 	\end{minipage}
 \end{figure}
+
+
+\image[width = 0.9 \textwidth]{!h}{dist_ex}{fig:dist_fig}
+{SpiNNaker packet to DVS event distilling example.}
+
 
 
 \clearpage
