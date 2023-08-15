@@ -79,7 +79,7 @@ usb_devs_t      usb_devs;
 pthread_mutex_t usb_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 // log file
-//TODO: change to system/kernel log
+//TODO: maybe change to system/kernel log
 FILE * lf;
 
 
@@ -489,27 +489,31 @@ void usb_discover_devs (int discon_dev) {
 // no return value
 //--------------------------------------------------------------------
 void usb_survey_devs (void * data) {
+  int discon_dev = (data == NULL) ? -1 : *((int *) data);
+
   // grab the lock - keep other threads out
   pthread_mutex_lock (&usb_mtx);
-
-  int discon_dev = (data == NULL) ? -1 : *((int *) data);
 
   // try to discover supported USB devices
   usb_discover_devs (discon_dev);
 
   // start USB listeners on discovered devices
   for (int dv = 0; dv < usb_devs.cnt; dv++) {
-    if (usb_devs.params[dv].type == CAER) {
+    switch (usb_devs.params[dv].type) {
 #ifdef CAER_SUPPORT
+    case CAER:
       (void) pthread_create (&listener[usb_devs.params[dv].pipe], NULL, spiffer_caer_usb_listener, (void *) &int_to_ptr[dv]);
+      break;
 #endif
-    } else if (usb_devs.params[dv].type == META) {
 #ifdef META_SUPPORT
+    case META:
       (void) pthread_create (&listener[usb_devs.params[dv].pipe], NULL, spiffer_meta_usb_listener, (void *) &int_to_ptr[dv]);
+      break;
 #endif
-    } else {
+    default:
         log_time ();
         fprintf (lf, "warning: ignoring unsupported camera type\n");
+        break;
     }
   }
 
@@ -534,7 +538,7 @@ void usb_survey_devs (void * data) {
 int usb_init (void) {
 #ifdef META_SUPPORT
   // do not show Metavision warnings
-  setenv("MV_LOG_LEVEL", "ERROR", 1);
+  setenv ("MV_LOG_LEVEL", "ERROR", 1);
 #endif
 
   // discover USB devices

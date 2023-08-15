@@ -51,7 +51,7 @@
 #define SPIFFER_OUT_STOP   0x5ec00050
 
 // log file
-//TODO: change to system/kernel log
+//TODO: maybe change to system/kernel log
 static const char * log_name = "/tmp/spiffer.log";
 
 // USB devices

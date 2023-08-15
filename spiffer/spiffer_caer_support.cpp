@@ -49,19 +49,12 @@ int spiffer_caer_config_dev (caerDeviceHandle dh) {
 
   if (!rc) {
     log_time ();
-    fprintf (lf, "error: failed to set camera container packet number\n");
+    fprintf (lf, "error: failed to set camera container packet size\n");
     (void) fflush (lf);
     return (SPIFFER_ERROR);
   }
 
-  if (!rc) {
-    log_time ();
-    fprintf (lf, "error: failed to start camera data transmission\n");
-    (void) fflush (lf);
-    return (SPIFFER_ERROR);
-  }
-
-  // set spiffer data reception to blocking mode
+  // set spiffer event reception to blocking mode
   rc = caerDeviceConfigSet (dh, CAER_HOST_CONFIG_DATAEXCHANGE,
                             CAER_HOST_CONFIG_DATAEXCHANGE_BLOCKING, true
                             );
@@ -237,7 +230,7 @@ void * spiffer_caer_usb_listener (void * data) {
   bool rc = caerDeviceDataStart (ud, NULL, NULL, NULL, &usb_survey_devs, (void *) &int_to_ptr[dev]);
   if (!rc) {
     log_time ();
-    fprintf (lf, "error: failed to start camera data transmission\n");
+    fprintf (lf, "error: failed to start camera event transmission\n");
     (void) fflush (lf);
     return (nullptr);
   }
