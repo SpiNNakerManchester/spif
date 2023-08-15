@@ -76,6 +76,7 @@ int spiffer_meta_discover_devs (void) {
 
   log_time ();
   fprintf (lf, "discovered %i Prophesee device%c\n", ndd, ndd == 1 ? ' ' : 's');
+  (void) fflush (lf);
 
   return (ndd);
 }
