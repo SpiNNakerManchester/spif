@@ -22,7 +22,6 @@ extern usb_devs_t      usb_devs;
 extern pthread_mutex_t usb_mtx;
 
 // log file
-//TODO: change to system/kernel log
 extern FILE * lf;
 
 
@@ -232,10 +231,10 @@ void * spiffer_caer_usb_listener (void * data) {
   int pipe = usb_devs.params[dev].pipe;
 
   uint *           sb = pipe_buf[pipe];
-  caerDeviceHandle ud = usb_devs.params[pipe].caer_hdl;
+  caerDeviceHandle ud = usb_devs.params[dev].caer_hdl;
 
-  // turn on data transmission
-  bool rc = caerDeviceDataStart (ud, NULL, NULL, NULL, &usb_survey_devs, (void *) &int_to_ptr[pipe]);
+  // turn on Camera event transmission
+  bool rc = caerDeviceDataStart (ud, NULL, NULL, NULL, &usb_survey_devs, (void *) &int_to_ptr[dev]);
   if (!rc) {
     log_time ();
     fprintf (lf, "error: failed to start camera data transmission\n");
@@ -244,7 +243,7 @@ void * spiffer_caer_usb_listener (void * data) {
   }
 
   log_time ();
-  fprintf (lf, "listening USB %s -> pipe%i\n", usb_devs.params[pipe].sn, pipe);
+  fprintf (lf, "listening USB %s -> pipe%i\n", usb_devs.params[dev].sn, pipe);
   (void) fflush (lf);
 
   while (1) {
@@ -268,5 +267,15 @@ void * spiffer_caer_usb_listener (void * data) {
       }
     }
   }
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// shutdown device
+//--------------------------------------------------------------------
+void spiffer_caer_shutdown_dev (int dev) {
+  (void) caerDeviceDataStop (usb_devs.params[dev].caer_hdl);
+  (void) caerDeviceClose (&usb_devs.params[dev].caer_hdl);
 }
 //--------------------------------------------------------------------

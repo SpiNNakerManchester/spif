@@ -37,10 +37,25 @@ int spiffer_meta_discover_devs (void);
 
 //--------------------------------------------------------------------
 // receive events from a USB device and forward them to spif
+// map them to spif events with format:
+//
+//    [31] timestamp (0: present, 1: absent)
+// [30:16] 15-bit x coordinate
+//    [15] polarity
+//  [14:0] 15-bit y coordinate
+//
+// timestamps are ignored - time models itself
 //
 // terminated as a result of signal servicing
 //--------------------------------------------------------------------
 void * spiffer_meta_usb_listener (void * data);
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// shutdown device
+//--------------------------------------------------------------------
+void spiffer_meta_shutdown_dev (int dev);
 //--------------------------------------------------------------------
 
 

@@ -99,23 +99,27 @@ void log_time (void) {
 // caused by systemd request or error condition
 //--------------------------------------------------------------------
 void spiffer_stop (int ec) {
-  // shutdown input pipes,
+  // shutdown USB devices,
+  for (int dv = 0; dv < usb_devs.cnt; dv++) {
+#ifdef CAER_SUPPORT
+    spiffer_caer_shutdown_dev (dv);
+#endif
+#ifdef META_SUPPORT
+    spiffer_meta_shutdown_dev (dv);
+#endif
+  }
+
+  // shutdown input listeners,
   for (int pipe = 0; pipe < pipe_num_in; pipe++) {
     // shutdown listener,
     (void) pthread_cancel (listener[pipe]);
     pthread_join (listener[pipe], NULL);
 
-    // shutdown USB device,
-#ifdef CAER_SUPPORT
-    (void) caerDeviceDataStop (usb_devs.params[pipe].caer_hdl);
-    (void) caerDeviceClose (&usb_devs.params[pipe].caer_hdl);
-#endif
-
     // and close UDP port
     close (udp_skt[pipe]);
   }
 
-  // shutdown output pipes,
+  // shutdown output listeners,
   for (int pipe = 0; pipe < pipe_num_out; pipe++) {
     // shutdown listener,
     (void) pthread_cancel (spinn_listener[pipe]);
@@ -124,7 +128,7 @@ void spiffer_stop (int ec) {
     pthread_join (out_listener[pipe], NULL);
   }
 
-  // close all pipes,
+  // close all spif pipes,
   int pipe_max_num = (pipe_num_in >= pipe_num_out) ? pipe_num_in : pipe_num_out;
   for (int pipe = 0; pipe < pipe_max_num; pipe++) {
     // close spif pipe
@@ -134,7 +138,6 @@ void spiffer_stop (int ec) {
   // say goodbye,
   log_time ();
   fprintf (lf, "spiffer stopped\n");
-
   (void) fflush (lf);
 
   // and close log
@@ -246,11 +249,6 @@ int udp_init (void) {
 
     //  and map socket to pipe
     udp_skt[pipe] = skt;
-  }
-
-  // start input UDP listeners
-  for (int pipe = 0; pipe < pipe_num_in; pipe++) {
-//lap    (void) pthread_create (&listener[pipe], NULL, udp_listener, (void *) &int_to_ptr[pipe]);
   }
 
   // set up output command UDP servers
@@ -440,19 +438,25 @@ void usb_sort () {
 // attempt to discover new devices connected to the USB bus
 // sort devices by serial number for consistent mapping to spif pipes
 //
-// discon_pipe = pipe associated with disconnected USB device, -1 for unknown
+// discon_dev = disconnected USB device, -1 for unknown
 //--------------------------------------------------------------------
-void usb_discover_devs (int discon_pipe) {
-  // shutdown listeners and any connected USB devices
+void usb_discover_devs (int discon_dev) {
+  // shutdown connected USB devices
+  for (int dv = 0; dv < usb_devs.cnt; dv++) {
+    if (dv != discon_dev) {
+#ifdef CAER_SUPPORT
+      spiffer_caer_shutdown_dev (dv);
+#endif
+#ifdef META_SUPPORT
+      spiffer_meta_shutdown_dev (dv);
+#endif
+    }
+  }
+
+  // shutdown listeners
   for (int pipe = 0; pipe < pipe_num_in; pipe++) {
-    // shutdown listener,
     (void) pthread_cancel (listener[pipe]);
     pthread_join (listener[pipe], NULL);
-
-    // and shutdown USB device - if not disconnected
-    if (pipe != discon_pipe) {
-      //TODO: needs updating!
-    }
   }
 
   // start from a clean state
@@ -488,10 +492,10 @@ void usb_survey_devs (void * data) {
   // grab the lock - keep other threads out
   pthread_mutex_lock (&usb_mtx);
 
-  int discon_pipe = (data == NULL) ? -1 : *((int *) data);
+  int discon_dev = (data == NULL) ? -1 : *((int *) data);
 
   // try to discover supported USB devices
-  usb_discover_devs (discon_pipe);
+  usb_discover_devs (discon_dev);
 
   // start USB listeners on discovered devices
   for (int dv = 0; dv < usb_devs.cnt; dv++) {
@@ -708,7 +712,6 @@ int main (int argc, char *argv[])
   (void) argv;
 
   // open log file,
-  //TODO: needs a permanent home
   lf = fopen (log_name, "a");
   if (lf == NULL) {
     spiffer_stop (SPIFFER_ERROR);

@@ -17,7 +17,6 @@ extern usb_devs_t      usb_devs;
 extern pthread_mutex_t usb_mtx;
 
 // log file
-//TODO: change to system/kernel log
 extern FILE * lf;
 
 //--------------------------------------------------------------------
@@ -83,14 +82,23 @@ int spiffer_meta_discover_devs (void) {
 //--------------------------------------------------------------------
 //--------------------------------------------------------------------
 // receive events from a USB device and forward them to spif
+// map them to spif events with format:
+//
+//    [31] timestamp (0: present, 1: absent)
+// [30:16] 15-bit x coordinate
+//    [15] polarity
+//  [14:0] 15-bit y coordinate
+//
+// timestamps are ignored - time models itself
 //
 // terminated as a result of signal servicing
 //--------------------------------------------------------------------
 void * spiffer_meta_usb_listener (void * data) {
-  int pipe = *((int *) data);
+  int dev  = *((int *) data);
+  int pipe = usb_devs.params[dev].pipe;
 
   uint *                               sb = pipe_buf[pipe];
-  std::unique_ptr<Metavision::Device>  ud = std::move (usb_devs.params[pipe].meta_hdl);
+  std::unique_ptr<Metavision::Device>  ud = std::move (usb_devs.params[dev].meta_hdl);
 
   Metavision::I_EventsStream                      * events_stream         = nullptr;
   Metavision::I_EventsStreamDecoder               * events_stream_decoder = nullptr;
@@ -101,7 +109,7 @@ void * spiffer_meta_usb_listener (void * data) {
   long rcv_bytes;
 
   log_time ();
-  fprintf (lf, "listening USB %s -> pipe%i\n", usb_devs.params[pipe].sn, pipe);
+  fprintf (lf, "listening USB %s -> pipe%i\n", usb_devs.params[dev].sn, pipe);
   (void) fflush (lf);
 
   // open event stream
@@ -182,5 +190,15 @@ void * spiffer_meta_usb_listener (void * data) {
 
     evt_ctr = 0;
   }
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// shutdown device
+//
+//TODO: needs updating!
+//--------------------------------------------------------------------
+void spiffer_meta_shutdown_dev (int dev) {
 }
 //--------------------------------------------------------------------
