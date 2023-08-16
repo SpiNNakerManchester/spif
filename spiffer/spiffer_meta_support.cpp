@@ -126,32 +126,33 @@ void * spiffer_meta_usb_listener (void * data) {
 
   // register event processing callback
   if (cd_event_decoder) {
-      // Register a lambda function to be called on every CD events
-      cd_event_decoder->add_event_buffer_callback(
-          [pipe, sb, &evt_ctr](const Metavision::EventCD *begin, const Metavision::EventCD *end) {
-            for (auto it = begin; it != end; ++it) {
-              sb[evt_ctr++] = 0x80000000 | (it->x << 16) | (it->p << 15) | it->y;
-              if (evt_ctr == SPIFFER_BATCH_SIZE) {
-                // trigger a transfer to SpiNNaker
-                spif_transfer (pipe, evt_ctr);
+    // Register a lambda function to be called on every CD events
+    cd_event_decoder->add_event_buffer_callback (
+      [pipe, sb, &evt_ctr](const Metavision::EventCD *begin, const Metavision::EventCD *end) {
+        for (auto it = begin; it != end; ++it) {
+          sb[evt_ctr] = 0x80000000 | (it->x << 16) | (it->p << 15) | it->y;
+          if (++evt_ctr == SPIFFER_BATCH_SIZE) {
+            // trigger a transfer to SpiNNaker
+            spif_transfer (pipe, evt_ctr);
 
-                // wait until spif finishes the current transfer
-                //NOTE: report when waiting too long!
-                int wc = 0;
-                while (spif_busy (pipe)) {
-                  wc++;
-                  if (wc < 0) {
-                    log_time ();
-                    fprintf (lf, "warning: spif not responding\n");
-                    (void) fflush (lf);
-                    wc = 0;
-                  }
-                }
-
-                evt_ctr = 0;
+            // wait until spif finishes the current transfer
+            //NOTE: report when waiting too long!
+            int wc = 0;
+            while (spif_busy (pipe)) {
+              wc++;
+              if (wc < 0) {
+                log_time ();
+                fprintf (lf, "warning: spif not responding\n");
+                (void) fflush (lf);
+                wc = 0;
               }
             }
-          });
+
+            evt_ctr = 0;
+          }
+        }
+      }
+    );
   }
 
   // start streaming events
