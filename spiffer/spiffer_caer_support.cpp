@@ -54,18 +54,6 @@ int spiffer_caer_config_dev (caerDeviceHandle dh) {
     return (SPIFFER_ERROR);
   }
 
-  // set spiffer event reception to blocking mode
-  rc = caerDeviceConfigSet (dh, CAER_HOST_CONFIG_DATAEXCHANGE,
-                            CAER_HOST_CONFIG_DATAEXCHANGE_BLOCKING, true
-                            );
-
-  if (!rc) {
-    log_time ();
-    fprintf (lf, "error: failed to set blocking mode\n");
-    (void) fflush (lf);
-    return (SPIFFER_ERROR);
-  }
-
   return (SPIFFER_OK);
 }
 //--------------------------------------------------------------------
@@ -231,6 +219,15 @@ void * spiffer_caer_usb_listener (void * data) {
   if (!rc) {
     log_time ();
     fprintf (lf, "error: failed to start camera event transmission\n");
+    (void) fflush (lf);
+    return (nullptr);
+  }
+
+  // set spiffer event reception to blocking mode
+  rc = caerDeviceConfigSet (ud, CAER_HOST_CONFIG_DATAEXCHANGE, CAER_HOST_CONFIG_DATAEXCHANGE_BLOCKING, true);
+  if (!rc) {
+    log_time ();
+    fprintf (lf, "error: failed to set blocking mode\n");
     (void) fflush (lf);
     return (nullptr);
   }
