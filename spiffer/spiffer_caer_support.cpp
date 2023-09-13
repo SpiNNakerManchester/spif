@@ -158,7 +158,7 @@ int spiffer_caer_discover_devs (void) {
 //
 // returns the number of events in the batch
 //--------------------------------------------------------------------
-int usb_get_events (caerDeviceHandle dev, uint * buf) {
+int spiffer_caer_get_events (caerDeviceHandle dev, uint * buf) {
   // keep track of the number of valid events received
   uint evt_num = 0;
 
@@ -222,7 +222,7 @@ void * spiffer_caer_usb_listener (void * data) {
   uint *           sb = pipe_buf[pipe];
   caerDeviceHandle ud = usb_devs.params[dev].caer_hdl;
 
-  // turn on Camera event transmission
+  // turn on camera event transmission
   bool rc = caerDeviceDataStart (ud, NULL, NULL, NULL, &usb_survey_devs, (void *) &int_to_ptr[dev]);
   if (!rc) {
     log_time ();
@@ -247,7 +247,7 @@ void * spiffer_caer_usb_listener (void * data) {
   while (1) {
     // get next batch of events
     //NOTE: blocks until events are available
-    int rcv_bytes = usb_get_events (ud, sb);
+    int rcv_bytes = spiffer_caer_get_events (ud, sb);
 
     // trigger a transfer to SpiNNaker
     spif_transfer (pipe, rcv_bytes);

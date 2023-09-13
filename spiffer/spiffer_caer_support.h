@@ -62,7 +62,7 @@ int spiffer_caer_discover_devs (void);
 //
 // returns the number of events in the batch
 //--------------------------------------------------------------------
-int spiffer_caer_usb_get_events (caerDeviceHandle dev, uint * buf);
+int spiffer_caer_get_events (caerDeviceHandle dev, uint * buf);
 //--------------------------------------------------------------------
 
 
