@@ -95,20 +95,11 @@ void log_time (void) {
 
 
 //--------------------------------------------------------------------
-// stop spiffer
-// caused by systemd request or error condition
+// shutdown input listeners and USB devices
+//
+// needed when USB devices are connected or disconnected
 //--------------------------------------------------------------------
-void spiffer_stop (int ec) {
-  // shutdown USB devices,
-  for (int dv = 0; dv < usb_devs.cnt; dv++) {
-#ifdef CAER_SUPPORT
-    spiffer_caer_shutdown_dev (dv);
-#endif
-#ifdef META_SUPPORT
-    spiffer_meta_shutdown_dev (dv);
-#endif
-  }
-
+void spiffer_input_shutdown (int discon_dev) {
   // shutdown input listeners,
   for (int pipe = 0; pipe < pipe_num_in; pipe++) {
     // shutdown listener,
@@ -119,13 +110,49 @@ void spiffer_stop (int ec) {
     close (udp_skt[pipe]);
   }
 
+  // shutdown USB devices,
+  for (int dv = 0; dv < usb_devs.cnt; dv++) {
+    if (dv != discon_dev) {
+      switch (usb_devs.params[dv].type) {
+#ifdef CAER_SUPPORT
+      case CAER:
+        spiffer_caer_shutdown_dev (dv);
+        break;
+#endif
+#ifdef META_SUPPORT
+      case META:
+        spiffer_meta_shutdown_dev (dv);
+        break;
+#endif
+      default:
+        break;
+      }
+    }
+  }
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// stop spiffer
+// caused by systemd request or error condition
+//--------------------------------------------------------------------
+void spiffer_stop (int ec) {
+  // shutdown input listeners and USB devices,
+  spiffer_input_shutdown (USB_NO_DEVICE);
+
   // shutdown output listeners,
   for (int pipe = 0; pipe < pipe_num_out; pipe++) {
-    // shutdown listener,
+    // shutdown SpiNNaker listener,
     (void) pthread_cancel (spinn_listener[pipe]);
     pthread_join (spinn_listener[pipe], NULL);
+
+    // shutdown output UDP listener,
     (void) pthread_cancel (out_listener[pipe]);
     pthread_join (out_listener[pipe], NULL);
+
+    // and close UDP port
+    close (out_udp_skt[pipe]);
   }
 
   // close all spif pipes,
@@ -401,11 +428,11 @@ void * out_udp_listener (void * data) {
 
 
 //--------------------------------------------------------------------
-// sort USB devices by serial number
+// sort USB devices by serial number and assign pipes
 //
 // no return value
 //--------------------------------------------------------------------
-void usb_sort () {
+void usb_sort_pipes () {
   // create a sorted list of serial numbers,
   int sorted[USB_DISCOVER_CNT];
 
@@ -427,8 +454,8 @@ void usb_sort () {
   }
 
   // associate each device, in sorted order, with a spif pipe
-  for (int dv = 0; dv < usb_devs.cnt; dv++) {
-    usb_devs.params[sorted[dv]].pipe = dv;
+  for (int p = 0; p < usb_devs.cnt; p++) {
+    usb_devs.params[sorted[p]].pipe = p;
   }
 }
 //--------------------------------------------------------------------
@@ -438,43 +465,30 @@ void usb_sort () {
 // attempt to discover new devices connected to the USB bus
 // sort devices by serial number for consistent mapping to spif pipes
 //
-// discon_dev = disconnected USB device, -1 for unknown
+// discon_dev = disconnected USB device, USB_NO_DEVICE for unknown
 //--------------------------------------------------------------------
 void usb_discover_devs (int discon_dev) {
-  // shutdown connected USB devices
-  for (int dv = 0; dv < usb_devs.cnt; dv++) {
-    if (dv != discon_dev) {
-#ifdef CAER_SUPPORT
-      spiffer_caer_shutdown_dev (dv);
-#endif
-#ifdef META_SUPPORT
-      spiffer_meta_shutdown_dev (dv);
-#endif
-    }
+  // if needed, shutdown input listeners and USB devices,
+  if (discon_dev != USB_NO_DEVICE) {
+    spiffer_input_shutdown (discon_dev);
   }
 
-  // shutdown listeners
-  for (int pipe = 0; pipe < pipe_num_in; pipe++) {
-    (void) pthread_cancel (listener[pipe]);
-    pthread_join (listener[pipe], NULL);
-  }
-
-  // start from a clean state
+  // start from a clean state,
   usb_devs.cnt = 0;
 
 #ifdef CAER_SUPPORT
-  // find Inivation devices
+  // find Inivation devices (updates usb_devs.cnt),
   spiffer_caer_discover_devs ();
 #endif
 
 #ifdef META_SUPPORT
-  // find prophesee devices
+  // find prophesee devices (updates usb_devs.cnt),
   spiffer_meta_discover_devs ();
 #endif
 
+  // and assign pipes to devices (sorted by serial number)
   if (usb_devs.cnt > 0) {
-    // sort discovered devices by serial number,
-    usb_sort ();
+    usb_sort_pipes ();
   }
 }
 //--------------------------------------------------------------------
@@ -489,7 +503,7 @@ void usb_discover_devs (int discon_dev) {
 // no return value
 //--------------------------------------------------------------------
 void usb_survey_devs (void * data) {
-  int discon_dev = (data == NULL) ? -1 : *((int *) data);
+  int discon_dev = (data == NULL) ? USB_NO_DEVICE : *((int *) data);
 
   // grab the lock - keep other threads out
   pthread_mutex_lock (&usb_mtx);
@@ -511,9 +525,9 @@ void usb_survey_devs (void * data) {
       break;
 #endif
     default:
-        log_time ();
-        fprintf (lf, "warning: ignoring unsupported camera type\n");
-        break;
+      log_time ();
+      fprintf (lf, "warning: ignoring unsupported camera type\n");
+      break;
     }
   }
 
@@ -687,6 +701,9 @@ int sig_init (void) {
 void sig_service (int signum) {
   switch (signum) {
     case SIGUSR1:
+      // shutdown input listeners and USB devices,
+      spiffer_input_shutdown (USB_NO_DEVICE);
+
       // need to survey USB devices
       usb_survey_devs (NULL);
       break;

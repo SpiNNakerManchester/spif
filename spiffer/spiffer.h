@@ -15,8 +15,8 @@
 
 
 //TODO: remove! these are only for the benefit of the editor
-#define CAER_SUPPORT 1
-#define META_SUPPORT 1
+//#define CAER_SUPPORT 1
+//#define META_SUPPORT 1
 
 // Inivation camera support
 #ifdef CAER_SUPPORT
@@ -45,6 +45,7 @@
 #define UDP_PORT_BASE      3333
 #define USB_EVTS_PER_PKT   256
 #define USB_DISCOVER_CNT   SPIF_HW_PIPES_NUM
+#define USB_NO_DEVICE      -1
 
 //Spif output commands
 #define SPIFFER_OUT_START  0x5ec00051
@@ -84,6 +85,15 @@ typedef struct usb_devs {
 // write current time to log file
 //--------------------------------------------------------------------
 void log_time (void);
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// shutdown input listeners and USB devices
+//
+// needed when USB devices are connected or disconnected
+//--------------------------------------------------------------------
+void spiffer_input_shutdown (int discon_dev);
 //--------------------------------------------------------------------
 
 
@@ -153,11 +163,11 @@ int usb_dev_config (int pipe);
 
 
 //--------------------------------------------------------------------
-// sort USB devices by serial number
+// sort USB devices by serial number and assign pipes
 //
 // no return value
 //--------------------------------------------------------------------
-void usb_sort ();
+void usb_sort_pipes ();
 //--------------------------------------------------------------------
 
 
