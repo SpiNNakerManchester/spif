@@ -27,6 +27,13 @@ int spif_transfer (uint pipe, int length);
 
 
 //--------------------------------------------------------------------
+// include here any Metavision SDK initialisation
+//--------------------------------------------------------------------
+void spiffer_meta_init (void);
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
 // attempt to discover and open cameras supported by Metavision SDK
 //
 // returns the number of discovered devices (0 on error)

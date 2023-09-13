@@ -26,6 +26,14 @@ extern FILE * lf;
 
 
 //--------------------------------------------------------------------
+// include here any libcaer initialisation
+//--------------------------------------------------------------------
+void spiffer_caer_init (void) {
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
 // attempt to configure a camera supported by libcaer
 //
 // returns SPIFFER_OK on success or SPIFFER_ERROR on error

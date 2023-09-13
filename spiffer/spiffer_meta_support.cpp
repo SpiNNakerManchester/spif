@@ -20,6 +20,16 @@ extern pthread_mutex_t usb_mtx;
 extern FILE * lf;
 
 //--------------------------------------------------------------------
+// include here any Metavision SDK initialisation
+//--------------------------------------------------------------------
+void spiffer_meta_init (void) {
+  // do not show Metavision warnings
+  setenv ("MV_LOG_LEVEL", "ERROR", 1);
+}
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
 // attempt to discover and open cameras supported by Metavision SDK
 //
 // returns the number of discovered devices (0 on error)

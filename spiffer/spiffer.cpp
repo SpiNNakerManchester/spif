@@ -550,9 +550,14 @@ void usb_survey_devs (void * data) {
 // returns SPIFFER_OK on success or SPIFFER_ERROR on error
 //--------------------------------------------------------------------
 int usb_init (void) {
+#ifdef CAER_SUPPORT
+  // Libcaer initialisation,
+  spiffer_caer_init ();
+#endif
+
 #ifdef META_SUPPORT
-  // do not show Metavision warnings
-  setenv ("MV_LOG_LEVEL", "ERROR", 1);
+  // Metavision SDK library initialisation,
+  spiffer_meta_init ();
 #endif
 
   // discover USB devices
