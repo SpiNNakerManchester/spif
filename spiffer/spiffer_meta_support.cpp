@@ -19,6 +19,7 @@ extern pthread_mutex_t usb_mtx;
 // log file
 extern FILE * lf;
 
+
 //--------------------------------------------------------------------
 // include here any Metavision SDK initialisation
 //--------------------------------------------------------------------
@@ -31,18 +32,13 @@ void spiffer_meta_init (void) {
 
 //--------------------------------------------------------------------
 // attempt to discover and open cameras supported by Metavision SDK
-//
-// returns the number of discovered devices (0 on error)
 //--------------------------------------------------------------------
-int spiffer_meta_discover_devs (void) {
+void spiffer_meta_discover_devs (void) {
   // number of discovered devices
   int ndd = 0;
 
   // find prophesee devices
   auto v = Metavision::DeviceDiscovery::list();
-  if (v.size () == 0) {
-    return (ndd);
-  }
 
   // identify each device found
   std::unique_ptr<Metavision::Device> device;
@@ -87,9 +83,11 @@ int spiffer_meta_discover_devs (void) {
   fprintf (lf, "discovered %i Prophesee device%c\n", ndd, ndd == 1 ? ' ' : 's');
   (void) fflush (lf);
 
-  return (ndd);
+  return;
 }
 //--------------------------------------------------------------------
+
+
 //--------------------------------------------------------------------
 // receive events from a USB device and forward them to spif
 // map them to spif events with format:
@@ -118,14 +116,14 @@ void * spiffer_meta_usb_listener (void * data) {
   uint evt_ctr = 0;
   long rcv_bytes;
 
-  log_time ();
-  fprintf (lf, "listening USB %s -> pipe%i\n", usb_devs.params[dev].sn, pipe);
-  (void) fflush (lf);
-
   // open event stream
   events_stream = ud->get_facility<Metavision::I_EventsStream>();
   if (!events_stream) {
-    return (NULL);
+    log_time ();
+    fprintf (lf, "error: failed to start camera event transmission\n");
+    (void) fflush (lf);
+
+    return (nullptr);
   }
 
   // get event stream dispatcher
@@ -167,6 +165,10 @@ void * spiffer_meta_usb_listener (void * data) {
 
   // start streaming events
   events_stream->start ();
+
+  log_time ();
+  fprintf (lf, "listening USB %s -> pipe%i\n", usb_devs.params[dev].sn, pipe);
+  (void) fflush (lf);
 
   while (1) {
     // this is a safe place to cancel this thread

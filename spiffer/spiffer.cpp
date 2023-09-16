@@ -102,12 +102,8 @@ void log_time (void) {
 void spiffer_input_shutdown (int discon_dev) {
   // shutdown input listeners,
   for (int pipe = 0; pipe < pipe_num_in; pipe++) {
-    // shutdown listener,
     (void) pthread_cancel (listener[pipe]);
     pthread_join (listener[pipe], NULL);
-
-    // and close UDP port
-    close (udp_skt[pipe]);
   }
 
   // shutdown USB devices,
@@ -125,6 +121,8 @@ void spiffer_input_shutdown (int discon_dev) {
         break;
 #endif
       default:
+        log_time ();
+        fprintf (lf, "warning: ignoring unsupported camera type\n");
         break;
       }
     }
@@ -140,6 +138,11 @@ void spiffer_input_shutdown (int discon_dev) {
 void spiffer_stop (int ec) {
   // shutdown input listeners and USB devices,
   spiffer_input_shutdown (USB_NO_DEVICE);
+
+  // close UDP ports,
+  for (int pipe = 0; pipe < pipe_num_in; pipe++) {
+    close (udp_skt[pipe]);
+  }
 
   // shutdown output listeners,
   for (int pipe = 0; pipe < pipe_num_out; pipe++) {
@@ -538,8 +541,6 @@ void usb_survey_devs (void * data) {
 
   // release the lock
   pthread_mutex_unlock (&usb_mtx);
-
-  (void) fflush (lf);
 }
 //--------------------------------------------------------------------
 

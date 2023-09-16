@@ -4,8 +4,7 @@ cmake_minimum_required(VERSION 3.5)
 
 set (CMAKE_CXX_STANDARD 17)
 
-# use colour to highlight error messages
-string (ASCII 10 LF)
+# use colour to highlight messages
 string (ASCII 27 ESC)
 set (BoldRed     "${ESC}[1;31m")
 set (BoldGreen   "${ESC}[1;32m")

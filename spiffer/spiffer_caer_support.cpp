@@ -41,7 +41,6 @@ void spiffer_caer_init (void) {
 int spiffer_caer_config_dev (caerDeviceHandle dh) {
   // send the default configuration before using the device
   bool rc = caerDeviceSendDefaultConfig (dh);
-
   if (!rc) {
     log_time ();
     fprintf (lf, "error: failed to send camera default configuration\n");
@@ -54,10 +53,18 @@ int spiffer_caer_config_dev (caerDeviceHandle dh) {
                             CAER_HOST_CONFIG_PACKETS_MAX_CONTAINER_PACKET_SIZE,
                             USB_EVTS_PER_PKT
                             );
-
   if (!rc) {
     log_time ();
     fprintf (lf, "error: failed to set camera container packet size\n");
+    (void) fflush (lf);
+    return (SPIFFER_ERROR);
+  }
+
+  // set event reception to blocking mode
+  rc = caerDeviceConfigSet (dh, CAER_HOST_CONFIG_DATAEXCHANGE, CAER_HOST_CONFIG_DATAEXCHANGE_BLOCKING, true);
+  if (!rc) {
+    log_time ();
+    fprintf (lf, "error: failed to set blocking mode\n");
     (void) fflush (lf);
     return (SPIFFER_ERROR);
   }
@@ -69,78 +76,60 @@ int spiffer_caer_config_dev (caerDeviceHandle dh) {
 
 //--------------------------------------------------------------------
 // attempt to discover, open and configure cameras supported by libcaer
-//
-// returns the number of discovered devices (0 on error)
 //--------------------------------------------------------------------
-int spiffer_caer_discover_devs (void) {
+void spiffer_caer_discover_devs (void) {
   // number of discovered devices
   int ndd = 0;
 
-  // find Inivation devices
-  caerDeviceDiscoveryResult discovered;
-	ssize_t result = caerDeviceDiscover (CAER_DEVICE_DISCOVER_ALL, &discovered);
-  if (result <= 0) {
-    return (ndd);
-  }
-
-  // identify each device found
-  for (int dv = 0; dv < result; dv++) {
+  // discover devices by trying to open them
+  //NOTE: caerDeviceDiscover causes problems when camerasare connected/disconnected.
+  while (usb_devs.cnt < USB_DISCOVER_CNT) {
     // try to open a new device and give it a device ID,
-  	if (discovered[dv].deviceType == CAER_DEVICE_DAVIS) {
-      caerDeviceHandle dh = caerDeviceOpen (dv + 1, CAER_DEVICE_DAVIS, 0, 0, NULL);
-      if (dh == NULL) {
-        // something went wrong - move on to next one
-        continue;
-      }
+    //TODO: update for other device types
+    caerDeviceHandle dh = caerDeviceOpen (ndd + 1, CAER_DEVICE_DAVIS, 0, 0, NULL);
+    if (dh == NULL) {
+      // no more devices available
+      break;
+    }
 
-      // get camera info
-      struct caer_davis_info davis_info = caerDavisInfoGet (dh);
+    // get camera info
+    struct caer_davis_info davis_info = caerDavisInfoGet (dh);
 
-      // configure device
-      if (spiffer_caer_config_dev (dh) == SPIFFER_ERROR) {
-        // on error close device
-        (void) caerDeviceClose (&dh);
+    // configure device
+    if (spiffer_caer_config_dev (dh) == SPIFFER_ERROR) {
+      // on error close device
+      (void) caerDeviceClose (&dh);
 
-        log_time ();
-        fprintf (lf, "warning: cannot configure device: %s\n", davis_info.deviceString);
-
-        // and move on to the next one
-        continue;
-      }
-
-      // report camera info
       log_time ();
-      fprintf (lf, "%s\n", davis_info.deviceString);
+      fprintf (lf, "warning: cannot configure device: %s\n", davis_info.deviceString);
 
-      // remember device type
-      usb_devs.params[usb_devs.cnt].type = CAER;
-
-      // remember device serial number
-      (void) strcpy (usb_devs.params[usb_devs.cnt].sn, davis_info.deviceSerialNumber);
-
-      // remember device handle
-      usb_devs.params[usb_devs.cnt].caer_hdl = dh;
-
-      // update device count
-      usb_devs.cnt++;
-      ndd++;
-
-      if (usb_devs.cnt >= USB_DISCOVER_CNT) {
-        break;
-      }
-    } else {
-      log_time ();
-      fprintf (lf, "warning: discovered unsupported Inivation device type %i\n", discovered[dv].deviceType);
+      // and move on to the next one
       continue;
     }
+
+    // report camera info
+    log_time ();
+    fprintf (lf, "%s\n", davis_info.deviceString);
+
+    // remember device type
+    usb_devs.params[usb_devs.cnt].type = CAER;
+
+    // remember device serial number
+    (void) strcpy (usb_devs.params[usb_devs.cnt].sn, davis_info.deviceSerialNumber);
+
+    // remember device handle
+    usb_devs.params[usb_devs.cnt].caer_hdl = dh;
+
+    // update device count
+    usb_devs.cnt++;
+    ndd++;
   }
 
   log_time ();
   fprintf (lf, "discovered %i Inivation device%c\n", ndd, ndd == 1 ? ' ' : 's');
   (void) fflush (lf);
 
-  free(discovered);
-  return (ndd);
+  return;
 }
 //--------------------------------------------------------------------
 
@@ -223,19 +212,10 @@ void * spiffer_caer_usb_listener (void * data) {
   caerDeviceHandle ud = usb_devs.params[dev].caer_hdl;
 
   // turn on camera event transmission
-  bool rc = caerDeviceDataStart (ud, NULL, NULL, NULL, &usb_survey_devs, (void *) &int_to_ptr[dev]);
+  bool rc = caerDeviceDataStart (ud, NULL, NULL, NULL, &usb_survey_devs, data);
   if (!rc) {
     log_time ();
     fprintf (lf, "error: failed to start camera event transmission\n");
-    (void) fflush (lf);
-    return (nullptr);
-  }
-
-  // set spiffer event reception to blocking mode
-  rc = caerDeviceConfigSet (ud, CAER_HOST_CONFIG_DATAEXCHANGE, CAER_HOST_CONFIG_DATAEXCHANGE_BLOCKING, true);
-  if (!rc) {
-    log_time ();
-    fprintf (lf, "error: failed to set blocking mode\n");
     (void) fflush (lf);
     return (nullptr);
   }

@@ -42,10 +42,8 @@ int spiffer_caer_config_dev (int pipe, caerDeviceHandle dh);
 
 //--------------------------------------------------------------------
 // attempt to discover, open and configure cameras supported by libcaer
-//
-// returns the number of discovered devices (0 on error)
 //--------------------------------------------------------------------
-int spiffer_caer_discover_devs (void);
+void spiffer_caer_discover_devs (void);
 //--------------------------------------------------------------------
 
 

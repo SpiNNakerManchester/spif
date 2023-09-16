@@ -14,10 +14,6 @@
 #define __SPIFFER_H__
 
 
-//TODO: remove! these are only for the benefit of the editor
-//#define CAER_SUPPORT 1
-//#define META_SUPPORT 1
-
 // Inivation camera support
 #ifdef CAER_SUPPORT
 #include <libcaer/libcaer.h>

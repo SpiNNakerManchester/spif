@@ -35,10 +35,8 @@ void spiffer_meta_init (void);
 
 //--------------------------------------------------------------------
 // attempt to discover and open cameras supported by Metavision SDK
-//
-// returns the number of discovered devices (0 on error)
 //--------------------------------------------------------------------
-int spiffer_meta_discover_devs (void);
+void spiffer_meta_discover_devs (void);
 //--------------------------------------------------------------------
 
 
