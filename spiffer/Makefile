@@ -1,13 +1,7 @@
 INCLUDE_DIR = ../test_code/include
 
-CFLAGS += -I$(INCLUDE_DIR)
-USBCFLAGS += $(CFLAGS) -std=c11 -pedantic -Wall -Wextra -O2
-
-CFILES = spiffer.cpp
-HFILES = spiffer.h $(INCLUDE_DIR)/spif.h $(INCLUDE_DIR)/spif_remote.h
-
-spiffer: $(CFILES) $(HFILES)
-	mkdir -p build && cd build &&	cmake -DCMAKE_BUILD_TYPE=release ..
+spiffer:
+	mkdir -p build && cd build && cmake -DCMAKE_BUILD_TYPE=release ..
 	cd build && make
 
 install: spiffer 99-spiffer.rules spiffer.service
