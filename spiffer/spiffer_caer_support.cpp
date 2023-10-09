@@ -2,7 +2,6 @@
 //*                                              *//
 //*            spiffer libcaer support           *//
 //*                                              *//
-//*                                              *//
 //* lap - 11/08/2023                             *//
 //*                                              *//
 //************************************************//
@@ -78,6 +77,13 @@ int spiffer_caer_config_dev (caerDeviceHandle dh) {
 // attempt to discover, open and configure cameras supported by libcaer
 //--------------------------------------------------------------------
 void spiffer_caer_discover_devs (void) {
+  if (!USB_MIX_CAMERAS && (usb_devs.cnt != 0)) {
+    log_time ();
+    fprintf (lf, "warning: Inivation discovery cancelled - camera mixing disallowed\n");
+    (void) fflush (lf);
+    return;
+  }
+
   // number of discovered devices
   int ndd = 0;
 
@@ -208,6 +214,11 @@ void * spiffer_caer_usb_listener (void * data) {
   int dev  = *((int *) data);
   int pipe = usb_devs.params[dev].pipe;
 
+  // block signals - should be handled in main thread
+  sigset_t set;
+  sigfillset (&set);
+  sigprocmask (SIG_BLOCK, &set, NULL);
+
   uint *           sb = pipe_buf[pipe];
   caerDeviceHandle ud = usb_devs.params[dev].caer_hdl;
 
@@ -217,6 +228,7 @@ void * spiffer_caer_usb_listener (void * data) {
     log_time ();
     fprintf (lf, "error: failed to start camera event transmission\n");
     (void) fflush (lf);
+
     return (nullptr);
   }
 

@@ -19,6 +19,9 @@ extern pthread_mutex_t usb_mtx;
 // log file
 extern FILE * lf;
 
+// used to pass integers as (void *)
+extern int int_to_ptr[SPIF_HW_PIPES_NUM];
+
 
 //--------------------------------------------------------------------
 // include here any Metavision SDK initialisation
@@ -34,6 +37,16 @@ void spiffer_meta_init (void) {
 // attempt to discover and open cameras supported by Metavision SDK
 //--------------------------------------------------------------------
 void spiffer_meta_discover_devs (void) {
+  if (!USB_MIX_CAMERAS && (usb_devs.cnt != 0)) {
+    log_time ();
+    fprintf (lf, "warning: Prophesee discovery cancelled - camera mixing disallowed\n");
+    (void) fflush (lf);
+    return;
+  }
+
+  // Prophesee devices USB bring up takes a bit of time
+  sleep(1);
+
   // number of discovered devices
   int ndd = 0;
 
@@ -49,7 +62,7 @@ void spiffer_meta_discover_devs (void) {
         device = Metavision::DeviceDiscovery::open(s);
       } catch (int err) {
         log_time ();
-        fprintf (lf, "error %d: cannot open device: %s\n", err, s.c_str ());
+        fprintf (lf, "error %i: cannot open device: %s\n", err, s.c_str ());
         continue;
       }
 
@@ -104,6 +117,11 @@ void spiffer_meta_discover_devs (void) {
 void * spiffer_meta_usb_listener (void * data) {
   int dev  = *((int *) data);
   int pipe = usb_devs.params[dev].pipe;
+
+  // block signals - should be handled in main thread
+  sigset_t set;
+  sigfillset (&set);
+  sigprocmask (SIG_BLOCK, &set, NULL);
 
   uint *                               sb = pipe_buf[pipe];
   std::unique_ptr<Metavision::Device>  ud = std::move (usb_devs.params[dev].meta_hdl);
@@ -172,12 +190,31 @@ void * spiffer_meta_usb_listener (void * data) {
 
   while (1) {
     // this is a safe place to cancel this thread
-    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0);
+    pthread_setcancelstate (PTHREAD_CANCEL_ENABLE, 0);
     pthread_testcancel ();
-    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, 0);
+    pthread_setcancelstate (PTHREAD_CANCEL_DISABLE, 0);
 
     // process next batch of events
-    if (events_stream->wait_next_buffer() <= 0) {
+    short rc = events_stream->wait_next_buffer();
+
+    // an error (rc < 0) usually means that the camera was disconnected
+    if (rc < 0) {
+      log_time ();
+      fprintf (lf, "warning: dev %i not responding - assuming disconnected\n", dev);
+      (void) fflush (lf);
+
+      // trigger a device survey
+      usb_survey_devs (&int_to_ptr[dev]);
+
+      // shutdown disconnected camera
+      spiffer_meta_shutdown_dev (dev);
+
+      // wait for thread cancelling
+      pause ();
+    }
+
+    // if buffer empty try again
+    if (rc == 0) {
       continue;
     }
 
@@ -213,5 +250,7 @@ void * spiffer_meta_usb_listener (void * data) {
 //TODO: needs updating!
 //--------------------------------------------------------------------
 void spiffer_meta_shutdown_dev (int dev) {
+  // destroy camera object
+  usb_devs.params[dev].meta_hdl.reset ();
 }
 //--------------------------------------------------------------------

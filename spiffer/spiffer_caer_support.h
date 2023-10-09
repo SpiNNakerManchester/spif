@@ -14,6 +14,8 @@
 #include <libcaer/devices/davis.h>
 #include <libcaer/devices/device_discover.h>
 
+#include <unistd.h>
+#include <signal.h>
 
 // spif and spiffer constants and function prototypes
 #include "spif.h"

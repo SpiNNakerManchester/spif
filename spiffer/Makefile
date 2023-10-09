@@ -1,5 +1,3 @@
-INCLUDE_DIR = ../test_code/include
-
 spiffer:
 	mkdir -p build && cd build && cmake -DCMAKE_BUILD_TYPE=release ..
 	cd build && make

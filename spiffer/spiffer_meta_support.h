@@ -18,6 +18,9 @@
 #include <metavision/hal/facilities/i_events_stream.h>
 #include <metavision/hal/facilities/i_events_stream_decoder.h>
 
+#include <unistd.h>
+#include <signal.h>
+
 // spif and spiffer constants and function prototypes
 #include "spif.h"
 #include "spiffer.h"

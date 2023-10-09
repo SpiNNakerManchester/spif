@@ -42,6 +42,7 @@
 #define USB_EVTS_PER_PKT   256
 #define USB_DISCOVER_CNT   SPIF_HW_PIPES_NUM
 #define USB_NO_DEVICE      -1
+#define USB_MIX_CAMERAS    false
 
 //Spif output commands
 #define SPIFFER_OUT_START  0x5ec00051

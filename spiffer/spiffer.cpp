@@ -46,6 +46,7 @@
 //global variables
 // signals
 struct sigaction signal_cfg;
+bool             signal_taken;
 
 // threads
 pthread_t listener[SPIF_HW_PIPES_NUM];
@@ -100,10 +101,36 @@ void log_time (void) {
 // needed when USB devices are connected or disconnected
 //--------------------------------------------------------------------
 void spiffer_input_shutdown (int discon_dev) {
+  int discon_pipe = (discon_dev != USB_NO_DEVICE) ? usb_devs.params[discon_dev].pipe : USB_NO_DEVICE;
+
   // shutdown input listeners,
   for (int pipe = 0; pipe < pipe_num_in; pipe++) {
-    (void) pthread_cancel (listener[pipe]);
-    pthread_join (listener[pipe], NULL);
+    // cancel listener thread,
+    if (pipe == discon_pipe) {
+      switch (usb_devs.params[discon_dev].type) {
+#ifdef CAER_SUPPORT
+      case CAER:
+        (void) pthread_cancel (listener[pipe]);
+
+        // and wait for it to exit.
+        pthread_join (listener[pipe], NULL);
+
+        break;
+#endif
+#ifdef META_SUPPORT
+      case META:
+        // if a Prophesee camera is disconnected it will exit the thread
+        break;
+#endif
+      default:
+        log_time ();
+        fprintf (lf, "warning: ignoring unsupported camera type\n");
+        break;
+      }
+    } else {
+      (void) pthread_cancel (listener[pipe]);
+      pthread_join (listener[pipe], NULL);
+    }
   }
 
   // shutdown USB devices,
@@ -127,6 +154,8 @@ void spiffer_input_shutdown (int discon_dev) {
       }
     }
   }
+
+  (void) fflush (lf);
 }
 //--------------------------------------------------------------------
 
@@ -144,7 +173,7 @@ void spiffer_stop (int ec) {
     close (udp_skt[pipe]);
   }
 
-  // shutdown output listeners,
+  // shutdown SpiNNaker and output listeners,
   for (int pipe = 0; pipe < pipe_num_out; pipe++) {
     // shutdown SpiNNaker listener,
     (void) pthread_cancel (spinn_listener[pipe]);
@@ -209,9 +238,14 @@ int spiNNaker_init (void) {
 void * spiNNaker_listener (void * data) {
   int pipe = *((int *) data);
 
+  // block signals - should be handled in main thread
+  sigset_t set;
+  sigfillset (&set);
+  sigprocmask (SIG_BLOCK, &set, NULL);
+
   // announce that output has started
   log_time ();
-  fprintf (lf, "listening outpipe%i -> UDP %i\n",
+  fprintf (lf, "listening SpiNNaker -> outpipe%i (UDP %i client)\n",
            pipe, UDP_PORT_BASE - (pipe + 1));
   (void) fflush (lf);
 
@@ -333,6 +367,11 @@ int udp_init (void) {
 void * udp_listener (void * data) {
   int pipe = *((int *) data);
 
+  // block signals - should be handled in main thread
+  sigset_t set;
+  sigfillset (&set);
+  sigprocmask (SIG_BLOCK, &set, NULL);
+
   // announce that listener is ready
   log_time ();
   fprintf (lf, "listening UDP %i -> pipe%i\n", UDP_PORT_BASE + pipe, pipe);
@@ -375,6 +414,11 @@ void * udp_listener (void * data) {
 //--------------------------------------------------------------------
 void * out_udp_listener (void * data) {
   int pipe = *((int *) data);
+
+  // block signals - should be handled in main thread
+  sigset_t set;
+  sigfillset (&set);
+  sigprocmask (SIG_BLOCK, &set, NULL);
 
   // announce that listener is ready
   log_time ();
@@ -669,6 +713,8 @@ int spif_pipes_init (void) {
 // returns SPIFFER_OK on success or SPIFFER_ERROR on error
 //--------------------------------------------------------------------
 int sig_init (void) {
+  signal_taken = false;
+
   // set up signal servicing
   signal_cfg.sa_handler = &sig_service;
   signal_cfg.sa_flags = 0;
@@ -707,11 +753,23 @@ int sig_init (void) {
 void sig_service (int signum) {
   switch (signum) {
     case SIGUSR1:
+      // check if this is a duplicate signal (more than 1 camera)
+      if (signal_taken) {
+        signal_taken = false;
+        break;
+      }
+
       // shutdown input listeners and USB devices,
       spiffer_input_shutdown (USB_NO_DEVICE);
 
       // need to survey USB devices
       usb_survey_devs (NULL);
+
+      sigset_t s;
+      sigpending (&s);
+      if (sigismember (&s, SIGUSR1)) {
+        signal_taken = true;
+      }
       break;
 
     case SIGUSR2:
@@ -781,6 +839,11 @@ int main (int argc, char *argv[])
 
   // update log,
   (void) fflush (lf);
+
+  // block signals - should be handled in main thread
+  sigset_t set;
+  sigfillset (&set);
+  sigprocmask (SIG_BLOCK, &set, NULL);
 
   // and go to sleep - let the listeners do the work
   while (1) {
