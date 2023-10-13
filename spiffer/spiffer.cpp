@@ -101,7 +101,7 @@ void log_time (void) {
 // needed when USB devices are connected or disconnected
 //--------------------------------------------------------------------
 void spiffer_input_shutdown (int discon_dev) {
-  int discon_pipe = (discon_dev != USB_NO_DEVICE) ? usb_devs.params[discon_dev].pipe : USB_NO_DEVICE;
+  int discon_pipe = (discon_dev != SPIFFER_USB_NO_DEVICE) ? usb_devs.params[discon_dev].pipe : SPIFFER_USB_NO_DEVICE;
 
   // shutdown input listeners,
   for (int pipe = 0; pipe < pipe_num_in; pipe++) {
@@ -166,7 +166,7 @@ void spiffer_input_shutdown (int discon_dev) {
 //--------------------------------------------------------------------
 void spiffer_stop (int ec) {
   // shutdown input listeners and USB devices,
-  spiffer_input_shutdown (USB_NO_DEVICE);
+  spiffer_input_shutdown (SPIFFER_USB_NO_DEVICE);
 
   // close UDP ports,
   for (int pipe = 0; pipe < pipe_num_in; pipe++) {
@@ -246,7 +246,7 @@ void * spiNNaker_listener (void * data) {
   // announce that output has started
   log_time ();
   fprintf (lf, "listening SpiNNaker -> outpipe%i (UDP %i client)\n",
-           pipe, UDP_PORT_BASE - (pipe + 1));
+           pipe, SPIFFER_UDP_PORT_BASE - (pipe + 1));
   (void) fflush (lf);
 
   uint * sb = pipe_out_buf[pipe];
@@ -286,7 +286,7 @@ void * spiNNaker_listener (void * data) {
 int udp_init (void) {
   // set up input UDP servers
   for (int pipe = 0; pipe < pipe_num_in; pipe++) {
-    int eth_port = UDP_PORT_BASE + pipe;
+    int eth_port = SPIFFER_UDP_PORT_BASE + pipe;
 
     // create UDP socket,
     int skt = socket (AF_INET, SOCK_DGRAM, 0);
@@ -317,7 +317,7 @@ int udp_init (void) {
 
   // set up output command UDP servers
   for (int pipe = 0; pipe < pipe_num_out; pipe++) {
-    int eth_port = UDP_PORT_BASE - (pipe + 1);
+    int eth_port = SPIFFER_UDP_PORT_BASE - (pipe + 1);
 
     // create UDP socket,
     int skt = socket (AF_INET, SOCK_DGRAM, 0);
@@ -374,7 +374,7 @@ void * udp_listener (void * data) {
 
   // announce that listener is ready
   log_time ();
-  fprintf (lf, "listening UDP %i -> pipe%i\n", UDP_PORT_BASE + pipe, pipe);
+  fprintf (lf, "listening UDP %i -> pipe%i\n", SPIFFER_UDP_PORT_BASE + pipe, pipe);
   (void) fflush (lf);
 
   uint * sb = pipe_buf[pipe];
@@ -423,7 +423,7 @@ void * out_udp_listener (void * data) {
   // announce that listener is ready
   log_time ();
   fprintf (lf, "listening UDP %i for output commands\n",
-           UDP_PORT_BASE - (pipe + 1));
+           SPIFFER_UDP_PORT_BASE - (pipe + 1));
   (void) fflush (lf);
 
   client_addr_len[pipe] = sizeof (struct sockaddr);
@@ -464,7 +464,7 @@ void * out_udp_listener (void * data) {
         break;
       default:
         fprintf (lf, "warning: unknown output command received UDP %i\n",
-                 UDP_PORT_BASE - (pipe + 1));
+                 SPIFFER_UDP_PORT_BASE - (pipe + 1));
       }
 
       (void) fflush (lf);
@@ -481,7 +481,7 @@ void * out_udp_listener (void * data) {
 //--------------------------------------------------------------------
 void usb_sort_pipes () {
   // create a sorted list of serial numbers,
-  int sorted[USB_DISCOVER_CNT];
+  int sorted[SPIFFER_USB_DISCOVER_CNT];
 
   // start with an unsorted list,
   for (int dv = 0; dv < usb_devs.cnt; dv++) {
@@ -512,11 +512,14 @@ void usb_sort_pipes () {
 // attempt to discover new devices connected to the USB bus
 // sort devices by serial number for consistent mapping to spif pipes
 //
-// discon_dev = disconnected USB device, USB_NO_DEVICE for unknown
+// discon_dev = disconnected USB device, SPIFFER_USB_NO_DEVICE for unknown
 //--------------------------------------------------------------------
 void usb_discover_devs (int discon_dev) {
   // if needed, shutdown input listeners and USB devices,
-  if (discon_dev != USB_NO_DEVICE) {
+  if (discon_dev != SPIFFER_USB_NO_DEVICE) {
+    log_time ();
+    fprintf (lf, "device %s disconnected\n", usb_devs.params[discon_dev].sn);
+
     spiffer_input_shutdown (discon_dev);
   }
 
@@ -550,7 +553,7 @@ void usb_discover_devs (int discon_dev) {
 // no return value
 //--------------------------------------------------------------------
 void usb_survey_devs (void * data) {
-  int discon_dev = (data == NULL) ? USB_NO_DEVICE : *((int *) data);
+  int discon_dev = (data == NULL) ? SPIFFER_USB_NO_DEVICE : *((int *) data);
 
   // grab the lock - keep other threads out
   pthread_mutex_lock (&usb_mtx);
@@ -760,7 +763,7 @@ void sig_service (int signum) {
       }
 
       // shutdown input listeners and USB devices,
-      spiffer_input_shutdown (USB_NO_DEVICE);
+      spiffer_input_shutdown (SPIFFER_USB_NO_DEVICE);
 
       // need to survey USB devices
       usb_survey_devs (NULL);

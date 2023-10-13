@@ -37,7 +37,7 @@ void spiffer_meta_init (void) {
 // attempt to discover and open cameras supported by Metavision SDK
 //--------------------------------------------------------------------
 void spiffer_meta_discover_devs (void) {
-  if (!USB_MIX_CAMERAS && (usb_devs.cnt != 0)) {
+  if (!SPIFFER_USB_MIX_CAMERAS && (usb_devs.cnt != 0)) {
     log_time ();
     fprintf (lf, "warning: Prophesee discovery cancelled - camera mixing disallowed\n");
     (void) fflush (lf);
@@ -86,7 +86,7 @@ void spiffer_meta_discover_devs (void) {
       usb_devs.cnt++;
       ndd++;
 
-      if (usb_devs.cnt >= USB_DISCOVER_CNT) {
+      if (usb_devs.cnt >= SPIFFER_META_DISCOVER_CNT) {
         break;
       }
     }
@@ -152,11 +152,16 @@ void * spiffer_meta_usb_listener (void * data) {
 
   // register event processing callback
   if (cd_event_decoder) {
-    // Register a lambda function to be called on every CD events
+    // Register a lambda function to be called on every CD event
     cd_event_decoder->add_event_buffer_callback (
-      [pipe, sb, &evt_ctr](const Metavision::EventCD *begin, const Metavision::EventCD *end) {
-        for (auto it = begin; it != end; ++it) {
-          sb[evt_ctr] = 0x80000000 | (it->x << 16) | (it->p << 15) | it->y;
+      [pipe, sb, &evt_ctr](const Metavision::EventCD *first, const Metavision::EventCD *last) {
+        for (auto it = first; it != last; ++it) {
+          uint pol = it->p;
+          uint x   = it->x;
+          uint y   = it->y;
+
+          // format event and store in buffer
+          sb[evt_ctr] = SPIFFER_EVT_NO_TS | (x << SPIFFER_EVT_X_SHIFT) | (pol << SPIFFER_EVT_P_SHIFT) | (y << SPIFFER_EVT_Y_SHIFT);
           if (++evt_ctr == SPIFFER_BATCH_SIZE) {
             // trigger a transfer to SpiNNaker
             spif_transfer (pipe, evt_ctr);
@@ -200,7 +205,7 @@ void * spiffer_meta_usb_listener (void * data) {
     // an error (rc < 0) usually means that the camera was disconnected
     if (rc < 0) {
       log_time ();
-      fprintf (lf, "warning: dev %i not responding - assuming disconnected\n", dev);
+      fprintf (lf, "warning: device %s stopped responding\n", usb_devs.params[dev].sn);
       (void) fflush (lf);
 
       // trigger a device survey
@@ -223,7 +228,9 @@ void * spiffer_meta_usb_listener (void * data) {
     events_stream_decoder->decode(ev_raw_data, ev_raw_data + rcv_bytes);
 
     // trigger a transfer to SpiNNaker
-    spif_transfer (pipe, rcv_bytes);
+    if (evt_ctr != 0) {
+      spif_transfer (pipe, evt_ctr);
+    }
 
     // wait until spif finishes the current transfer
     //NOTE: report when waiting too long!

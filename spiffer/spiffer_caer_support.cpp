@@ -50,7 +50,7 @@ int spiffer_caer_config_dev (caerDeviceHandle dh) {
   // adjust number of events that a container packet can hold
   rc = caerDeviceConfigSet (dh, CAER_HOST_CONFIG_PACKETS,
                             CAER_HOST_CONFIG_PACKETS_MAX_CONTAINER_PACKET_SIZE,
-                            USB_EVTS_PER_PKT
+                            SPIFFER_USB_EVTS_PER_PKT
                             );
   if (!rc) {
     log_time ();
@@ -77,7 +77,7 @@ int spiffer_caer_config_dev (caerDeviceHandle dh) {
 // attempt to discover, open and configure cameras supported by libcaer
 //--------------------------------------------------------------------
 void spiffer_caer_discover_devs (void) {
-  if (!USB_MIX_CAMERAS && (usb_devs.cnt != 0)) {
+  if (!SPIFFER_USB_MIX_CAMERAS && (usb_devs.cnt != 0)) {
     log_time ();
     fprintf (lf, "warning: Inivation discovery cancelled - camera mixing disallowed\n");
     (void) fflush (lf);
@@ -89,7 +89,7 @@ void spiffer_caer_discover_devs (void) {
 
   // discover devices by trying to open them
   //NOTE: caerDeviceDiscover causes problems when camerasare connected/disconnected.
-  while (usb_devs.cnt < USB_DISCOVER_CNT) {
+  while (usb_devs.cnt < SPIFFER_CAER_DISCOVER_CNT) {
     // try to open a new device and give it a device ID,
     //TODO: update for other device types
     caerDeviceHandle dh = caerDeviceOpen (ndd + 1, CAER_DEVICE_DAVIS, 0, 0, NULL);
@@ -191,7 +191,7 @@ int spiffer_caer_get_events (caerDeviceHandle dev, uint * buf) {
       uint16_t y   = caerPolarityEventGetY (event);
 
       // format event and store in buffer
-      buf[evt_num++] = 0x80000000 | (x << 16) | (pol << 15) | y;
+      buf[evt_num++] = SPIFFER_EVT_NO_TS | (x << SPIFFER_EVT_X_SHIFT) | (pol << SPIFFER_EVT_P_SHIFT) | (y << SPIFFER_EVT_Y_SHIFT);
     }
 
     // release packet container

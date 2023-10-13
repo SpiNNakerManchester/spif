@@ -38,13 +38,23 @@
 #define SPIFFER_ERROR      -1
 #define SPIFFER_OK         0
 #define SPIFFER_BATCH_SIZE 256
-#define UDP_PORT_BASE      3333
-#define USB_EVTS_PER_PKT   256
-#define USB_DISCOVER_CNT   SPIF_HW_PIPES_NUM
-#define USB_NO_DEVICE      -1
-#define USB_MIX_CAMERAS    false
 
-//Spif output commands
+#define SPIFFER_UDP_PORT_BASE      3333
+
+#define SPIFFER_USB_EVTS_PER_PKT   256
+#define SPIFFER_USB_DISCOVER_CNT   SPIF_HW_PIPES_NUM
+#define SPIFFER_USB_NO_DEVICE      -1
+#define SPIFFER_USB_MIX_CAMERAS    false
+
+#define SPIFFER_EVT_X_SHIFT        16
+#define SPIFFER_EVT_X_MASK         0x7fff
+#define SPIFFER_EVT_Y_SHIFT        0
+#define SPIFFER_EVT_Y_MASK         0x7fff
+#define SPIFFER_EVT_P_SHIFT        15
+#define SPIFFER_EVT_P_MASK         0x1
+#define SPIFFER_EVT_NO_TS          0x80000000
+
+// spif output commands
 #define SPIFFER_OUT_START  0x5ec00051
 #define SPIFFER_OUT_STOP   0x5ec00050
 
