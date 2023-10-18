@@ -44,9 +44,6 @@ void spiffer_meta_discover_devs (void) {
     return;
   }
 
-  // Prophesee devices USB bring up takes a bit of time
-  sleep(1);
-
   // number of discovered devices
   int ndd = 0;
 

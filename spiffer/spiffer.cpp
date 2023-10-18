@@ -47,6 +47,7 @@
 // signals
 struct sigaction signal_cfg;
 bool             signal_taken;
+pthread_mutex_t  signal_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 // threads
 pthread_t listener[SPIF_HW_PIPES_NUM];
@@ -515,14 +516,6 @@ void usb_sort_pipes () {
 // discon_dev = disconnected USB device, SPIFFER_USB_NO_DEVICE for unknown
 //--------------------------------------------------------------------
 void usb_discover_devs (int discon_dev) {
-  // if needed, shutdown input listeners and USB devices,
-  if (discon_dev != SPIFFER_USB_NO_DEVICE) {
-    log_time ();
-    fprintf (lf, "device %s disconnected\n", usb_devs.params[discon_dev].sn);
-
-    spiffer_input_shutdown (discon_dev);
-  }
-
   // start from a clean state,
   usb_devs.cnt = 0;
 
@@ -553,7 +546,22 @@ void usb_discover_devs (int discon_dev) {
 // no return value
 //--------------------------------------------------------------------
 void usb_survey_devs (void * data) {
-  int discon_dev = (data == NULL) ? SPIFFER_USB_NO_DEVICE : *((int *) data);
+  // report disconnected device
+  int discon_dev;
+  if (data == NULL) {
+    discon_dev = SPIFFER_USB_NO_DEVICE;
+  } else {
+    discon_dev = *((int *) data);
+    if (discon_dev < SPIFFER_USB_DISCOVER_CNT) {
+      log_time ();
+      fprintf (lf, "device %s disconnected\n", usb_devs.params[discon_dev].sn);
+    }
+  }
+
+  // if needed shutdown input listeners and USB devices,
+  if (discon_dev < SPIFFER_USB_DISCOVER_CNT) {
+    spiffer_input_shutdown (discon_dev);
+  }
 
   // grab the lock - keep other threads out
   pthread_mutex_lock (&usb_mtx);
@@ -609,7 +617,7 @@ int usb_init (void) {
 #endif
 
   // discover USB devices
-  usb_survey_devs (NULL);
+  usb_survey_devs (&int_to_ptr[SPIFFER_USB_DISCOVER_CNT]);
 
   return (SPIFFER_OK);
 }
@@ -756,23 +764,33 @@ int sig_init (void) {
 void sig_service (int signum) {
   switch (signum) {
     case SIGUSR1:
+      // grab the lock - keep other threads out
+      pthread_mutex_lock (&signal_mtx);
+
       // check if this is a duplicate signal (more than 1 camera)
       if (signal_taken) {
         signal_taken = false;
-        break;
+log_time ();
+fprintf (lf, "ST\n");
+(void) fflush (lf);
+      } else {
+        // some USB devices take a bit of time to stabilise
+        sleep (1);
+
+        // need to survey USB devices
+        usb_survey_devs (NULL);
+
+        // avoid responding to a second signal instance
+        sigset_t s;
+        sigpending (&s);
+        if (sigismember (&s, SIGUSR1)) {
+          signal_taken = true;
+        }
       }
 
-      // shutdown input listeners and USB devices,
-      spiffer_input_shutdown (SPIFFER_USB_NO_DEVICE);
+      // release the lock
+      pthread_mutex_unlock (&signal_mtx);
 
-      // need to survey USB devices
-      usb_survey_devs (NULL);
-
-      sigset_t s;
-      sigpending (&s);
-      if (sigismember (&s, SIGUSR1)) {
-        signal_taken = true;
-      }
       break;
 
     case SIGUSR2:
