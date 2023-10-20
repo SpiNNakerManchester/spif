@@ -20,7 +20,7 @@ extern pthread_mutex_t usb_mtx;
 extern FILE * lf;
 
 // used to pass integers as (void *)
-extern int int_to_ptr[SPIF_HW_PIPES_NUM];
+extern int dev_to_ptr[SPIFFER_USB_DISCOVER_CNT + 1];
 
 
 //--------------------------------------------------------------------
@@ -46,6 +46,9 @@ void spiffer_meta_discover_devs (void) {
 
   // number of discovered devices
   int ndd = 0;
+
+  // Prophesee devices take a bit of time to start up
+  sleep (SPIFFER_META_DISCOVER_DLY);
 
   // find prophesee devices
   auto v = Metavision::DeviceDiscovery::list();
@@ -115,7 +118,7 @@ void * spiffer_meta_usb_listener (void * data) {
   int dev  = *((int *) data);
   int pipe = usb_devs.params[dev].pipe;
 
-  // block signals - should be handled in main thread
+  // block signals - should be handled in a different thread
   sigset_t set;
   sigfillset (&set);
   sigprocmask (SIG_BLOCK, &set, NULL);
@@ -206,7 +209,7 @@ void * spiffer_meta_usb_listener (void * data) {
       (void) fflush (lf);
 
       // trigger a device survey
-      usb_survey_devs (&int_to_ptr[dev]);
+      usb_survey_devs (&dev_to_ptr[dev]);
 
       // shutdown disconnected camera
       spiffer_meta_shutdown_dev (dev);

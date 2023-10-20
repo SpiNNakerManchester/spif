@@ -26,6 +26,7 @@
 #include "spiffer.h"
 
 #define SPIFFER_META_DISCOVER_CNT  SPIFFER_USB_DISCOVER_CNT
+#define SPIFFER_META_DISCOVER_DLY  1
 
 int spif_busy (uint pipe);
 int spif_transfer (uint pipe, int length);

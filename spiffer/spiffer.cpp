@@ -63,7 +63,7 @@ uint * pipe_buf[SPIF_HW_PIPES_NUM];
 uint * pipe_out_buf[SPIF_HW_PIPES_NUM];
 
 // used to pass integers as (void *)
-int int_to_ptr[SPIF_HW_PIPES_NUM];
+int dev_to_ptr[SPIFFER_USB_DISCOVER_CNT + 1];
 
 // SpiNNaker listener
 int out_start[SPIF_HW_PIPES_NUM];
@@ -221,7 +221,7 @@ int spiNNaker_init (void) {
   // start SpiNNaker listeners
   for (int pipe = 0; pipe < pipe_num_out; pipe++) {
     (void) pthread_create (&spinn_listener[pipe], NULL,
-                           spiNNaker_listener, (void *) &int_to_ptr[pipe]);
+                           spiNNaker_listener, (void *) &dev_to_ptr[pipe]);
   }
 
   return (SPIFFER_OK);
@@ -239,7 +239,7 @@ int spiNNaker_init (void) {
 void * spiNNaker_listener (void * data) {
   int pipe = *((int *) data);
 
-  // block signals - should be handled in main thread
+  // block signals - should be handled in a different thread
   sigset_t set;
   sigfillset (&set);
   sigprocmask (SIG_BLOCK, &set, NULL);
@@ -350,7 +350,7 @@ int udp_init (void) {
   // start output command UDP listeners
   for (int pipe = 0; pipe < pipe_num_out; pipe++) {
     (void) pthread_create (&out_listener[pipe], NULL,
-                           out_udp_listener, (void *) &int_to_ptr[pipe]);
+                           out_udp_listener, (void *) &dev_to_ptr[pipe]);
   }
 
   return (SPIFFER_OK);
@@ -368,7 +368,7 @@ int udp_init (void) {
 void * udp_listener (void * data) {
   int pipe = *((int *) data);
 
-  // block signals - should be handled in main thread
+  // block signals - should be handled in a different thread
   sigset_t set;
   sigfillset (&set);
   sigprocmask (SIG_BLOCK, &set, NULL);
@@ -416,7 +416,7 @@ void * udp_listener (void * data) {
 void * out_udp_listener (void * data) {
   int pipe = *((int *) data);
 
-  // block signals - should be handled in main thread
+  // block signals - should be handled in a different thread
   sigset_t set;
   sigfillset (&set);
   sigprocmask (SIG_BLOCK, &set, NULL);
@@ -519,14 +519,14 @@ void usb_discover_devs (int discon_dev) {
   // start from a clean state,
   usb_devs.cnt = 0;
 
-#ifdef CAER_SUPPORT
-  // find Inivation devices (updates usb_devs.cnt),
-  spiffer_caer_discover_devs ();
-#endif
-
 #ifdef META_SUPPORT
   // find prophesee devices (updates usb_devs.cnt),
   spiffer_meta_discover_devs ();
+#endif
+
+#ifdef CAER_SUPPORT
+  // find Inivation devices (updates usb_devs.cnt),
+  spiffer_caer_discover_devs ();
 #endif
 
   // and assign pipes to devices (sorted by serial number)
@@ -546,6 +546,12 @@ void usb_discover_devs (int discon_dev) {
 // no return value
 //--------------------------------------------------------------------
 void usb_survey_devs (void * data) {
+  // try to grab the lock - keep other threads out
+  if (pthread_mutex_trylock (&usb_mtx)) {
+    // other thread surveying USB devices - leave without doing anything
+    return;
+  };
+
   // report disconnected device
   int discon_dev;
   if (data == NULL) {
@@ -563,9 +569,6 @@ void usb_survey_devs (void * data) {
     spiffer_input_shutdown (discon_dev);
   }
 
-  // grab the lock - keep other threads out
-  pthread_mutex_lock (&usb_mtx);
-
   // try to discover supported USB devices
   usb_discover_devs (discon_dev);
 
@@ -574,12 +577,12 @@ void usb_survey_devs (void * data) {
     switch (usb_devs.params[dv].type) {
 #ifdef CAER_SUPPORT
     case CAER:
-      (void) pthread_create (&listener[usb_devs.params[dv].pipe], NULL, spiffer_caer_usb_listener, (void *) &int_to_ptr[dv]);
+      (void) pthread_create (&listener[usb_devs.params[dv].pipe], NULL, spiffer_caer_usb_listener, (void *) &dev_to_ptr[dv]);
       break;
 #endif
 #ifdef META_SUPPORT
     case META:
-      (void) pthread_create (&listener[usb_devs.params[dv].pipe], NULL, spiffer_meta_usb_listener, (void *) &int_to_ptr[dv]);
+      (void) pthread_create (&listener[usb_devs.params[dv].pipe], NULL, spiffer_meta_usb_listener, (void *) &dev_to_ptr[dv]);
       break;
 #endif
     default:
@@ -591,7 +594,7 @@ void usb_survey_devs (void * data) {
 
   // and start UDP listeners on the rest of the pipes
   for (int pipe = usb_devs.cnt; pipe < pipe_num_in; pipe++) {
-    (void) pthread_create (&listener[pipe], NULL, udp_listener, (void *) &int_to_ptr[pipe]);
+    (void) pthread_create (&listener[pipe], NULL, udp_listener, (void *) &dev_to_ptr[pipe]);
   }
 
   // release the lock
@@ -606,6 +609,10 @@ void usb_survey_devs (void * data) {
 // returns SPIFFER_OK on success or SPIFFER_ERROR on error
 //--------------------------------------------------------------------
 int usb_init (void) {
+  for (int dev = 0; dev <= SPIFFER_USB_DISCOVER_CNT; dev++) {
+    dev_to_ptr[dev] = dev;
+  }
+
 #ifdef CAER_SUPPORT
   // Libcaer initialisation,
   spiffer_caer_init ();
@@ -617,7 +624,7 @@ int usb_init (void) {
 #endif
 
   // discover USB devices
-  usb_survey_devs (&int_to_ptr[SPIFFER_USB_DISCOVER_CNT]);
+  usb_survey_devs (&dev_to_ptr[SPIFFER_USB_DISCOVER_CNT]);
 
   return (SPIFFER_OK);
 }
@@ -678,7 +685,6 @@ int spif_pipes_init (void) {
   }
 
   // open the rest of the pipes
-  int_to_ptr[0] = 0;
   for (int pipe = 1; pipe < pipe_max_num; pipe++) {
     // open spif pipe
     pipe_fd[pipe] = spif_open (pipe);
@@ -687,8 +693,6 @@ int spif_pipes_init (void) {
       fprintf (lf, "error: unable to open spif pipe%i\n", pipe);
       return (SPIFFER_ERROR);
     }
-    int_to_ptr[pipe] = pipe;
-
   }
 
   // set up input buffers
@@ -764,24 +768,30 @@ int sig_init (void) {
 void sig_service (int signum) {
   switch (signum) {
     case SIGUSR1:
-      // grab the lock - keep other threads out
-      pthread_mutex_lock (&signal_mtx);
+log_time ();
+fprintf (lf, "S - 0x%08x\n", (uint) pthread_self ());
+(void) fflush (lf);
+      // try to grab the lock - keep other threads out
+      if (pthread_mutex_trylock (&signal_mtx)) {
+        // other thread servicing the signal - leave without doing anything
+        break;
+      };
 
-      // check if this is a duplicate signal (more than 1 camera)
       if (signal_taken) {
         signal_taken = false;
 log_time ();
-fprintf (lf, "ST\n");
+fprintf (lf, "ST - 0x%08x\n", (uint) pthread_self ());
 (void) fflush (lf);
       } else {
-        // some USB devices take a bit of time to stabilise
-        sleep (1);
-
         // need to survey USB devices
         usb_survey_devs (NULL);
 
-        // avoid responding to a second signal instance
+        // avoid responding to repeated signal instances
         sigset_t s;
+
+        // some USB devices take a bit of time to send signals
+//lap        sleep (SPIFFER_SIG_DLY);
+
         sigpending (&s);
         if (sigismember (&s, SIGUSR1)) {
           signal_taken = true;
@@ -861,7 +871,7 @@ int main (int argc, char *argv[])
   // update log,
   (void) fflush (lf);
 
-  // block signals - should be handled in main thread
+  // block signals - should be handled in a different thread
   sigset_t set;
   sigfillset (&set);
   sigprocmask (SIG_BLOCK, &set, NULL);

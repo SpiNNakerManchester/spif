@@ -58,6 +58,8 @@
 #define SPIFFER_OUT_START  0x5ec00051
 #define SPIFFER_OUT_STOP   0x5ec00050
 
+#define SPIFFER_SIG_DLY    10
+
 // log file
 //TODO: maybe change to system/kernel log
 static const char * log_name = "/tmp/spiffer.log";

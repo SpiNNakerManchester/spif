@@ -14,7 +14,7 @@
 extern uint * pipe_buf[SPIF_HW_PIPES_NUM];
 
 // used to pass integers as (void *)
-extern int int_to_ptr[SPIF_HW_PIPES_NUM];
+extern int dev_to_ptr[SPIFFER_USB_DISCOVER_CNT + 1];
 
 // USB devices
 extern usb_devs_t      usb_devs;
@@ -214,7 +214,7 @@ void * spiffer_caer_usb_listener (void * data) {
   int dev  = *((int *) data);
   int pipe = usb_devs.params[dev].pipe;
 
-  // block signals - should be handled in main thread
+  // block signals - should be handled in a different thread
   sigset_t set;
   sigfillset (&set);
   sigprocmask (SIG_BLOCK, &set, NULL);
