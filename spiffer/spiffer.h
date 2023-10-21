@@ -256,15 +256,24 @@ int sig_init (void);
 
 
 //--------------------------------------------------------------------
-// service system signals
+// service TERM signal
 //
-// SIGUSR1 indicates that a USB device has been connected
-// SIGUSR2 ignored (duplicate connection event)
 // SIGTERM requests spiffer to stop
 //
 // no return value
 //--------------------------------------------------------------------
-void sig_service (int signum);
+void sig_term (int signum);
+//--------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+// service USR1 signal
+//
+// SIGUSR1 indicates that a USB device has been connected
+//
+// no return value
+//--------------------------------------------------------------------
+void sig_usr1 (int signum);
 //--------------------------------------------------------------------
 
 

@@ -45,9 +45,10 @@
 
 //global variables
 // signals
-struct sigaction signal_cfg;
-bool             signal_taken;
+bool             signal_usr1_taken;
 pthread_mutex_t  signal_mtx = PTHREAD_MUTEX_INITIALIZER;
+struct sigaction signal_term_cfg;
+struct sigaction signal_usr1_cfg;
 
 // threads
 pthread_t listener[SPIF_HW_PIPES_NUM];
@@ -613,6 +614,8 @@ int usb_init (void) {
     dev_to_ptr[dev] = dev;
   }
 
+  usb_devs.cnt = 0;
+
 #ifdef CAER_SUPPORT
   // Libcaer initialisation,
   spiffer_caer_init ();
@@ -622,9 +625,6 @@ int usb_init (void) {
   // Metavision SDK library initialisation,
   spiffer_meta_init ();
 #endif
-
-  // discover USB devices
-  usb_survey_devs (&dev_to_ptr[SPIFFER_USB_DISCOVER_CNT]);
 
   return (SPIFFER_OK);
 }
@@ -728,89 +728,78 @@ int spif_pipes_init (void) {
 // returns SPIFFER_OK on success or SPIFFER_ERROR on error
 //--------------------------------------------------------------------
 int sig_init (void) {
-  signal_taken = false;
+  signal_usr1_taken = false;
 
-  // set up signal servicing
-  signal_cfg.sa_handler = &sig_service;
-  signal_cfg.sa_flags = 0;
-  sigemptyset (&signal_cfg.sa_mask);
-  sigaddset   (&signal_cfg.sa_mask, SIGTERM);
-  sigaddset   (&signal_cfg.sa_mask, SIGUSR1);
-  sigaddset   (&signal_cfg.sa_mask, SIGUSR2);
+  // set up USR1 signal servicing
+  signal_usr1_cfg.sa_handler = &sig_usr1;
+  signal_usr1_cfg.sa_flags = 0;
+  sigemptyset (&signal_usr1_cfg.sa_mask);
 
   // register signal service routine
-  if (sigaction (SIGUSR1,  &signal_cfg, NULL) == SPIFFER_ERROR) {
+  if (sigaction (SIGUSR1,  &signal_usr1_cfg, NULL) == SPIFFER_ERROR) {
     return (SPIFFER_ERROR);
   }
 
-  if (sigaction (SIGUSR2,  &signal_cfg, NULL) == SPIFFER_ERROR) {
-    return (SPIFFER_ERROR);
-  }
+  // set up TERM signal servicing
+  signal_term_cfg.sa_handler = &sig_term;
+  signal_term_cfg.sa_flags = 0;
+  sigemptyset (&signal_term_cfg.sa_mask);
+  sigaddset   (&signal_term_cfg.sa_mask, SIGTERM);
 
-  if (sigaction (SIGINT,  &signal_cfg, NULL) == SPIFFER_ERROR) {
-    return (SPIFFER_ERROR);
-  }
-
-  return (sigaction (SIGTERM, &signal_cfg, NULL));
+  return (sigaction (SIGTERM, &signal_term_cfg, NULL));
 }
 //--------------------------------------------------------------------
 
 
 //--------------------------------------------------------------------
-// service system signals
+// service TERM signal
 //
-// SIGUSR1 indicates that a USB device has been connected
-// SIGUSR2 ignored (duplicate connection event)
 // SIGTERM requests spiffer to stop
 //
 // no return value
 //--------------------------------------------------------------------
-void sig_service (int signum) {
-  switch (signum) {
-    case SIGUSR1:
-log_time ();
-fprintf (lf, "S - 0x%08x\n", (uint) pthread_self ());
-(void) fflush (lf);
-      // try to grab the lock - keep other threads out
-      if (pthread_mutex_trylock (&signal_mtx)) {
-        // other thread servicing the signal - leave without doing anything
-        break;
-      };
+void sig_term (int signum) {
+  (void) signum;
 
-      if (signal_taken) {
-        signal_taken = false;
-log_time ();
-fprintf (lf, "ST - 0x%08x\n", (uint) pthread_self ());
-(void) fflush (lf);
-      } else {
-        // need to survey USB devices
-        usb_survey_devs (NULL);
+  // spiffer shut down requested
+  spiffer_stop (SPIFFER_OK);
+}
+//--------------------------------------------------------------------
 
-        // avoid responding to repeated signal instances
-        sigset_t s;
 
-        // some USB devices take a bit of time to send signals
-//lap        sleep (SPIFFER_SIG_DLY);
+//--------------------------------------------------------------------
+// service USR1 signal
+//
+// SIGUSR1 indicates that a USB device has been connected
+//
+// no return value
+//--------------------------------------------------------------------
+void sig_usr1 (int signum) {
+  (void) signum;
 
-        sigpending (&s);
-        if (sigismember (&s, SIGUSR1)) {
-          signal_taken = true;
-        }
-      }
+  // try to grab the lock - keep other threads out
+  if (pthread_mutex_trylock (&signal_mtx)) {
+    // other thread servicing the signal - leave without doing anything
+    return;
+  };
 
-      // release the lock
-      pthread_mutex_unlock (&signal_mtx);
+  if (signal_usr1_taken) {
+    signal_usr1_taken = false;
+  } else {
+    // need to survey USB devices
+    usb_survey_devs (NULL);
 
-      break;
+    // avoid responding to repeated signal instances
+    sigset_t s;
 
-    case SIGUSR2:
-      // ignore bind events
-      break;
-
-    default:
-      // spiffer shut down requested
-      spiffer_stop (SPIFFER_OK);
+    sigpending (&s);
+    if (sigismember (&s, SIGUSR1)) {
+      signal_usr1_taken = true;
+    }
   }
+
+  // release the lock
+  pthread_mutex_unlock (&signal_mtx);
 }
 //--------------------------------------------------------------------
 
@@ -871,10 +860,12 @@ int main (int argc, char *argv[])
   // update log,
   (void) fflush (lf);
 
-  // block signals - should be handled in a different thread
-  sigset_t set;
-  sigfillset (&set);
-  sigprocmask (SIG_BLOCK, &set, NULL);
+  // discover USB devces only if no USB-triggered signals already caused discovery
+  //NOTE: allow enough time for signals to be procesed
+  sleep (SPIFFER_SIG_DLY);
+  if (usb_devs.cnt == 0) {
+    usb_survey_devs (&dev_to_ptr[SPIFFER_USB_DISCOVER_CNT]);
+  }
 
   // and go to sleep - let the listeners do the work
   while (1) {
