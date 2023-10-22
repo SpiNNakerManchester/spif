@@ -36,8 +36,8 @@
 // hardware version
 // semantic versioning [MM = major, mm = minor, pp = patch]
 //---------------------------------------------------------------
-`define SPIF_VER_STR      "0.2.0"
-`define SPIF_VER_NUM      `HW_VER_BITS'h000200  // 24'hMMmmpp
+`define SPIF_VER_STR      "0.3.0"
+`define SPIF_VER_NUM      `HW_VER_BITS'h000300  // 24'hMMmmpp
 //---------------------------------------------------------------
 
 //---------------------------------------------------------------

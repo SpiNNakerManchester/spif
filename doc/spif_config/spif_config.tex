@@ -18,8 +18,8 @@
 % --------------------------------------------------------------------------
 % define useful variables
 % --------------------------------------------------------------------------
-\def\myversion{Version 0.2.0}
-\def\mydate{23 March 2023}
+\def\myversion{Version 0.3.0}
+\def\mydate{22 October 2023}
 
 \def\bcw{5mm}
 \def\ncw{45mm}
@@ -462,6 +462,7 @@
 		& $\bullet$ a frame is triggered whenever the length is reached or a periodic tick is hit.   \\%
 		& $\bullet$ SpiNNaker output is off by default.                                              \\%
 		& $\bullet$ a peripheral must send a message to spif (UDP port 3332) to start output.        \\%
+		& $\bullet$ output events are sent to the originating IP/UPD port of the latest command received on UDP port 3332.                      \\%
 		& $\bullet$ when output is off all received output packets are dropped.                      \\%
 		\hline
 	\end{tabularx}
@@ -518,6 +519,7 @@
 	\item 0.0.3 - 07/09/2021 - lap - added event filtering information.
 	\item 0.1.0 - 04/11/2022 - lap - updated event output functionality.
 	\item 0.2.0 - 22/03/2023 - lap - updated peripheral routing and distiller functionality.
+	\item 0.3.0 - 22/10/2023 - lap - extended event camera support.
 \end{itemize}
 
 

@@ -33,7 +33,7 @@
 
 // constants
 #define SPIFFER_VER_MAJ     0
-#define SPIFFER_VER_MIN     2
+#define SPIFFER_VER_MIN     3
 #define SPIFFER_VER_PAT     0
 #define SPIFFER_ERROR      -1
 #define SPIFFER_OK         0

@@ -58,7 +58,7 @@ MODULE_DEVICE_TABLE (of, spif_driver_of_match);
 // -------------------------------------------------------------------------
 // spif constants
 // -------------------------------------------------------------------------
-#define SPIF_DRV_VERSION     "0.2.0"
+#define SPIF_DRV_VERSION     "0.3.0"
 #define SPIF_DRV_NAME        "spif"
 
 // driver ioctl unreserved magic number (seq 0xf0 - 0xff)
