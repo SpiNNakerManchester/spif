@@ -94,10 +94,10 @@ int spif_open (uint pipe)
     return (-1);
   }
 
-  // get device buffer size
+  // get device buffer size (for a single pipe)
   (void) ioctl (fd, SPIF_BUF_SIZE, (void *) &(open_dummy[pipe]));
 
-  // map pipe memory buffer to user space
+  // map pipe memory (2x buffer size) to user space
   //NOTE: input buffer is located at beginning of pipe memory
   void * iva = mmap (NULL, 2 * open_dummy[pipe],
 		     PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
@@ -109,7 +109,7 @@ int spif_open (uint pipe)
 
   // map output buffer to user space
   //NOTE: output buffer is located after input buffer
-  void * ova = (void *) ((int) iva + open_dummy[pipe]);
+  void * ova = (void *) ((char *) iva + open_dummy[pipe]);
 
   // keep pipe state to service future requests
   pipe_data[pipe].fd       = fd;

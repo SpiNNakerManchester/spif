@@ -9,14 +9,16 @@ Current implementation features and limitations
 
 - started automatically during boot as a Linux service unit brokered by systemd,
 - USB device connections signalled by udev,
-- discovers and supports Davis cameras only. Adding camera types supported by the `libcaer` library is not a big task. Support for other cameras might be more challenging,
+- discovers and supports Inivation Davis cameras through the `libcaer` library. Adding other camera types supported by the library should not be a big task,
+- discovers and supports Prophesee cameras through the `OpenEB` library.
+- See below to add support for other cameras might be more challenging,
 - switches between UDP and USB listening as a result of USB camera connections and disconnections.
 - listens on UDP port 3333 and forwards events to spif pipe0,
 - listens on UDP port 3334 and forwards events to spif pipe1,
 - sorts USB cameras by serial number and connects the lower number to pipe0 and the higher number to pipe1,
 - transfers events arriving on UDP ports _as is_ to spif,
 - maps events arriving on USB to [`spiffer` events](#evt_fmt) before transferring them to spif,
-- writes a world-readable, root-writable transient log file (`/tmp/spiffer.log`). The log is used to report fatal errors during setup (UDP ports, USB devices and such) and listener status when USB devices connect or disconnect. 
+- writes a world-readable, root-writable transient log file (`/tmp/spiffer.log`). The log is used to report fatal errors during setup (UDP ports, USB devices and such) and listener status when USB devices connect or disconnect.
 
 
 <a name="evt_fmt"></a>`spiffer` events
@@ -42,33 +44,36 @@ In the current implementation timestamps are __not__ used - time models itself!
 Compilation
 -----------
 
-> use `make` to compile `spiffer` 
+> use `make` to compile `spiffer`
 
-`spiffer` has been compiled, installed and tested on the Ubuntu 20.04 distribution of Linux on a 32-bit ARM platform, and on the Ubuntu 18.04 distribution of Linux on a 64-bit ARM platform.
+`spiffer` has been compiled, installed and tested on the Ubuntu 20.04 distribution of Linux on both 32- and 64-bit ARM platforms.
+
+`spiffer` requires cmake - version 3.5 or higher.
 
 `spiffer` requires the pthread library.
 
-`spiffer` requires the libcaer library to support Davis cameras.
+`spiffer` requires the libcaer library to support Inivation Davis cameras. If not present, `spiffer` will compile without Inivation camera support.
 
+`spiffer` requires the OpenEB library to support Prophesee cameras. If not present, `spiffer` will compile without Prophesee camera support.
 
 Installation
 ------------
 
 `spiffer` operation requires setting new udev rules and creating a systemd service unit.
 
-> use `sudo make install` to install  `spiffer` 
+> use `sudo make install` to install  `spiffer`
 
 
 Supporting new USB devices
 --------------------------
 
-1. new rules should be added to `99-spiffer.rules` to detect device connections.
+1. New UDEV rules should be added to `99-spiffer.rules` to detect device connections.
 
-2. device discovery support should be added to function `usb_discover_devs`.
+2. The following functionality is necessary but may not be sufficient:
 
-The following functionality is necessary but may not be sufficient:
-
-- a function to open the device and return a device handle.
-- a function to read the device serial number or unique ID.
-- a function to read events from the device.
+- a function to discover and open the device and return a device handle,
+- a function to read the device serial number or unique ID,
+- a function to read events from the device and translate them into [`spiffer` events](#evt_fmt),
 - a function to close the device.
+
+See [`spiffer_caer_support.cpp`](https://github.com/SpiNNakerManchester/spif/blob/add_prophesee_support/spiffer/spiffer_caer_support.cpp) and [`spiffer_meta_supporrt.cpp`](https://github.com/SpiNNakerManchester/spif/blob/add_prophesee_support/spiffer/spiffer_meta_support.cpp) for examples of the above functionality for Inivation and Prophesee cameras, respectively.
