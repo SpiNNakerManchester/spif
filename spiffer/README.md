@@ -76,4 +76,4 @@ Supporting new USB devices
 - a function to read events from the device and translate them into [`spiffer` events](#evt_fmt),
 - a function to close the device.
 
-See [`spiffer_caer_support.cpp`](https://github.com/SpiNNakerManchester/spif/blob/master/spiffer/spiffer_caer_support.cpp) and [`spiffer_meta_supporrt.cpp`](https://github.com/SpiNNakerManchester/spif/blob/master/spiffer/spiffer_meta_support.cpp) for examples of the above functionality for Inivation and Prophesee cameras, respectively.
+See [`spiffer_caer_support.cpp`](https://github.com/SpiNNakerManchester/spif/blob/master/spiffer/spiffer_caer_support.cpp) and [`spiffer_meta_support.cpp`](https://github.com/SpiNNakerManchester/spif/blob/master/spiffer/spiffer_meta_support.cpp) for examples of the above functionality for Inivation and Prophesee cameras, respectively.
