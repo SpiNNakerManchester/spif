@@ -17,6 +17,10 @@ The designs were implemented and verified using `Xilinx Vivado version 2019.2`.
 
 Both platforms connect to the SpiNNaker system using a SATA cable and the spiNNlink protocol used in SpiNNaker systems for board-to-board interconnect.
 
+The following open-access publication describes the use of spif in a real-time closed-loop control system:
+
+JP Romero Bermudez, LA Plana, A Rowley, M Hessel, JE Pedersen, S Furber and J Conradt, "A High-Throughput Low-Latency Interface Board for SpiNNaker-in-the-loop Real-Time Systems", in ICONS '23: Proceedings of the 2023 International Conference on Neuromorphic Systems, Article No.: 28, Pages 1–8, doi: [10.1145/3589737.3605969](https://doi.org/10.1145/3589737.3605969)
+
 
 spiNNlink
 ---------
