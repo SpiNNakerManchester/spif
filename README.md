@@ -47,8 +47,8 @@ with input from J Conradt (KTH), JE Pedersen (KTH), JP Romero Bermúdez (KTH), A
 Acknowledgments
 ---------------
 
-The designs in this reposiory are being developed as part of a collaboration between the Advanced Processor Technologies group at The University of Manchester and the Neurocomputing Systems Lab at KTH Royal Institute of Technology, Stockholm.
+The designs in this reposiory were developed as part of a collaboration between the Advanced Processor Technologies group at The University of Manchester and the Neurocomputing Systems Lab at KTH Royal Institute of Technology, Stockholm.
 
-Ongoing development of the SpiNNaker Project is supported by the EU ICT Flagship Human Brain Project under Grant H2020-945539. LA Plana has been supported, in part, by the RAIN Hub, which is funded by the Industrial Strategy Challenge Fund, part of the government’s modern Industrial Strategy. The fund is delivered by UK Research and Innovation and managed by EPSRC under grant EP/R026084/1.
+The SpiNNaker Project was supported by the EU ICT Flagship Human Brain Project under Grant H2020-945539. LA Plana was supported, in part, by the RAIN Hub, which was funded by the Industrial Strategy Challenge Fund, part of the government’s modern Industrial Strategy. The fund was delivered by UK Research and Innovation and managed by EPSRC under grant EP/R026084/1.
 
 We gratefully acknowledge these institutions for their support.
