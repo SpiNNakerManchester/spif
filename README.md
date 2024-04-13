@@ -22,10 +22,16 @@ The following open-access publication describes the use of spif in a real-time c
 JP Romero Bermudez, LA Plana, A Rowley, M Hessel, JE Pedersen, S Furber and J Conradt, "A High-Throughput Low-Latency Interface Board for SpiNNaker-in-the-loop Real-Time Systems", in ICONS '23: Proceedings of the 2023 International Conference on Neuromorphic Systems, Article No.: 28, Pages 1–8, doi: [10.1145/3589737.3605969](https://doi.org/10.1145/3589737.3605969)
 
 
+spif microarchitecture
+-----------------
+
+![spif microarchitecture](spif_bd.png)
+
+
 spiNNlink
 ---------
 
-spiNNlink is the high-speed, serial (hss) board-to-board SpiNNaker interconnect.  It is implemented on three Spartan-6 FPGAs present on the SpiNN-5 board and is designed to provide transparent board-to-board connectivity. The details of the spiNNlink protocol are described in the [spiNNlink Frame Transport Specification](http://spinnakermanchester.github.io/docs/spiNNlink_frame_transport.pdf).
+spif connects to SpiNNaker machines through spiNNlink. spiNNlink is the high-speed, serial (hss) board-to-board SpiNNaker interconnect.  It is implemented on three Spartan-6 FPGAs present on the SpiNN-5 board and is designed to provide transparent board-to-board connectivity. The details of the spiNNlink protocol are described in the [spiNNlink Frame Transport Specification](http://spinnakermanchester.github.io/docs/spiNNlink_frame_transport.pdf).
 
 Verilog code for the spiNNlink modules is located in [spio/modules/hss_multiplexer](https://github.com/SpiNNakerManchester/spio/tree/master/modules/hss_multiplexer). See [spio/designs/spinnaker_fpgas](https://github.com/SpiNNakerManchester/spio/tree/master/designs/spinnaker_fpgas) for an example of how to use spiNNlink.
 
