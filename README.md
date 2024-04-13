@@ -5,6 +5,8 @@ spif: SpiNNaker peripheral interface
 
 This repository contains an FPGA design to interface event-based peripherals, such as event cameras or DVS, to a SpiNNaker system through a High-Speed Serial Link (HSSL).
 
+![SpiNNaker Interface Architecture](spin_per_if.png)
+
 The repository contains two designs that target different FPGA platforms:
 
 - `spif_on_zu9eg` -- Xilinx ZCU102 development board (ZYNQ Ultrascale+)
